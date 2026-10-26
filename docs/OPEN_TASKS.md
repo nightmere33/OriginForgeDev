@@ -1,7 +1,9 @@
 # OriginForge: open tasks
 
-Saved 26 October 2026, to pick up when there is usage budget. Branch
-`rebuild/originforge`; **nothing of the rebuild is committed yet** (do that first).
+Saved 26 October 2026. Branch `rebuild/originforge`: committed locally on 26 Oct
+(author = the GitHub noreply address, so it counts), **not pushed yet**: the repo is
+public, so pushing waits for Younes's OK. Old history still holds the pre-rebuild
+`db.sqlite3` and `frontend/.env` (a history purge is possible, ask first).
 
 ## Built in the last batch (working, not committed)
 
@@ -30,6 +32,19 @@ Saved 26 October 2026, to pick up when there is usage budget. Branch
 - Galaxy auto-feed: published projects without picked clips contribute 3 gallery items;
   every upload gets a 640 px galaxy still.
 - `deploy/nginx.conf` + `deploy/README.md` (ASGI, `/ws/`, Redis, hotlink protection).
+
+## Done 26 Oct (second round)
+
+- Sign-in / sign-up / reset redesigned (console, project mosaic, glitch on focus,
+  submit phases, error tear, show password) and live.
+- Google + Facebook sign-in built and tested (state, PKCE, appsecret_proof, link by
+  verified e-mail, deleted accounts refused); "Last used" method per device. Waiting
+  on Younes for the keys (steps in the chat of 26 Oct).
+- Live updates end to end: studio message reaches the client socket in 95 ms.
+- Production scroll = getartcraft.com (p50 6.1, p99 12.2 ms, 0 long frames); LCP 1.9 s, CLS 0.01.
+- Nightly checked backups (14 days) + 90-day log retention. Off-site copy still to add.
+- Fixed in production: update.sh reset the address (bash read the old script);
+  builds reused cached API answers (broken gallery images); both prevented now.
 
 ## To do next (in order)
 

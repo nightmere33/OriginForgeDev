@@ -5,6 +5,9 @@
 set -euo pipefail
 F=/srv/originforge/app/frontend
 cd "$F"
+# Next keeps fetched API answers between builds (.next/cache/fetch-cache): a
+# build must render today's content and settings, never a previous build's.
+rm -rf "$F/.next/cache/fetch-cache"
 if ! sudo -u originforge -H bash -c "NEXT_TELEMETRY_DISABLED=1 npm run build > /tmp/nextbuild.log 2>&1"; then
   tail -40 /tmp/nextbuild.log
   echo "build failed: the running site is unchanged only if .next was not touched; check it"

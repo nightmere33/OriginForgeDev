@@ -6,6 +6,7 @@ import { getGalaxy } from "@/lib/content";
 import { cn } from "@/lib/cn";
 import { Hud } from "@/components/ui/hud";
 import { SectionShell } from "@/components/ui/section-shell";
+import { GlitchLabel } from "@/motion/glitch";
 import { BootText, TearGroup } from "./auth-fx";
 
 export type AuthMode = "login" | "register" | "reset" | "verify" | "welcome";
@@ -110,7 +111,7 @@ export default async function AuthShell({
                           m === mode ? "text-ink" : "text-faint hover:bg-cell hover:text-ink",
                         )}
                       >
-                        {m === mode ? <BootText text={shell.tabs[m]} delay={200} /> : shell.tabs[m]}
+                        {m === mode ? <BootText text={shell.tabs[m]} delay={200} /> : <GlitchLabel text={shell.tabs[m]} />}
                         {m === mode && <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-ember-400" />}
                       </Link>
                     ))}

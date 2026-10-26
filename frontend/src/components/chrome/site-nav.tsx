@@ -6,13 +6,14 @@ import { CurrencySwitcher } from "@/lib/currency";
 import { ThemeToggle } from "@/lib/theme";
 import { LanguageSwitcher } from "./language-switcher";
 import { NotificationBell } from "./notification-bell";
-import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/cn";
 import { gsap } from "@/motion/gsap";
 import { BEATS, atBeat, introClock } from "@/motion/intro";
+import { BootText, GlitchLabel } from "@/motion/glitch";
 
 type NavText = Dictionary["nav"];
 
@@ -36,12 +37,19 @@ export default function SiteNav({ lang, t }: { lang: Locale; t: NavText }) {
     }, gsap.ticker);
   }, []);
 
+  // Counts openings, so the labels decode afresh each time the menu opens.
+  const [openings, setOpenings] = useState(0);
+  const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    document.documentElement.style.overflow = open ? "hidden" : "";
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenOn(null);
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, [open]);
+  const toggle = () => {
+    if (!open) setOpenings((n) => n + 1);
+    setOpen(!open);
+  };
 
   const links = [
     { href: `/${lang}/work`, label: t.work, match: `/${lang}/work` },
@@ -121,7 +129,7 @@ export default function SiteNav({ lang, t }: { lang: Locale; t: NavText }) {
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? t.close : t.menu}
-            onClick={() => setOpen(!open)}
+            onClick={toggle}
             className="flex w-12 items-center justify-center border-l border-line text-ink md:hidden"
           >
             {open ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
@@ -129,34 +137,92 @@ export default function SiteNav({ lang, t }: { lang: Locale; t: NavText }) {
         </div>
       </nav>
 
-      {open && (
-        <div id="mobile-menu" className="fixed inset-x-0 bottom-0 top-12 z-50 flex flex-col bg-steel-950 md:hidden">
-          <ul className="divide-y divide-line border-b border-line">
-            {links.map((link, i) => (
-              <li key={link.href}>
-                <Link href={link.href} className="flex items-baseline gap-4 px-6 py-5 font-display text-h3 text-ink-strong [font-stretch:125%]">
-                  <span className="hud text-faint">{String(i + 1).padStart(2, "0")}</span>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <Link href={account.href} className="hud flex px-6 py-5 text-muted">
-                {account.label}
-              </Link>
-            </li>
+      {/* In flow inside the sticky header, as on getartcraft.com: it shares the
+          header's opaque, blurred surface (a position: fixed overlay here is
+          trapped by the header's backdrop-filter and collapses to zero height).
+          Its height glides from 0 to its content (grid rows 0fr to 1fr), so the
+          page below is pushed down smoothly rather than at once. */}
+      <div
+        id="mobile-menu"
+        inert={!open}
+        aria-hidden={!open}
+        className={cn(
+          "grid transition-[grid-template-rows] duration-[560ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:hidden",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+        <div
+          ref={panel}
+          data-lenis-prevent
+          className={cn(
+            "max-h-[calc(100svh-3rem)] overflow-y-auto overscroll-contain border-t border-line transition-opacity duration-300 motion-reduce:transition-none",
+            open ? "opacity-100" : "opacity-0",
+          )}
+        >
+          <ul className="flex flex-col py-2">
+            {links.map((link, i) => {
+              const active = link.match ? pathname.startsWith(link.match) : false;
+              return (
+                <li
+                  key={link.href}
+                  // Rows settle one after another while the panel opens.
+                  style={{ transitionDelay: open ? `${90 + i * 55}ms` : "0ms" }}
+                  className={cn(
+                    "transition-[opacity,transform] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                    open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
+                  )}
+                >
+                  <Link
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className="group/m flex items-center gap-3 px-4 py-3"
+                  >
+                    <span className="hud w-6 text-faint">{String(i + 1).padStart(2, "0")}</span>
+                    {/* The inversion sits on the label, not the row. */}
+                    <span
+                      className={cn(
+                        "hud px-1.5 py-0.5 transition-colors duration-[var(--dur-micro)]",
+                        active ? "bg-steel-50 text-steel-950" : "text-muted group-active/m:bg-steel-50 group-active/m:text-steel-950",
+                      )}
+                    >
+                      {open ? <BootText key={openings} text={link.label} delay={120 + i * 55} /> : link.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
-          <div className="mt-auto flex flex-col gap-4 p-6">
-            <ThemeToggle labels={{ light: t.themeLight, dark: t.themeDark }} className="h-12 w-full border border-line" />
-            <Link
-              href={`/${lang}/start`}
-              className="flex h-12 w-full items-center justify-center bg-ember-500 font-mono text-hud font-bold uppercase tracking-[0.12em] text-on-ember"
-            >
-              {t.start}
-            </Link>
+          <Link
+            href={`/${lang}/start`}
+            onClick={() => setOpen(false)}
+            className="flex h-11 w-full items-center justify-center gap-2 border-t border-line bg-ember-500 font-mono text-hud font-bold uppercase tracking-[0.12em] text-on-ember active:bg-ember-600"
+          >
+            <GlitchLabel text={t.start} />
+            <ArrowRight aria-hidden className="size-3.5" />
+          </Link>
+          <div className="flex items-stretch border-t border-line">
+            {(user
+              ? [account, { href: `/${lang}/portal/settings`, label: t.settings }]
+              : [account, { href: `/${lang}/register`, label: t.register }]
+            ).map((item, i) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "hud flex h-11 flex-1 items-center justify-center text-muted active:bg-steel-50 active:text-steel-950",
+                  i === 0 && "border-r border-line",
+                )}
+              >
+                <GlitchLabel text={item.label} />
+              </Link>
+            ))}
           </div>
         </div>
-      )}
+        </div>
+      </div>
     </header>
   );
 }

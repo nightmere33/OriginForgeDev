@@ -3,25 +3,11 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { DecodeText, SPLIT, tearIn, useDecode } from "@/motion/glitch";
+import { DecodeText, GlitchLabel, SPLIT, tearIn, useDecode } from "@/motion/glitch";
 import { Input } from "@/components/ui/field";
 
-/**
- * Text that decodes once when the page arrives (after `delay` ms). The server
- * sends the final words; on the client they resolve out of glyphs, then stay.
- */
-export function BootText({ text, delay = 0, className }: { text: string; delay?: number; className?: string }) {
-  const { shown, glitching, run } = useDecode(text, 560);
-  useEffect(() => {
-    const t = window.setTimeout(run, delay);
-    return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return (
-    <span className={className} style={glitching ? SPLIT : undefined}>
-      {shown}
-    </span>
-  );
-}
+export { BootText } from "@/motion/glitch";
+import { BootText } from "@/motion/glitch";
 
 /** Children tear in one after another when the page arrives. */
 export function TearGroup({ children, className, start = 0, step = 70 }: { children: ReactNode; className?: string; start?: number; step?: number }) {
@@ -117,7 +103,7 @@ export function PhaseButton({ phase, labels }: { phase: Phase; labels: Record<Ph
     >
       {phase === "busy" && <span aria-hidden className="auth-busy absolute inset-y-0 left-0 w-1/3" />}
       <span className="relative" aria-live="polite">
-        <DecodeText text={labels[phase]} />
+        <GlitchLabel text={labels[phase]} />
       </span>
     </button>
   );

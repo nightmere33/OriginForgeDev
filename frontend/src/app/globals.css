@@ -23,6 +23,11 @@
   --ember-300: #ffb070;
   --ember-400: #ff8a3d;
   --ember-500: #ff6a1a;
+  /* Payment marks set as type (ui/secure-payments.tsx): PayPal and Tether ink,
+     lifted for the dark surface. */
+  --mark-paypal-1: #e6ebfa;
+  --mark-paypal-2: #4fb3f6;
+  --mark-tether: #34c294;
   /* Gold: review stars only (DESIGN.md §2). */
   --gold-300: #ffd27a;
   --gold-400: #f5b83d;
@@ -81,6 +86,9 @@
   --steel-990: #e6e4de;
 
   --ember-400: #c2410c;
+  --mark-paypal-1: #003087;
+  --mark-paypal-2: #0079c1;
+  --mark-tether: #1a8f6a;
   --gold-300: #e2a531;
   --gold-400: #c98a0b;
   --gold-600: #8a5c04;

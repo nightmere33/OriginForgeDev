@@ -23,7 +23,9 @@
     "notifications": "Notifications",
     "markAllRead": "Mark all read",
     "noNotifications": "Nothing new yet.",
-    "openNotification": "Open"
+    "openNotification": "Open",
+    "register": "Create account",
+    "settings": "Settings"
   },
   "hero": {
     "title": [

@@ -7,7 +7,7 @@ import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { api, ApiError, type User } from "@/lib/api-client";
 import { fetchSession } from "@/lib/session";
 import { Hud } from "@/components/ui/hud";
-import { tearIn } from "@/motion/glitch";
+import { GlitchLabel, tearIn } from "@/motion/glitch";
 import { AuthField, BootText, OAuthNotice, PhaseButton, ProviderButtons, rememberMethod, type Phase } from "./auth-fx";
 
 type T = Pick<Dictionary, "auth" | "common">;
@@ -93,8 +93,8 @@ export function LoginForm({ lang, t }: { lang: Locale; t: T }) {
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.login)} />
         <div className="flex flex-wrap justify-between gap-3">
-          <Link href={`/${lang}/reset`} className="hud text-muted hover:text-ember-400">{a.forgot}</Link>
-          <Link href={`/${lang}/register`} className="hud text-muted hover:text-ember-400">{a.noAccount}</Link>
+          <Link href={`/${lang}/reset`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.forgot} /></Link>
+          <Link href={`/${lang}/register`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.noAccount} /></Link>
         </div>
       </form>
     </div>
@@ -135,7 +135,7 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
           error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.register)} />
-        <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400">{a.hasAccount}</Link>
+        <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.hasAccount} /></Link>
       </form>
     </div>
   );
@@ -180,7 +180,7 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
       )}
       <FormError message={errors.form} />
       <PhaseButton phase={phase} labels={phases(uid ? a.phases.resetConfirm : a.phases.reset)} />
-      <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400">← {a.submitLogin}</Link>
+      <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400">← <GlitchLabel text={a.submitLogin} /></Link>
     </form>
   );
 }

@@ -65,6 +65,59 @@ export function DecodeText({ text, className, digits }: { text: string; classNam
   );
 }
 
+/**
+ * Text that decodes once when it first appears (after `delay` ms). The server
+ * sends the final words; on the client they resolve out of glyphs, then stay.
+ */
+export function BootText({ text, delay = 0, className }: { text: string; delay?: number; className?: string }) {
+  const { shown, glitching, run } = useDecode(text, 560);
+  useEffect(() => {
+    const t = window.setTimeout(run, delay);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <span className={className} style={glitching ? SPLIT : undefined}>
+      {shown}
+    </span>
+  );
+}
+
+/**
+ * The label of a button or link: it decodes when the control is hovered,
+ * focused or tapped, and whenever its words change (Sign in → Verifying).
+ * Drop it inside the control; it listens on the closest a/button.
+ */
+export function GlitchLabel({ text, className }: { text: string; className?: string }) {
+  const { shown, glitching, run } = useDecode(text);
+  const ref = useRef<HTMLSpanElement>(null);
+  const latest = useRef(run);
+  const last = useRef(text);
+  useEffect(() => {
+    latest.current = run;
+  });
+  useEffect(() => {
+    if (last.current === text) return;
+    last.current = text;
+    run();
+  }, [text]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const host = ref.current?.closest("a, button, [role=button]");
+    if (!host) return;
+    const go = () => latest.current();
+    host.addEventListener("pointerenter", go);
+    host.addEventListener("focus", go);
+    return () => {
+      host.removeEventListener("pointerenter", go);
+      host.removeEventListener("focus", go);
+    };
+  }, []);
+  return (
+    <span ref={ref} className={className} style={glitching ? SPLIT : undefined}>
+      {shown}
+    </span>
+  );
+}
+
 /** Tear a freshly opened panel in: horizontal slices and a skew jitter, then settle. */
 export function tearIn(el: Element | null, delay = 0) {
   if (!el || reduced()) return;

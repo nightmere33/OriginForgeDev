@@ -88,8 +88,8 @@ export function LoginForm({ lang, t }: { lang: Locale; t: T }) {
       <OAuthNotice code={params.get("oauth")} messages={a.oauth.errors} />
       <ProviderButtons lang={lang} next={params.get("next")} labels={a.oauth} />
       <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
-        <AuthField label={a.password} name="password" type="password" autoComplete="current-password" error={errors.password} reveal={reveal} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
+        <AuthField label={a.password} name="password" type="password" autoComplete="current-password" placeholder={a.placeholders.password} error={errors.password} reveal={reveal} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.login)} />
         <div className="flex flex-wrap justify-between gap-3">
@@ -129,10 +129,10 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
       <OAuthNotice code={params.get("oauth")} messages={a.oauth.errors} />
       <ProviderButtons lang={lang} next={params.get("next")} labels={a.oauth} />
       <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-        <AuthField label={a.fullName} name="full_name" autoComplete="name" error={errors.full_name} />
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
+        <AuthField label={a.fullName} name="full_name" autoComplete="name" placeholder={a.placeholders.fullName} error={errors.full_name} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
         <AuthField label={a.password} name="password" type="password" autoComplete="new-password" minLength={10}
-          error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
+          placeholder={a.placeholders.newPassword} error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.register)} />
         <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.hasAccount} /></Link>
@@ -174,9 +174,9 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
     <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       {uid && token ? (
         <AuthField label={a.newPassword} name="password" type="password" autoComplete="new-password" minLength={10}
-          error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
+          placeholder={a.placeholders.newPassword} error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
       ) : (
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
       )}
       <FormError message={errors.form} />
       <PhaseButton phase={phase} labels={phases(uid ? a.phases.resetConfirm : a.phases.reset)} />

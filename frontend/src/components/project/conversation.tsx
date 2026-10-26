@@ -6,7 +6,7 @@ import { useLiveRefresh } from "@/lib/live";
 import { api } from "@/lib/api-client";
 import { dateTime, type Message } from "@/lib/lifecycle";
 import { Button } from "@/components/ui/button";
-import { formatBytes } from "@/components/ui/field";
+import { formatBytes, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { cn } from "@/lib/cn";
 import { ErrorLine, errorText, type PanelProps } from "./shared";
@@ -188,7 +188,8 @@ export function Conversation({ lang, t, side, reference, enabled }: Omit<PanelPr
           }}
           className="flex flex-col border border-t-0 border-line bg-cell"
         >
-          <textarea
+          <Textarea
+            bare
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => {

@@ -26,6 +26,7 @@ type FieldProps = {
   minLength?: number;
   error?: string;
   help?: string;
+  placeholder?: string;
   reveal?: { show: string; hide: string };
 };
 
@@ -33,7 +34,7 @@ type FieldProps = {
  * A sign-in field: the label decodes and an ember line sweeps across the box
  * when it takes focus; an error tears in; passwords can be shown.
  */
-export function AuthField({ label, name, type = "text", autoComplete, minLength, error, help, reveal }: FieldProps) {
+export function AuthField({ label, name, type = "text", autoComplete, minLength, error, help, placeholder, reveal }: FieldProps) {
   const id = useId();
   const { shown, glitching, run } = useDecode(label);
   const [visible, setVisible] = useState(false);
@@ -56,11 +57,12 @@ export function AuthField({ label, name, type = "text", autoComplete, minLength,
           type={password && visible ? "text" : type}
           autoComplete={autoComplete}
           minLength={minLength}
+          placeholder={placeholder}
           required
           aria-invalid={!!error}
           aria-describedby={[errorId, helpId].filter(Boolean).join(" ") || undefined}
           onFocus={run}
-          className={cn(password && reveal && "pr-12")}
+          className={cn("font-mono text-[15px]", password && reveal && "pr-12")}
         />
         {password && reveal && (
           <button
@@ -246,5 +248,53 @@ export function OAuthNotice({ code, messages }: { code: string | null; messages:
       <span aria-hidden className="mt-1.5 size-1.5 shrink-0 bg-err" />
       {messages[code]}
     </p>
+  );
+}
+
+// ── The live mosaic on the sign-in page ──────────────────────────────────
+
+/** One still glitches: a jolt, a red/blue split and a sliced band, ~0.3 s. */
+function glitchTile(el: Element) {
+  const a = Math.random() * 70;
+  const b = Math.min(96, a + 10 + Math.random() * 22);
+  el.animate(
+    [
+      { transform: "none", filter: "none", clipPath: "inset(0 0 0 0)" },
+      { transform: "translate3d(7px,0,0)", filter: "drop-shadow(3px 0 rgb(255 70 60 / 0.75)) drop-shadow(-3px 0 rgb(60 150 255 / 0.75))", clipPath: `inset(${a}% 0 ${100 - b}% 0)`, offset: 0.25 },
+      { transform: "translate3d(-5px,0,0)", filter: "drop-shadow(-2px 0 rgb(255 70 60 / 0.6)) drop-shadow(2px 0 rgb(60 150 255 / 0.6)) brightness(1.25)", clipPath: "inset(0 0 0 0)", offset: 0.5 },
+      { transform: "translate3d(2px,0,0)", filter: "none", clipPath: `inset(${b}% 0 0 0)`, offset: 0.75 },
+      { transform: "none", filter: "none", clipPath: "inset(0 0 0 0)" },
+    ],
+    { duration: 300, easing: "steps(6, end)" },
+  );
+}
+
+/**
+ * The project mosaic stays alive while the page is open: scanlines drift,
+ * grain flickers, an ember scan bar sweeps down (CSS), and every few seconds
+ * a random still glitches. Stops for reduced motion; idles in a hidden tab.
+ */
+export function MosaicGlitch({ children, className }: { children: ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let timer = 0;
+    const next = () => {
+      timer = window.setTimeout(() => {
+        const tiles = ref.current ? [...ref.current.querySelectorAll("img")] : [];
+        if (!document.hidden && tiles.length) glitchTile(tiles[Math.floor(Math.random() * tiles.length)]);
+        next();
+      }, 1700 + Math.random() * 1600);
+    };
+    next();
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div ref={ref} className={cn("relative overflow-hidden", className)}>
+      {children}
+      <div aria-hidden className="auth-scanlines auth-scanlines-live pointer-events-none absolute inset-0" />
+      <div aria-hidden className="auth-grain pointer-events-none absolute -inset-1/2" />
+      <div aria-hidden className="auth-sweep pointer-events-none absolute inset-x-0 top-0 h-1/4" />
+    </div>
   );
 }

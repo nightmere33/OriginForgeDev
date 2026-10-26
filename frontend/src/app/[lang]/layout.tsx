@@ -36,16 +36,24 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await lang();
   if (!hasLocale(locale)) return {};
   const t = await getDictionary(locale);
+  // The link preview (Discord, WhatsApp, LinkedIn, forums, X): a 1200x630 banner
+  // per language, made from the site itself (public/og, see DESIGN.md §5).
+  const banner = { url: `/og/originforge-${locale}.jpg`, width: 1200, height: 630, alt: t.meta.ogAlt, type: "image/jpeg" };
   return {
     metadataBase: new URL(SITE_URL),
     title: { default: t.meta.title, template: "%s · OriginForge" },
     description: t.meta.description,
-    alternates: { canonical: `/${locale}`, languages: { en: "/en", fr: "/fr" } },
+    applicationName: "OriginForge",
+    authors: [{ name: "Younes Ouali", url: SITE_URL }],
+    creator: "Younes Ouali",
+    keywords: t.meta.keywords,
+    alternates: { canonical: `/${locale}`, languages: { en: "/en", fr: "/fr", "x-default": "/en" } },
     openGraph: {
-      type: "website", siteName: "OriginForge", locale: locale === "fr" ? "fr_DZ" : "en_US",
-      title: t.meta.title, description: t.meta.description,
+      type: "website", siteName: "OriginForge", locale: locale === "fr" ? "fr_FR" : "en_US",
+      alternateLocale: locale === "fr" ? ["en_US"] : ["fr_FR"],
+      url: `/${locale}`, title: t.meta.title, description: t.meta.description, images: [banner],
     },
-    twitter: { card: "summary_large_image", title: t.meta.title, description: t.meta.description },
+    twitter: { card: "summary_large_image", title: t.meta.title, description: t.meta.description, images: [banner] },
   };
 }
 

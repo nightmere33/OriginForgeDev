@@ -29,7 +29,11 @@ export type TitleMark = { id: string; label: string; top: number };
  */
 const BASE = 34; // px the letters are rendered at; every state is a scale of it
 const SMALL = 11; // queued and passed titles, px
-const ROW = 15; // px between stacked titles
+const ROW = 16; // px between stacked titles
+// The wordmark's own letters carry their font box lower than an overlay title
+// of the same size (measured: 7px at 11px), so stacked they would sit on the
+// next row. They are lifted by that much, in proportion to the stack size.
+const HERO_LIFT = 0.64 * SMALL;
 const STAGGER = 0.045; // share of the transition each letter waits after the previous
 const ARC = 18; // px the letters bow out to the left mid-flight
 const FROST_TOP = 92; // the top frost starts under the sticky section eyebrow, never over it
@@ -155,7 +159,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
           const yCurrent = top + passedRows * ROW + 4;
           const yPassed = top + i * ROW;
           let x = q * at(small) + c * at(current) + pa * at(small);
-          let ty = q * yQueue + c * yCurrent + pa * yPassed;
+          let ty = q * yQueue + c * yCurrent + pa * (yPassed - (isHero ? HERO_LIFT : 0));
           // Scale blends with the early-settling weights.
           let k = isHero ? ps * small : (1 - as) * small + (as - ps) * current + ps * small;
           if (isHero && hero[j]) {

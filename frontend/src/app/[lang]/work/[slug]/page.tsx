@@ -34,7 +34,16 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/work/[slug
     title: study.title,
     description: study.tagline,
     alternates: { canonical: `/${lang}/work/${slug}`, languages: { en: `/en/work/${slug}`, fr: `/fr/work/${slug}` } },
-    openGraph: { title: `${study.title} · OriginForge`, description: study.tagline, images: study.cover_image ? [study.cover_image] : [] },
+    // The project's own cover as its preview; the site banner when it has none.
+    openGraph: {
+      type: "article", url: `/${lang}/work/${slug}`, siteName: "OriginForge",
+      title: `${study.title} · OriginForge`, description: study.tagline,
+      images: [study.cover_image ? { url: study.cover_image, alt: study.title } : { url: `/og/originforge-${lang}.jpg`, width: 1200, height: 630, alt: study.title }],
+    },
+    twitter: {
+      card: "summary_large_image", title: `${study.title} · OriginForge`, description: study.tagline,
+      images: [study.cover_image ?? `/og/originforge-${lang}.jpg`],
+    },
   };
 }
 

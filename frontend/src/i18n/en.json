@@ -1,7 +1,19 @@
 {
   "meta": {
     "title": "OriginForge · Younes Ouali, full-stack developer",
-    "description": "Web platforms, mobile apps, payments and automation, designed, built and shipped end to end by Younes Ouali. Based in Algeria, working worldwide."
+    "description": "Web platforms, mobile apps, payments and automation, designed, built and shipped end to end by Younes Ouali. Based in Algeria, working worldwide.",
+    "ogAlt": "OriginForge, Younes Ouali, full-stack developer: software, forged to order.",
+    "keywords": [
+      "full-stack developer",
+      "web development",
+      "mobile apps",
+      "Flutter",
+      "Next.js",
+      "Django",
+      "Chargily",
+      "Algeria",
+      "freelance developer"
+    ]
   },
   "nav": {
     "work": "Work",
@@ -469,7 +481,13 @@
     },
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "passwordHelp": "At least 10 characters."
+    "passwordHelp": "At least 10 characters.",
+    "placeholders": {
+      "email": "you@company.com",
+      "password": "Your password",
+      "newPassword": "At least 10 characters",
+      "fullName": "First and last name"
+    }
   },
   "portal": {
     "title": [

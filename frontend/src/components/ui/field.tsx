@@ -1,9 +1,10 @@
 "use client";
 
-import { Children, isValidElement, useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
+import { Children, isValidElement, useEffect, useId, useImperativeHandle, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { Check, ChevronDown, FileText, UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { DecodeText, SPLIT, tearIn, useDecode, useDismiss } from "@/motion/glitch";
+import { TEXT_TYPES, TYPED_FIELD, TypedMirror, useTypingFx } from "./typed-text";
 
 /** DESIGN.md §5 Field set: one wrapper owns label, help, error and their ids. */
 export function Field({
@@ -46,12 +47,33 @@ const control =
   "focus:border-ember-400 focus:shadow-[inset_0_0_0_1px_var(--ember-400)] focus:outline-none " +
   "aria-[invalid=true]:border-err disabled:cursor-not-allowed disabled:opacity-50";
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input className={cn(control, "h-12", className)} {...props} />;
+/**
+ * Text fields. What is typed decodes in (ui/typed-text.tsx): the wrapper is
+ * always there, so the field never remounts when the effect switches on.
+ */
+export function Input({ className, ref, type, ...props }: ComponentProps<"input">) {
+  const fx = useTypingFx() && TEXT_TYPES.has(type ?? "text");
+  const own = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => own.current as HTMLInputElement, []);
+  return (
+    <span className="relative block">
+      <input ref={own} type={type} className={cn(control, "h-12", fx && TYPED_FIELD, className)} {...props} />
+      {fx && <TypedMirror field={own} masked={type === "password"} value={props.value} />}
+    </span>
+  );
 }
 
-export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return <textarea className={cn(control, "min-h-32 resize-y py-3 leading-relaxed", className)} {...props} />;
+/** `bare`: no frame of its own (a composer that lives inside another frame). */
+export function Textarea({ className, ref, bare, ...props }: ComponentProps<"textarea"> & { bare?: boolean }) {
+  const fx = useTypingFx();
+  const own = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => own.current as HTMLTextAreaElement, []);
+  return (
+    <span className="relative block">
+      <textarea ref={own} className={cn(!bare && control, !bare && "min-h-32 resize-y py-3 leading-relaxed", fx && TYPED_FIELD, className)} {...props} />
+      {fx && <TypedMirror field={own} masked={false} multiline value={props.value} />}
+    </span>
+  );
 }
 
 type Opt = { value: string; label: string; disabled: boolean };

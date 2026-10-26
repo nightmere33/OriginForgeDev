@@ -1,0 +1,32 @@
+# Secrets & local config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite3
+backend/media/
+backend/private_media/
+backend/staticfiles/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Media pipeline work files (sources live outside the repo)
+scripts/media/work/
+
+# Tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+playwright-report/
+test-results/

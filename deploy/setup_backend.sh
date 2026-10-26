@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install/refresh the Django side of OriginForge on the VPS (run as root).
-#   ORIGIN  public origin of the site   (default: the bare IP, before the domain)
+#   ORIGIN  public origin of the site   (default: the current SITE_URL, else the bare IP)
 #   HOSTS   comma list of host names    (default: the bare IP)
 #   CSRF    trusted origins for forms   (default: ORIGIN)
 # Secrets already live in /srv/originforge/shared/backend.env (provision_base.sh);
@@ -9,8 +9,13 @@ set -euo pipefail
 APP=/srv/originforge/app
 SH=/srv/originforge/shared
 ENVF=$SH/backend.env
+# Unset values keep what the server already has (so an update never undoes the domain).
+cur() { grep "^$1=" "$ENVF" 2>/dev/null | cut -d= -f2- || true; }
+ORIGIN=${ORIGIN:-$(cur SITE_URL)}
 ORIGIN=${ORIGIN:-http://76.13.3.229}
+HOSTS=${HOSTS:-$(cur DJANGO_ALLOWED_HOSTS | sed 's/,localhost,127\.0\.0\.1$//')}
 HOSTS=${HOSTS:-76.13.3.229}
+CSRF=${CSRF:-$(cur DJANGO_CSRF_TRUSTED_ORIGINS)}
 CSRF=${CSRF:-$ORIGIN}
 as_app() { sudo -u originforge -H "$@"; }
 

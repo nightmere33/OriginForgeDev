@@ -7,6 +7,8 @@
 set -euo pipefail
 APP=/srv/originforge/app
 SH=/srv/originforge/shared
+# Unset: keep the site's current address (SITE_URL in the backend settings).
+ORIGIN=${ORIGIN:-$(grep '^SITE_URL=' "$SH/backend.env" 2>/dev/null | cut -d= -f2- || true)}
 ORIGIN=${ORIGIN:-http://76.13.3.229}
 
 # Frontend settings (build and runtime). The revalidation secret is copied from

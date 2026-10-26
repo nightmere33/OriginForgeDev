@@ -1,0 +1,15 @@
+Django>=6.0,<6.1
+djangorestframework>=3.16
+dj-database-url>=2.3
+python-dotenv>=1.0
+Pillow>=12.0
+httpx>=0.28
+celery>=5.5
+redis>=5.2
+psycopg[binary]>=3.2
+gunicorn>=23.0 ; sys_platform != "win32"
+# Live updates (WebSockets): ASGI server + channel layer (Redis in production)
+channels>=4.2
+channels-redis>=4.2
+daphne>=4.1
+uvicorn[standard]>=0.32 ; sys_platform != "win32"

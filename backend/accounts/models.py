@@ -1,0 +1,114 @@
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+
+
+class UserManager(BaseUserManager):
+    use_in_migrations = True
+
+    def _create_user(self, email, password, **extra):
+        if not email:
+            raise ValueError("An e-mail address is required.")
+        user = self.model(email=self.normalize_email(email).lower(), **extra)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, email, password=None, **extra):
+        extra.setdefault("is_staff", False)
+        extra.setdefault("is_superuser", False)
+        return self._create_user(email, password, **extra)
+
+    def create_superuser(self, email, password=None, **extra):
+        extra.setdefault("is_staff", True)
+        extra.setdefault("is_superuser", True)
+        extra.setdefault("role", User.Role.DEVELOPER)
+        return self._create_user(email, password, **extra)
+
+
+class User(AbstractUser):
+    """Clients sign in with their e-mail. The developer is the studio owner."""
+
+    class Role(models.TextChoices):
+        CLIENT = "client", "Client"
+        DEVELOPER = "developer", "Developer"
+
+    class Language(models.TextChoices):
+        EN = "en", "English"
+        FR = "fr", "Français"
+        AR = "ar", "العربية"
+
+    username = None
+    first_name = None
+    last_name = None
+
+    email = models.EmailField(unique=True)
+    full_name = models.CharField(max_length=150)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
+    company = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    whatsapp = models.CharField(max_length=40, blank=True)
+    country = models.CharField(max_length=80, blank=True)
+    language = models.CharField(max_length=2, choices=Language.choices, default=Language.EN)
+    # How prices are shown to this person (amounts in a contract keep their own currency).
+    currency = models.CharField(max_length=3, choices=[(c, c) for c in ("DZD", "EUR", "USD")], default="DZD")
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+
+    # Onboarding (asked once after sign-up; editable in settings).
+    class HeardFrom(models.TextChoices):
+        INSTAGRAM = "instagram", "Instagram"
+        FACEBOOK = "facebook", "Facebook"
+        TIKTOK = "tiktok", "TikTok"
+        LINKEDIN = "linkedin", "LinkedIn"
+        YOUTUBE = "youtube", "YouTube"
+        GOOGLE = "google", "Google search"
+        GITHUB = "github", "GitHub"
+        FRIEND = "friend", "A friend or colleague"
+        CLIENT = "client", "A past client"
+        OTHER = "other", "Other"
+
+    class Channel(models.TextChoices):
+        SITE = "site", "Website chat"
+        WHATSAPP = "whatsapp", "WhatsApp"
+        INSTAGRAM = "instagram", "Instagram"
+        DISCORD = "discord", "Discord"
+        EMAIL = "email", "E-mail"
+        PHONE = "phone", "Phone call"
+
+    heard_from = models.CharField(max_length=20, choices=HeardFrom.choices, blank=True)
+    heard_from_detail = models.CharField(max_length=160, blank=True, help_text="Who referred them, or what 'other' was")
+    contact_channel = models.CharField(max_length=20, choices=Channel.choices, default=Channel.SITE)
+    contact_handle = models.CharField(max_length=120, blank=True, help_text="Their @ on Instagram, Discord username, etc.")
+    onboarded_at = models.DateTimeField(null=True, blank=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["full_name"]
+
+    objects = UserManager()
+
+    @property
+    def is_developer(self) -> bool:
+        return self.role == self.Role.DEVELOPER or self.is_staff
+
+    def __str__(self):
+        return f"{self.full_name} <{self.email}>"
+
+
+class SocialAccount(models.Model):
+    """A Google or Facebook identity linked to an account (accounts/oauth.py)."""
+
+    class Provider(models.TextChoices):
+        GOOGLE = "google", "Google"
+        FACEBOOK = "facebook", "Facebook"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="social_accounts")
+    provider = models.CharField(max_length=20, choices=Provider.choices)
+    uid = models.CharField(max_length=191, help_text="The provider's id for this person")
+    email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["provider", "uid"], name="unique_social_identity")]
+
+    def __str__(self):
+        return f"{self.get_provider_display()} · {self.email or self.uid}"

@@ -37,7 +37,12 @@
     "noNotifications": "Rien de nouveau pour l'instant.",
     "openNotification": "Ouvrir",
     "register": "Créer un compte",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "clearAll": "Tout effacer",
+    "clearConfirm": "Tout effacer ?",
+    "clearYes": "Effacer",
+    "clearKeep": "Garder",
+    "dismiss": "Retirer"
   },
   "hero": {
     "title": [
@@ -110,8 +115,11 @@
       "from": "À partir de {price}",
       "fixed": "{price}",
       "monthly": "{price} / mois",
-      "hourly": "{price} / heure"
-    }
+      "hourly": "{price} / heure",
+      "per_minute": "À partir de {price} / min"
+    },
+    "alsoOnRequest": "Aussi sur demande : des jeux sous Unity pour PC et Android.",
+    "alsoOnRequestCta": "Parlons-en"
   },
   "process": {
     "index": "03",
@@ -271,7 +279,7 @@
       "Récapitulatif"
     ],
     "service": "De quoi avez-vous besoin ?",
-    "serviceOther": "Je ne sais pas encore",
+    "serviceOther": "Autre chose",
     "projectTitle": "Nom du projet",
     "projectTitleHelp": "Quelques mots, par ex. « Site de réservation pour ma maison d'hôtes ».",
     "objectives": "Que doit-il accomplir ?",
@@ -377,7 +385,8 @@
     "estimateConverted": "Pas encore de prix fixé dans cette devise : converti depuis le DZD au taux du marché du jour.",
     "discard": "Supprimer le brouillon",
     "discardConfirm": "Supprimer",
-    "discardKeep": "Garder"
+    "discardKeep": "Garder",
+    "serviceOtherHelp": "Jeux sous Unity et autres projets, sur devis."
   },
   "auth": {
     "loginTitle": [
@@ -630,6 +639,192 @@
       "unpublish": "Dépublier",
       "reject": "Renvoyer",
       "sendBack": "Renvoyer au client"
+    },
+    "dash": {
+      "tabs": {
+        "overview": "Vue d'ensemble",
+        "requests": "Demandes",
+        "clients": "Clients",
+        "payments": "Paiements",
+        "reviews": "Avis",
+        "settings": "Réglages",
+        "kit": "Kit"
+      },
+      "overview": {
+        "title": [
+          "Tableau ",
+          "de bord."
+        ],
+        "lead": "Votre activité d'un coup d'œil : demandes, clients, projets et argent, en direct."
+      },
+      "requestsPage": {
+        "title": [
+          "Boîte ",
+          "de réception."
+        ],
+        "lead": "Les demandes des clients, les plus récentes d'abord."
+      },
+      "clientsPage": {
+        "title": [
+          "Vos ",
+          "clients."
+        ],
+        "lead": "Tous ceux qui ont un compte, comment ils vous ont trouvé et comment les joindre."
+      },
+      "paymentsPage": {
+        "title": [
+          "Argent ",
+          "reçu et attendu."
+        ],
+        "lead": "Reçus à vérifier, paiements en attente, et ce qui est arrivé."
+      },
+      "settingsPage": {
+        "title": [
+          "Réglages ",
+          "du studio."
+        ],
+        "lead": "Vos coordonnées, votre disponibilité, vos informations de paiement et vos prix de départ. Les changements sont en ligne en moins d'une minute."
+      },
+      "kpi": {
+        "newRequests": "Nouvelles demandes",
+        "openRequests": "Demandes ouvertes",
+        "activeProjects": "Projets en cours",
+        "clients": "Clients",
+        "thisWeek": "+{n} cette semaine",
+        "monthIn": "Reçu, 30 jours",
+        "due": "Paiements attendus",
+        "receipts": "Reçus à vérifier",
+        "reviews": "Avis à valider",
+        "waitlist": "En liste d'attente",
+        "drafts": "{n} brouillons non envoyés",
+        "of": "sur {n}",
+        "accepting": "Demandes ouvertes",
+        "paused": "Demandes en pause",
+        "full": "Complet",
+        "allTime": "Au total : {sum}",
+        "none": "Rien pour l'instant"
+      },
+      "byStage": "Demandes par étape",
+      "byService": "Demandes par service",
+      "sources": "D'où viennent les clients",
+      "activity": "Activité récente",
+      "noActivity": "Rien ne s'est encore passé.",
+      "seeAll": "Tout voir",
+      "search": "Rechercher par nom, e-mail, société ou téléphone",
+      "joined": "Inscrit",
+      "lastSeen": "Vu",
+      "verified": "Vérifié",
+      "unverified": "E-mail non vérifié",
+      "requestsCount": "{n} demandes",
+      "projectsCount": "{n} projets",
+      "noClients": "Aucun client pour l'instant.",
+      "page": "Page {n} sur {total}",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "proofs": "Reçus à vérifier",
+      "noProofs": "Aucun reçu en attente.",
+      "dueTitle": "En attente de paiement",
+      "noDue": "Rien n'est attendu.",
+      "recent": "Reçus",
+      "noRecent": "Aucun paiement pour l'instant.",
+      "open": "Ouvrir",
+      "dueOn": "échéance {date}",
+      "submitted": "envoyé {date}",
+      "sections": {
+        "availability": "Disponibilité",
+        "contact": "Contact et profils",
+        "about": "À propos de vous",
+        "payments": "Informations de paiement",
+        "prices": "Prix de départ"
+      },
+      "help": {
+        "availability": "Mettez les demandes en pause quand vous êtes complet. Le formulaire affiche votre note et la date de retour.",
+        "payments": "Montrées seulement à un client connecté qui a un paiement à faire. Jamais publiques.",
+        "prices": "En DZD. Euros et dollars suivent le taux du marché du jour. Laissez vide pour « sur devis »."
+      },
+      "fields": {
+        "is_available": "J'accepte de nouveaux projets",
+        "max_active_projects": "Projets en même temps (0 = sans limite)",
+        "available_from": "De retour le",
+        "availability_en": "Note pendant la pause (anglais)",
+        "availability_fr": "Note pendant la pause (français)",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "whatsapp": "WhatsApp",
+        "discord_username": "Nom d'utilisateur Discord",
+        "github_url": "GitHub",
+        "linkedin_url": "LinkedIn",
+        "x_url": "X",
+        "instagram_url": "Instagram",
+        "upwork_url": "Upwork",
+        "location_en": "Ville (anglais)",
+        "location_fr": "Ville (français)",
+        "about_en": "À propos (anglais)",
+        "about_fr": "À propos (français)",
+        "years_experience": "Années d'expérience",
+        "projects_shipped": "Projets livrés",
+        "reply_hours": "Réponse sous (heures)",
+        "ccp_account": "Numéro CCP",
+        "ccp_key": "Clé CCP",
+        "ccp_holder": "Titulaire du compte",
+        "ccp_address": "Adresse du titulaire",
+        "baridimob_rip": "RIP (BaridiMob, 20 chiffres)",
+        "cash_note_en": "Note paiement en espèces (anglais)",
+        "cash_note_fr": "Note paiement en espèces (français)",
+        "usdt_bep20_address": "Adresse USDT (BEP20)",
+        "usdt_rate_override": "Taux du dollar imposé (DZD, vide = en direct)"
+      },
+      "listed": "Affiché sur le site",
+      "kinds": {
+        "from": "À partir de",
+        "per_minute": "Par minute",
+        "fixed": "Fixe",
+        "monthly": "Par mois",
+        "hourly": "Par heure"
+      },
+      "save": "Enregistrer",
+      "saving": "Enregistrement",
+      "saved": "Enregistré",
+      "saveError": "Non enregistré. Vérifiez les champs.",
+      "actions": {
+        "account.registered": "Nouveau compte",
+        "account.login": "Connexion",
+        "account.email_verified": "E-mail vérifié",
+        "account.password_changed": "Mot de passe changé",
+        "account.password_reset": "Mot de passe réinitialisé",
+        "account.deleted": "Compte supprimé",
+        "request.drafted": "Brouillon commencé",
+        "request.submitted": "Nouvelle demande",
+        "request.status_changed": "Demande déplacée",
+        "proposal.sent": "Proposition envoyée",
+        "proposal.accepted": "Proposition acceptée",
+        "proposal.countered": "Contre-proposition",
+        "proposal.declined": "Proposition refusée",
+        "contract.signed": "Contrat signé",
+        "charge.requested": "Paiement demandé",
+        "charge.paid": "Paiement reçu",
+        "proof.submitted": "Reçu envoyé",
+        "proof.rejected": "Reçu refusé",
+        "engagement": "Projet mis à jour",
+        "milestone.approved": "Étape validée",
+        "milestone.status": "Étape déplacée",
+        "task.created": "Tâche ajoutée",
+        "task.updated": "Tâche mise à jour",
+        "update.posted": "Avancement publié",
+        "review.submitted": "Nouvel avis",
+        "review.edited": "Avis modifié",
+        "review": "Avis modéré",
+        "attachment.uploaded": "Fichier ajouté",
+        "studio.settings_changed": "Réglages modifiés",
+        "studio.price_changed": "Prix modifié"
+      },
+      "kitPage": {
+        "title": [
+          "Kit ",
+          "graphique."
+        ],
+        "lead": "Chaque brique du site, en direct, avec le fichier où elle vit. Les nouveaux écrans se construisent avec."
+      }
     }
   },
   "project": {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, Bot, Clapperboard, CreditCard, Gamepad2, Layers, MonitorSmartphone, Smartphone, type LucideIcon,
+  AppWindow, ArrowRight, Bot, Clapperboard, CreditCard, Gamepad2, Layers, MonitorSmartphone, Smartphone, type LucideIcon,
 } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { Price } from "@/lib/currency";
@@ -14,6 +14,7 @@ const ICONS: Record<string, LucideIcon> = {
   smartphone: Smartphone,
   "credit-card": CreditCard,
   "gamepad-2": Gamepad2,
+  "app-window": AppWindow,
   bot: Bot,
   clapperboard: Clapperboard,
 };
@@ -22,6 +23,7 @@ const ICONS: Record<string, LucideIcon> = {
  * 02 / Services. Six services on a gapless grid: 1 column on phones, 2 on
  * tablets, 3 on desktop (6 divides evenly by all three, so no dead cells).
  * Each cell is a link into the request wizard with the service preselected.
+ * Games are taken on request: one line under the grid, not a cell.
  */
 export default function ServicesSection({ lang, t, services }: { lang: Locale; t: Dictionary; services: Service[] }) {
   return (
@@ -88,6 +90,14 @@ export default function ServicesSection({ lang, t, services }: { lang: Locale; t
           );
         })}
       </div>
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line px-6 py-5 text-sm text-muted md:px-10">
+        <Gamepad2 aria-hidden className="size-4 text-ember-400" />
+        {t.services.alsoOnRequest}
+        <Link href={`/${lang}/start?service=game`} className="hud inline-flex items-center gap-2 text-ink transition-colors hover:text-ember-400">
+          {t.services.alsoOnRequestCta}
+          <ArrowRight aria-hidden className="size-3.5 text-ember-400" />
+        </Link>
+      </p>
     </SectionShell>
   );
 }

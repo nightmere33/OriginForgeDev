@@ -31,8 +31,10 @@ export default function SiteNav({ lang, t }: { lang: Locale; t: NavText }) {
     if (introClock.done) return;
     const items = gsap.utils.toArray<HTMLElement>("#site-nav [data-nav-item]");
     return atBeat(BEATS.nav, () => {
+      // Opacity stays set: cleared, the pre-paint rule would hide the cells
+      // again until the intro ends (a flicker).
       gsap.fromTo(items, { autoAlpha: 0, y: -6 }, {
-        autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.06, ease: "power2.out", clearProps: "all",
+        autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.06, ease: "power2.out", clearProps: "transform",
       });
     }, gsap.ticker);
   }, []);
@@ -104,7 +106,10 @@ export default function SiteNav({ lang, t }: { lang: Locale; t: NavText }) {
             <ThemeToggle labels={{ light: t.themeLight, dark: t.themeDark }} />
           </div>
           {user && (
-            <NotificationBell lang={lang} labels={{ notifications: t.notifications, markAllRead: t.markAllRead, noNotifications: t.noNotifications, open: t.openNotification }} />
+            <NotificationBell lang={lang} labels={{
+              notifications: t.notifications, markAllRead: t.markAllRead, noNotifications: t.noNotifications, open: t.openNotification,
+              clearAll: t.clearAll, clearConfirm: t.clearConfirm, clearYes: t.clearYes, clearKeep: t.clearKeep, dismiss: t.dismiss,
+            }} />
           )}
           <Link
             href={account.href}

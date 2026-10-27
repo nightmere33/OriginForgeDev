@@ -46,6 +46,29 @@ export function finishIntro() {
   doneListeners.clear();
 }
 
+// Whether the galaxy joins the intro: the clock waits for its first frame
+// (up to a cap, intro-conductor) so the cards pour out on their beat, as on
+// getartcraft.com, instead of landing after the intro has ended.
+let galaxy: "pending" | "ready" | "none" = "pending";
+const galaxyListeners = new Set<Listener>();
+
+/** The galaxy loader's verdict: its canvas is up, or it won't run here. */
+export function settleGalaxy(state: "ready" | "none") {
+  if (galaxy !== "pending") return;
+  galaxy = state;
+  galaxyListeners.forEach((fn) => fn());
+  galaxyListeners.clear();
+}
+
+export function onGalaxySettled(fn: Listener): () => void {
+  if (galaxy !== "pending") {
+    fn();
+    return () => {};
+  }
+  galaxyListeners.add(fn);
+  return () => galaxyListeners.delete(fn);
+}
+
 /** Resolves when the clock passes `beat` (immediately if already there). */
 export function atBeat(beat: number, fn: Listener, ticker: { add(cb: () => void): void; remove(cb: () => void): void }) {
   if (introClock.t >= beat) {

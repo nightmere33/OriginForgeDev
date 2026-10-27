@@ -17,7 +17,10 @@ import { Accented, Hud } from "@/components/ui/hud";
 import { cn } from "@/lib/cn";
 import { AuthGate } from "./auth-gate";
 import { EstimateReadout, Estimator, planFeatures } from "./estimator";
+import { BriefQuestions } from "./brief-questions";
+import { briefFor, briefRows, featureLabel, say, type Brief } from "./briefs";
 import { SecurePayments } from "@/components/ui/secure-payments";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type Draft = {
   service: string;
@@ -25,6 +28,7 @@ type Draft = {
   objectives: string;
   requirements: string;
   features: string[];
+  brief: Answers;
   plan: string;
   options: Record<string, string>;
   budget_min: string;
@@ -36,22 +40,23 @@ type Draft = {
   wants_nda: boolean;
 };
 
+type Answers = Record<string, string | string[]>;
+
 const EMPTY: Draft = {
-  service: "", title: "", objectives: "", requirements: "", features: [], plan: "", options: {}, budget_min: "",
+  service: "", title: "", objectives: "", requirements: "", features: [], brief: {}, plan: "", options: {}, budget_min: "",
   budget_max: "", budget_currency: "DZD", deadline: "", deadline_flexible: true, reference_links: "", wants_nda: false,
 };
 
 // Before sign-in nothing is typed any more, but a draft from the old one-device
 // flow may still be in storage: it seeds the first server draft once.
 const LEGACY_KEY = "of:start-draft";
-const FEATURES = ["accounts", "payments", "admin", "i18n", "booking", "ecommerce", "realtime", "maps", "notifications", "analytics", "api", "mobile_app", "automation", "seo"] as const;
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.doc,.docx,.odt,.rtf,.txt,.md,.csv,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.zip,.mp4,.mov,.mp3,.m4a";
 const MAX_FILE = 25 * 1024 * 1024;
 const MAX_FILES = 10;
 const AUTOSAVE_MS = 700;
 // Which step owns a server-side field error, so the wizard can jump back to it.
 const FIELD_STEP: Record<string, number> = {
-  service: 0, title: 1, objectives: 1, requirements: 1, features: 1, plan: 2, budget_min: 2, budget_max: 2,
+  service: 0, title: 1, objectives: 1, requirements: 1, features: 1, brief: 1, plan: 2, budget_min: 2, budget_max: 2,
   deadline: 2, reference_links: 3,
 };
 
@@ -60,12 +65,33 @@ type Pending = DropFile & { file: File };
 type Service = { slug: string; title: string; summary: string };
 type Save = "idle" | "saving" | "saved" | "error";
 
+/**
+ * Moving to another service keeps only what still fits it: its features, and
+ * the answers its own questions understand.
+ */
+function fitTo(brief: Brief, features: string[], answers: Answers) {
+  const kept: Answers = {};
+  for (const q of brief.questions) {
+    const a = answers[q.key];
+    if (a === undefined) continue;
+    if (!("options" in q)) {
+      if (typeof a === "string") kept[q.key] = a;
+      continue;
+    }
+    const ok = (v: string) => q.options.some((x) => x.value === v);
+    const picked = [a].flat().filter(ok);
+    if (picked.length) kept[q.key] = q.kind === "many" ? picked : picked[0];
+  }
+  return { features: features.filter((f) => brief.features.includes(f)), brief: kept };
+}
+
 const isUrlList = (text: string) => text.split("\n").every((l) => !l.trim() || /^https?:\/\/[^\s/]+\.[^\s]+/.test(l.trim()));
 const today = () => new Date().toISOString().slice(0, 10);
 
 function fromRequest(r: ProjectRequest): Draft {
   return {
     service: r.service ?? "", title: r.title, objectives: r.objectives, requirements: r.requirements, features: r.features,
+    brief: r.brief ?? {},
     plan: r.plan ?? "", options: r.options ?? {}, budget_min: r.budget_min ? String(r.budget_min) : "",
     budget_max: r.budget_max ? String(r.budget_max) : "", budget_currency: r.budget_currency || "DZD",
     deadline: r.deadline ?? "", deadline_flexible: r.deadline_flexible, reference_links: r.reference_links,
@@ -81,7 +107,7 @@ function fromRequest(r: ProjectRequest): Draft {
 function toBody(d: Draft, lang: Locale, strict: boolean) {
   const body: Record<string, unknown> = {
     service: d.service || null, title: d.title.trim(), objectives: d.objectives.trim(), requirements: d.requirements.trim(),
-    features: d.features, plan: d.plan || null, options: d.options, budget_currency: d.budget_currency,
+    features: d.features, brief: d.brief, plan: d.plan || null, options: d.options, budget_currency: d.budget_currency,
     deadline_flexible: d.deadline_flexible, wants_nda: d.wants_nda, language: lang,
   };
   const lo = d.budget_min ? Number(d.budget_min) : null;
@@ -140,10 +166,16 @@ export default function StartWizard({
       if (!alive) return;
       const wanted = params.get("draft");
       const latest = params.get("new") ? undefined : (wanted && r.results.find((x) => x.reference === wanted)) || r.results[0];
-      const preset = params.get("service");
+      // "?service=game": games are taken on request, under "Something else".
+      const game = params.get("service") === "game";
+      const preset = game ? "" : params.get("service");
       if (latest) {
         const d = fromRequest(latest);
-        setDraft({ ...d, plan: d.plan || defaultPlan, service: d.service || (preset ?? "") });
+        // A service taken off the site since (games) reopens as "Something else".
+        const listed = services.some((x) => x.slug === d.service);
+        const service = listed ? d.service : !d.service && preset && services.some((x) => x.slug === preset) ? preset : "";
+        const brief = d.service === "game-dev" ? { ...d.brief, kind: "game" } : d.brief;
+        setDraft({ ...d, ...fitTo(briefFor(service), d.features, brief), service, plan: d.plan || defaultPlan });
         setReference(latest.reference);
         setFiles(latest.attachments);
         setResumed(true);
@@ -158,7 +190,10 @@ export default function StartWizard({
         }
         const service = preset && services.some((x) => x.slug === preset) ? preset : legacy.service ?? "";
         // A new draft starts in the currency the visitor reads prices in.
-        setDraft((d) => ({ ...d, budget_currency: displayCurrency, ...legacy, service, plan: legacy.plan || d.plan }));
+        setDraft((d) => ({
+          ...d, budget_currency: displayCurrency, ...legacy, service, plan: legacy.plan || d.plan,
+          brief: game ? { kind: "game" } : legacy.brief ?? {},
+        }));
         if (meaningful({ ...EMPTY, ...legacy })) dirty.current = true;
       }
       setLoaded(true);
@@ -227,6 +262,11 @@ export default function StartWizard({
     dirty.current = true;
     setDraft((d) => ({ ...d, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined, form: undefined }));
+  };
+  const pickService = (slug: string) => {
+    dirty.current = true;
+    setDraft((d) => ({ ...d, service: slug, ...fitTo(briefFor(slug), d.features, d.brief) }));
+    setErrors((e) => ({ ...e, service: undefined, form: undefined }));
   };
 
   const validate = (index: number): Errors => {
@@ -345,6 +385,7 @@ export default function StartWizard({
 
   const last = step === s.steps.length - 1;
   const selected = services.find((x) => x.slug === draft.service);
+  const brief = briefFor(draft.service);
   const factors = pricing[draft.service] ?? pricing[""] ?? [];
   const plan = plans.find((p) => p.code === draft.plan);
   const saveLabel = { idle: resumed ? s.resumed : "", saving: s.saving, saved: s.saved, error: s.saveError }[save];
@@ -421,30 +462,35 @@ export default function StartWizard({
               <legend className="sr-only">{s.service}</legend>
               {services.map((x) => (
                 <ChoiceChip key={x.slug} type="radio" name="service" label={x.title} description={x.summary}
-                  checked={draft.service === x.slug} onChange={() => set("service", x.slug)} />
+                  checked={draft.service === x.slug} onChange={() => pickService(x.slug)} />
               ))}
-              <ChoiceChip type="radio" name="service" label={s.serviceOther} checked={draft.service === ""} onChange={() => set("service", "")} />
+              <ChoiceChip type="radio" name="service" label={s.serviceOther} description={s.serviceOtherHelp}
+                checked={draft.service === ""} onChange={() => pickService("")} />
             </fieldset>
           )}
 
           {step === 1 && (
             <>
-              <Field label={s.projectTitle} help={s.projectTitleHelp} error={errors.title}>
+              <Field label={say(lang, brief.title)} help={say(lang, brief.titleHelp)} error={errors.title}>
                 {(a) => <Input id={a.id} aria-describedby={a.describedBy} aria-invalid={a.invalid} value={draft.title} maxLength={160} onChange={(e) => set("title", e.target.value)} />}
               </Field>
-              <Field label={s.objectives} help={s.objectivesHelp} error={errors.objectives}>
+              <Field label={say(lang, brief.goal)} help={say(lang, brief.goalHelp)} error={errors.objectives}>
                 {(a) => <Textarea id={a.id} aria-describedby={a.describedBy} aria-invalid={a.invalid} value={draft.objectives} onChange={(e) => set("objectives", e.target.value)} />}
               </Field>
-              <Field label={s.requirements} help={s.requirementsHelp} error={errors.requirements}>
+              <BriefQuestions lang={lang} questions={brief.questions} answers={draft.brief} error={errors.brief}
+                onChange={(key, value) => set("brief", { ...draft.brief, [key]: value })} />
+              {brief.features.length > 0 && (
+                <fieldset className="grid gap-3 sm:grid-cols-2">
+                  <legend className="hud mb-3 text-muted">{s.features}</legend>
+                  {brief.features.map((f) => (
+                    <ChoiceChip key={f} label={featureLabel(lang, f)} checked={draft.features.includes(f)}
+                      onChange={(e) => set("features", e.target.checked ? [...draft.features, f] : draft.features.filter((x) => x !== f))} />
+                  ))}
+                </fieldset>
+              )}
+              <Field label={say(lang, brief.details)} help={say(lang, brief.detailsHelp)} error={errors.requirements}>
                 {(a) => <Textarea id={a.id} aria-describedby={a.describedBy} value={draft.requirements} onChange={(e) => set("requirements", e.target.value)} />}
               </Field>
-              <fieldset className="grid gap-3 sm:grid-cols-2">
-                <legend className="hud mb-3 text-muted">{s.features}</legend>
-                {FEATURES.map((f) => (
-                  <ChoiceChip key={f} label={s.featureList[f]} checked={draft.features.includes(f)}
-                    onChange={(e) => set("features", e.target.checked ? [...draft.features, f] : draft.features.filter((x) => x !== f))} />
-                ))}
-              </fieldset>
             </>
           )}
 
@@ -468,7 +514,7 @@ export default function StartWizard({
               <p className="-mt-4 text-sm text-faint">{s.budgetHelp}</p>
               <div className="grid gap-4 sm:grid-cols-[minmax(0,20rem)_1fr] sm:items-end">
                 <Field label={s.deadline} error={errors.deadline}>
-                  {(a) => <Input id={a.id} type="date" min={today()} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={draft.deadline} onChange={(e) => set("deadline", e.target.value)} className="[color-scheme:dark]" />}
+                  {(a) => <DatePicker id={a.id} lang={lang} min={today()} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={draft.deadline} onChange={(v) => set("deadline", v)} />}
                 </Field>
                 <ChoiceChip label={s.deadlineFlexible} checked={draft.deadline_flexible} onChange={(e) => set("deadline_flexible", e.target.checked)} />
               </div>
@@ -519,9 +565,11 @@ export default function StartWizard({
               <dl className="divide-y divide-line border-y border-line">
                 {[
                   { k: s.steps[0], v: selected?.title ?? s.serviceOther, at: 0 },
-                  { k: s.projectTitle, v: draft.title, at: 1 },
-                  { k: s.objectives, v: draft.objectives, at: 1 },
-                  { k: s.features, v: draft.features.map((f) => s.featureList[f as keyof typeof s.featureList]).join(" · "), at: 1 },
+                  { k: say(lang, brief.title), v: draft.title, at: 1 },
+                  { k: say(lang, brief.goal), v: draft.objectives, at: 1 },
+                  ...briefRows(lang, draft.service, draft.brief).map((r) => ({ k: r.label, v: r.value, at: 1 })),
+                  { k: s.features, v: draft.features.map((f) => featureLabel(lang, f)).join(" · "), at: 1 },
+                  { k: say(lang, brief.details), v: draft.requirements, at: 1 },
                   { k: s.plan, v: plan ? `${plan.name} · ${planFeatures(s, plan).slice(0, 3).join(" · ")}` : "", at: 2 },
                   {
                     k: s.options,

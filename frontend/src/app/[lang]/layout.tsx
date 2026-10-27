@@ -18,6 +18,7 @@ import { LiveConnection } from "@/lib/live";
 import { CookieNotice } from "@/components/chrome/cookie-notice";
 import { Toaster } from "sonner";
 import { QuietBoundary } from "@/components/ui/quiet-boundary";
+import { NavProgress } from "@/components/chrome/nav-progress";
 import "../globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
@@ -112,6 +113,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           <Suspense fallback={<NavFallback lang={locale} t={t.nav} />}>
             <SiteNav lang={locale} t={t.nav} />
           </Suspense>
+          <QuietBoundary><Suspense fallback={null}><NavProgress /></Suspense></QuietBoundary>
           <main id="main" className="relative">
             {children}
           </main>

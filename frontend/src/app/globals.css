@@ -175,6 +175,9 @@
 @layer base {
   html {
     background: var(--steel-950);
+    /* Hidden first for browsers without clip (iOS before 16): rails and ticks
+       that reach the screen edge must never let a phone pan sideways. */
+    overflow-x: hidden;
     overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
@@ -312,10 +315,12 @@
 }
 
 /* Pre-paint intro state (set by the inline script in the root layout). The
-   failsafe animation shows everything after 4s even if JS never runs. */
+   stage stays dark until the scripts arrive, even on a slow first visit, and
+   the failsafe shows everything after 8s if they never do (intro-conductor
+   reads the same figure). */
 [data-intro] [data-intro-hide] {
   opacity: 0;
-  animation: intro-failsafe 0s 4s forwards;
+  animation: intro-failsafe 0s 8s forwards;
 }
 
 @keyframes intro-failsafe {
@@ -345,6 +350,16 @@
   }
 }
 
+/* Phones zoom into a field set under 16px as it takes focus (and the page
+   then pans sideways): text fields never go below 16px on touch screens. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+}
+
 @keyframes marquee-scroll {
   to {
     transform: translateX(-100%);
@@ -360,7 +375,65 @@
   }
 }
 
+/* Scroll areas draw their own bar (ui/scroll-area.tsx); the native one hides. */
+.scroll-bare {
+  scrollbar-width: none;
+}
+.scroll-bare::-webkit-scrollbar {
+  display: none;
+}
+
+/* Anything else that scrolls (a long textarea, a table) gets a thin steel bar
+   on a clear track instead of the system's grey one. In the base layer, so
+   the ruler's hidden page bar (html.has-ruler) still wins. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink) 24%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ink) 24%, transparent);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ember-400);
+  }
+}
+
+/* Loading placeholders: a dim block with one soft sheen sweeping across
+   (transform only, on its own layer). Static for reduced motion. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 7%, transparent), transparent);
+  animation: skeleton-sweep 1.4s var(--ease-out) infinite;
+}
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    opacity: 0;
+  }
   .marquee-track {
     animation: none;
   }
@@ -370,6 +443,60 @@
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* Page changes (motion/page-transition.tsx). The leaving page lifts and dims
+   fast; the next rises from a soft blur a beat later. The rest of the page
+   (nav, ruler) switches without a crossfade, so the nav never flickers, and
+   clicks pass through to the live page while it plays. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-old(.page-out) {
+  animation: page-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.page-in) {
+  animation: page-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+    filter: blur(4px);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    filter: blur(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* Calendar months slide in from the side they come from (ui/date-picker). */
+@keyframes cal-next {
+  from {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0);
+  }
+}
+@keyframes cal-prev {
+  from {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
   }
 }
 

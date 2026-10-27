@@ -21,6 +21,10 @@ const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
 // A paste or a programmatic fill flickers only its last characters.
 const MAX_FRESH = 24;
 const DOT = "•";
+// Chrome and Edge draw a field's single line lower than plain centring would:
+// at the rounded-down centre plus one pixel (measured at several heights and
+// pixel ratios). Only Chromium has userAgentData.
+const BLINK = typeof navigator !== "undefined" && "userAgentData" in navigator;
 export const TEXT_TYPES = new Set(["text", "email", "tel", "search", "url", "password"]);
 
 type Ch = { ch: string; id: number; fresh: boolean };
@@ -57,7 +61,10 @@ function FreshChar({ ch, onSettle }: { ch: string; onSettle: () => void }) {
   return (
     <span className="relative">
       <span className="invisible">{ch}</span>
-      <span className="absolute left-0 top-0" style={{ color: "var(--ember-400)", textShadow: SPLIT.textShadow }}>{flicker}</span>
+      {/* Its own line box is the glyph's height (line-height: normal): with the
+          line's height (a single-line field's is the whole box) it would draw
+          below the character it stands for. */}
+      <span className="absolute left-0 top-0" style={{ lineHeight: "normal", color: "var(--ember-400)", textShadow: SPLIT.textShadow }}>{flicker}</span>
     </span>
   );
 }
@@ -99,8 +106,17 @@ export function TypedMirror({
       b.style.width = `${el.clientWidth}px`;
       b.style.height = `${el.clientHeight}px`;
       for (const k of COPIED) (b.style as unknown as Record<string, string>)[k] = cs[k] as string;
-      // One line, centred the way a text input centres it.
-      if (el.tagName === "INPUT") c.style.lineHeight = `${el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)}px`;
+      // One line, centred the way a text input centres it: its own line
+      // height, in the middle of the box (the same rounding as the field's).
+      if (el.tagName === "INPUT") {
+        const inner = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        const line = parseFloat(cs.lineHeight);
+        if (line) {
+          const gap = (inner - line) / 2;
+          c.style.lineHeight = cs.lineHeight;
+          c.style.paddingTop = `${Math.max(0, BLINK ? Math.floor(gap) + 1 : gap)}px`;
+        } else c.style.lineHeight = `${inner}px`;
+      }
       c.style.transform = `translate3d(${-el.scrollLeft}px, ${-el.scrollTop}px, 0)`;
     };
     const sync = () => {

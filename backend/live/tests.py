@@ -102,3 +102,17 @@ class InAppNotificationTests(TestCase):
         api = APIClient()
         api.force_authenticate(mine)
         self.assertEqual(api.get("/api/live/notifications/").json()["items"], [])
+
+    def test_clear_deletes_only_my_notifications(self):
+        mine, theirs = make_user(), make_user("other@example.com")
+        keep = Notification.objects.create(user=mine, key="k", title="Keep")
+        Notification.objects.create(user=mine, key="k", title="Gone")
+        Notification.objects.create(user=theirs, key="k", title="Theirs")
+        api = APIClient()
+        api.force_authenticate(mine)
+        gone = Notification.objects.get(title="Gone")
+        api.post("/api/live/notifications/clear/", {"ids": [gone.pk]}, format="json")
+        self.assertEqual(list(Notification.objects.filter(user=mine)), [keep])
+        self.assertEqual(api.post("/api/live/notifications/clear/", {}, format="json").json()["unread"], 0)
+        self.assertFalse(Notification.objects.filter(user=mine).exists())
+        self.assertTrue(Notification.objects.filter(user=theirs).exists())

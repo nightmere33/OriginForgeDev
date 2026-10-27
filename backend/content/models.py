@@ -119,10 +119,10 @@ class Service(models.Model):
 
 class ServicePrice(models.Model):
     """
-    One price line of a service. A service can carry several — typically one
-    in DZD for Algerian clients and one in EUR or USD for international ones —
-    and each says how to read it (from / fixed / per month / per hour).
-    No rows means "quoted per project".
+    One price line of a service. A service can carry several (typically one
+    in DZD; a line in EUR or USD overrides the live conversion for that
+    currency), and each says how to read it (from / fixed / per month / per
+    hour / from, per minute). No rows means "quoted per project".
     """
 
     class Kind(models.TextChoices):
@@ -130,6 +130,8 @@ class ServicePrice(models.Model):
         FIXED = "fixed", "Fixed"
         MONTHLY = "monthly", "Per month"
         HOURLY = "hourly", "Per hour"
+        # Films: the price of a minute of finished film (the calculator scales it).
+        PER_MINUTE = "per_minute", "From, per minute"
 
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="prices")
     currency = models.CharField(max_length=3, choices=Currency.choices)

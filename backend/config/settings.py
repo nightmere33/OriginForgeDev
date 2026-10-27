@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "channels",
     "live",
     "reviews",
+    "studio",
 ]
 
 MIDDLEWARE = [

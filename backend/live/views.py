@@ -32,3 +32,17 @@ class NotificationsReadView(APIView):
             qs = qs.filter(pk__in=[i for i in ids if isinstance(i, int)])
         qs.update(read_at=timezone.now())
         return Response({"unread": Notification.objects.filter(user=request.user, read_at__isnull=True).count()})
+
+
+class NotificationsClearView(APIView):
+    """Clear the bell: delete some (ids) or all of the visitor's own notifications."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        qs = Notification.objects.filter(user=request.user)
+        ids = request.data.get("ids")
+        if isinstance(ids, list):
+            qs = qs.filter(pk__in=[i for i in ids if isinstance(i, int)])
+        qs.delete()
+        return Response({"unread": Notification.objects.filter(user=request.user, read_at__isnull=True).count()})

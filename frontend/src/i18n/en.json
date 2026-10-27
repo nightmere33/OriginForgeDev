@@ -37,7 +37,12 @@
     "noNotifications": "Nothing new yet.",
     "openNotification": "Open",
     "register": "Create account",
-    "settings": "Settings"
+    "settings": "Settings",
+    "clearAll": "Clear all",
+    "clearConfirm": "Clear them all?",
+    "clearYes": "Clear",
+    "clearKeep": "Keep",
+    "dismiss": "Dismiss"
   },
   "hero": {
     "title": [
@@ -110,8 +115,11 @@
       "from": "From {price}",
       "fixed": "{price}",
       "monthly": "{price} / month",
-      "hourly": "{price} / hour"
-    }
+      "hourly": "{price} / hour",
+      "per_minute": "From {price} / min"
+    },
+    "alsoOnRequest": "Also on request: games in Unity for PC and Android.",
+    "alsoOnRequestCta": "Tell me about it"
   },
   "process": {
     "index": "03",
@@ -271,7 +279,7 @@
       "Review"
     ],
     "service": "What do you need?",
-    "serviceOther": "Not sure yet",
+    "serviceOther": "Something else",
     "projectTitle": "Project name",
     "projectTitleHelp": "A few words, e.g. \"Booking site for my guesthouse\".",
     "objectives": "What must it achieve?",
@@ -377,7 +385,8 @@
     "estimateConverted": "No set price in this currency yet: converted from DZD at today's street rate.",
     "discard": "Discard draft",
     "discardConfirm": "Delete it",
-    "discardKeep": "Keep"
+    "discardKeep": "Keep",
+    "serviceOtherHelp": "Games in Unity and other projects, quoted on request."
   },
   "auth": {
     "loginTitle": [
@@ -630,6 +639,192 @@
       "unpublish": "Unpublish",
       "reject": "Send back",
       "sendBack": "Send back to the client"
+    },
+    "dash": {
+      "tabs": {
+        "overview": "Overview",
+        "requests": "Requests",
+        "clients": "Clients",
+        "payments": "Payments",
+        "reviews": "Reviews",
+        "settings": "Settings",
+        "kit": "Asset pack"
+      },
+      "overview": {
+        "title": [
+          "Studio ",
+          "dashboard."
+        ],
+        "lead": "Your business at a glance: requests, clients, projects and money, live."
+      },
+      "requestsPage": {
+        "title": [
+          "Studio ",
+          "inbox."
+        ],
+        "lead": "Requests from clients, newest first."
+      },
+      "clientsPage": {
+        "title": [
+          "Your ",
+          "clients."
+        ],
+        "lead": "Everyone with an account, how they found you and how to reach them."
+      },
+      "paymentsPage": {
+        "title": [
+          "Money ",
+          "in and due."
+        ],
+        "lead": "Receipts to check, payments waiting, and what has come in."
+      },
+      "settingsPage": {
+        "title": [
+          "Studio ",
+          "settings."
+        ],
+        "lead": "Your details, availability, payment information and starting prices. Changes go live within a minute."
+      },
+      "kpi": {
+        "newRequests": "New requests",
+        "openRequests": "Open requests",
+        "activeProjects": "Projects in progress",
+        "clients": "Clients",
+        "thisWeek": "+{n} this week",
+        "monthIn": "Received, 30 days",
+        "due": "Payments due",
+        "receipts": "Receipts to check",
+        "reviews": "Reviews to approve",
+        "waitlist": "On the waiting list",
+        "drafts": "{n} unfinished drafts",
+        "of": "of {n}",
+        "accepting": "Accepting requests",
+        "paused": "Requests paused",
+        "full": "At capacity",
+        "allTime": "All time: {sum}",
+        "none": "Nothing yet"
+      },
+      "byStage": "Requests by stage",
+      "byService": "Requests by service",
+      "sources": "Where clients come from",
+      "activity": "Recent activity",
+      "noActivity": "Nothing has happened yet.",
+      "seeAll": "See all",
+      "search": "Search by name, e-mail, company or phone",
+      "joined": "Joined",
+      "lastSeen": "Last seen",
+      "verified": "Verified",
+      "unverified": "E-mail not verified",
+      "requestsCount": "{n} requests",
+      "projectsCount": "{n} projects",
+      "noClients": "No clients yet.",
+      "page": "Page {n} of {total}",
+      "prev": "Previous",
+      "next": "Next",
+      "proofs": "Receipts to check",
+      "noProofs": "No receipt is waiting.",
+      "dueTitle": "Waiting for payment",
+      "noDue": "Nothing is due.",
+      "recent": "Received",
+      "noRecent": "No payment yet.",
+      "open": "Open",
+      "dueOn": "due {date}",
+      "submitted": "sent {date}",
+      "sections": {
+        "availability": "Availability",
+        "contact": "Contact and profiles",
+        "about": "About you",
+        "payments": "Payment details",
+        "prices": "Starting prices"
+      },
+      "help": {
+        "availability": "Pause new requests when you are full. The form shows your note and the date you are back.",
+        "payments": "Shown only to a signed-in client who has something to pay. Never public.",
+        "prices": "In DZD. Euros and dollars follow today's street rate. Leave empty for \"quoted per project\"."
+      },
+      "fields": {
+        "is_available": "Accepting new projects",
+        "max_active_projects": "Projects at once (0 = no limit)",
+        "available_from": "Back from",
+        "availability_en": "Note while paused (English)",
+        "availability_fr": "Note while paused (French)",
+        "email": "E-mail",
+        "phone": "Phone",
+        "whatsapp": "WhatsApp",
+        "discord_username": "Discord username",
+        "github_url": "GitHub",
+        "linkedin_url": "LinkedIn",
+        "x_url": "X",
+        "instagram_url": "Instagram",
+        "upwork_url": "Upwork",
+        "location_en": "Location (English)",
+        "location_fr": "Location (French)",
+        "about_en": "About (English)",
+        "about_fr": "About (French)",
+        "years_experience": "Years of experience",
+        "projects_shipped": "Projects shipped",
+        "reply_hours": "Replies within (hours)",
+        "ccp_account": "CCP number",
+        "ccp_key": "CCP key",
+        "ccp_holder": "Account holder",
+        "ccp_address": "Holder address",
+        "baridimob_rip": "RIP (BaridiMob, 20 digits)",
+        "cash_note_en": "Cash payments note (English)",
+        "cash_note_fr": "Cash payments note (French)",
+        "usdt_bep20_address": "USDT address (BEP20)",
+        "usdt_rate_override": "Dollar rate override (DZD, empty = live)"
+      },
+      "listed": "Listed on the site",
+      "kinds": {
+        "from": "From",
+        "per_minute": "Per minute",
+        "fixed": "Fixed",
+        "monthly": "Per month",
+        "hourly": "Per hour"
+      },
+      "save": "Save",
+      "saving": "Saving",
+      "saved": "Saved",
+      "saveError": "Not saved. Check the fields.",
+      "actions": {
+        "account.registered": "New account",
+        "account.login": "Signed in",
+        "account.email_verified": "E-mail verified",
+        "account.password_changed": "Password changed",
+        "account.password_reset": "Password reset",
+        "account.deleted": "Account deleted",
+        "request.drafted": "Draft started",
+        "request.submitted": "New request",
+        "request.status_changed": "Request moved",
+        "proposal.sent": "Proposal sent",
+        "proposal.accepted": "Proposal accepted",
+        "proposal.countered": "Counter-offer",
+        "proposal.declined": "Proposal declined",
+        "contract.signed": "Contract signed",
+        "charge.requested": "Payment requested",
+        "charge.paid": "Payment received",
+        "proof.submitted": "Receipt sent",
+        "proof.rejected": "Receipt rejected",
+        "engagement": "Project updated",
+        "milestone.approved": "Milestone approved",
+        "milestone.status": "Milestone moved",
+        "task.created": "Task added",
+        "task.updated": "Task updated",
+        "update.posted": "Progress posted",
+        "review.submitted": "New review",
+        "review.edited": "Review edited",
+        "review": "Review moderated",
+        "attachment.uploaded": "File added",
+        "studio.settings_changed": "Settings changed",
+        "studio.price_changed": "Price changed"
+      },
+      "kitPage": {
+        "title": [
+          "Asset ",
+          "pack."
+        ],
+        "lead": "Every building block of the site, live, with the file it lives in. New screens are built from these."
+      }
     }
   },
   "project": {

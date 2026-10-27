@@ -41,13 +41,13 @@ export default function Hero({
         <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 45%, transparent 55%, var(--steel-990) 100%)" }} />
       </div>
 
-      {/* Fallback backdrop: posters of the same clips, faded once WebGL is live.
+      {/* Fallback backdrop: posters of the same clips, gone while WebGL loads or runs.
           Kept dark through the intro so the mark forms on a clean stage; it
           fades in after only where the galaxy can't run. */}
       <div
         aria-hidden
         data-intro-hide
-        className="hero-mosaic pointer-events-none absolute inset-0 -z-10 grid grid-cols-3 gap-6 p-6 opacity-30 blur-[2px] transition-opacity duration-1000 sm:grid-cols-4 lg:grid-cols-6 [[data-galaxy=on]_&]:opacity-0"
+        className="hero-mosaic pointer-events-none absolute inset-0 -z-10 grid grid-cols-3 gap-6 p-6 opacity-30 blur-[2px] transition-opacity duration-1000 sm:grid-cols-4 lg:grid-cols-6 [[data-galaxy]_&]:opacity-0"
       >
         {mosaic.map((item, i) => (
           // eslint-disable-next-line @next/next/no-img-element -- decorative, tiny, pre-sized posters

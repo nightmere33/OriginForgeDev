@@ -15,6 +15,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Select, Textarea, formatBytes } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { StatusPill } from "@/components/ui/status";
+import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { ContractPanel } from "@/components/project/contract-panel";
 import { Conversation } from "@/components/project/conversation";
@@ -23,12 +24,13 @@ import { ProposalBuilder } from "@/components/project/proposal-builder";
 import { ProposalCard } from "@/components/project/proposal-card";
 import { NextStep, Panel, type Side, type T } from "@/components/project/shared";
 import { StageTrack } from "@/components/project/stage-track";
+import { briefFor, briefRows, featureLabel, say } from "@/components/start/briefs";
 import { ClientReview, WorkPanel } from "@/components/project/work-panel";
 
 export type { ProjectRequest };
 
 /** Signed-out visitors go to login; clients can't open the studio. */
-function useGuard(lang: Locale, developer = false): User | null | undefined {
+export function useGuard(lang: Locale, developer = false): User | null | undefined {
   const user = useSession();
   const router = useRouter();
   useEffect(() => {
@@ -87,7 +89,33 @@ const statusLabel = (t: T, req: ProjectRequest) => {
 };
 
 function Loading({ t }: { t: T }) {
-  return <p className="hud px-6 py-16 text-muted md:px-10">{t.common.loading}</p>;
+  return <SkeletonRows label={t.common.loading} />;
+}
+
+/** A project hub on its way: its header, stage track and first panels, in outline. */
+function HubLoading({ t }: { t: T }) {
+  return (
+    <div role="status" aria-label={t.common.loading} className="border-t border-line">
+      <div className="flex flex-col gap-3 px-6 py-8 md:px-10">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-8 w-2/3 max-w-xl" />
+        <Skeleton className="h-3 w-48" />
+      </div>
+      <div className="grid grid-cols-4 gap-px border-y border-line bg-line md:grid-cols-8">
+        {Array.from({ length: 8 }, (_, i) => <span key={i} className={cn("bg-bg px-3 py-4", i > 3 && "hidden md:block")}><Skeleton className="h-2 w-full" /></span>)}
+      </div>
+      <div className="grid gap-px bg-line lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="flex flex-col gap-3 bg-bg px-6 py-8 md:px-10">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function RequestRows({ lang, t, items, base, showClient, onChange }: { lang: Locale; t: T; items: ProjectRequest[]; base: string; showClient?: boolean; onChange?: () => void }) {
@@ -190,13 +218,17 @@ function useRequest(enabled: boolean) {
 }
 
 function Details({ lang, t, req }: { lang: Locale; t: T; req: ProjectRequest }) {
+  // Labelled the way the client was asked (each service has its own questions).
+  const brief = briefFor(req.service ?? "");
   const rows = [
     { k: t.studio.budget, v: req.budget_min || req.budget_max ? `${req.budget_min ?? "?"} – ${req.budget_max ?? "?"} ${req.budget_currency}` : "" },
     { k: t.studio.clientEstimate, v: req.estimate_low ? `${req.estimate_low} – ${req.estimate_high} ${req.estimate_currency}` : "" },
     { k: t.studio.deadline, v: req.deadline ? `${day(lang, req.deadline)}${req.deadline_flexible ? " · flexible" : ""}` : "" },
-    { k: t.studio.features, v: req.features.map((f) => t.start.featureList[f as keyof T["start"]["featureList"]] ?? f).join(" · ") },
-    { k: t.start.objectives, v: req.objectives },
-    { k: t.start.requirements, v: req.requirements },
+    ...(req.choices ?? []).map((c) => ({ k: c.factor, v: c.choice })),
+    { k: say(lang, brief.goal), v: req.objectives },
+    ...briefRows(lang, req.service ?? "", req.brief ?? {}).map((r) => ({ k: r.label, v: r.value })),
+    { k: t.studio.features, v: req.features.map((f) => featureLabel(lang, f)).join(" · ") },
+    { k: say(lang, brief.details), v: req.requirements },
     { k: t.studio.links, v: req.reference_links },
     { k: t.start.nda, v: req.wants_nda ? "✓" : "" },
   ].filter((r) => r.v);
@@ -289,7 +321,7 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
 
   return (
     <>
-      <Header lang={lang} t={t} req={req} back={side === "client" ? `/${lang}/portal` : `/${lang}/studio`} />
+      <Header lang={lang} t={t} req={req} back={side === "client" ? `/${lang}/portal` : `/${lang}/studio/requests`} />
       {top}
       {action ? <NextStep t={t}>{action}</NextStep> : side === "client" && req.status !== "draft" && (
         <p className="border-t border-line px-6 py-6 text-muted md:px-10">{t.project.nothingToDo}</p>
@@ -342,7 +374,7 @@ export function PortalRequest({ lang, t }: { lang: Locale; t: T }) {
   const { req, reload } = useRequest(!!user);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!user || req === undefined) return <Loading t={t} />;
+  if (!user || req === undefined) return <HubLoading t={t} />;
   if (req === null) return <p className="px-6 py-16 text-muted md:px-10">{t.common.notFoundText}</p>;
 
   const withdraw = async () => {
@@ -392,7 +424,6 @@ export function StudioInbox({ lang, t }: { lang: Locale; t: T }) {
             {f ? t.portal.statuses[f] : t.studio.all}
           </button>
         ))}
-        <Link href={`/${lang}/studio/reviews`} className="hud ml-auto self-center text-muted hover:text-ember-400">{t.studio.reviews.title} →</Link>
       </div>
       {items ? <RequestRows lang={lang} t={t} items={items} base={`/${lang}/studio/requests`} showClient /> : <Loading t={t} />}
     </>
@@ -464,7 +495,7 @@ function MoveBar({ t, req, reload }: { t: T; req: ProjectRequest; reload: () => 
 export function StudioRequest({ lang, t }: { lang: Locale; t: T }) {
   const user = useGuard(lang, true);
   const { req, reload } = useRequest(!!user);
-  if (!user || req === undefined) return <Loading t={t} />;
+  if (!user || req === undefined) return <HubLoading t={t} />;
   if (req === null) return <p className="px-6 py-16 text-muted md:px-10">{t.common.notFoundText}</p>;
   return (
     <Hub lang={lang} t={t} side="studio" req={req} reload={reload} user={user}

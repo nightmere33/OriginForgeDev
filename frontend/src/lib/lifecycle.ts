@@ -159,6 +159,10 @@ export type ProjectRequest = {
   objectives: string;
   requirements: string;
   features: string[];
+  /** The service's own answers (components/start/briefs.ts). */
+  brief: Record<string, string | string[]>;
+  /** The calculator options picked, labelled in the reader's language (detail only). */
+  choices?: { factor: string; choice: string }[];
   budget_min: number | null;
   budget_max: number | null;
   budget_currency: Currency;

@@ -45,6 +45,9 @@ class ProjectRequest(models.Model):
     objectives = models.TextField(help_text="What the project must achieve")
     requirements = models.TextField(blank=True)
     features = models.JSONField(default=list, blank=True)
+    # The service's own questions (kind of film, pages, platforms...): answer
+    # keys and values as the request form defines them per service.
+    brief = models.JSONField(default=dict, blank=True)
     budget_min = models.PositiveIntegerField(null=True, blank=True)
     budget_max = models.PositiveIntegerField(null=True, blank=True)
     budget_currency = models.CharField(max_length=3, choices=Currency.choices, default=Currency.EUR)

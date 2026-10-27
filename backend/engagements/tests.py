@@ -57,6 +57,17 @@ class RequestLifecycleTests(TestCase):
         self.assertEqual(req.status, "submitted")
         self.assertTrue(AuditLog.objects.filter(action="request.submitted", target_id=str(req.pk)).exists())
 
+    def test_brief_keeps_answers_and_drops_empty_ones(self):
+        data = self.create_request(self.alice, brief={"kind": "launch", "platforms": ["tiktok", "tiktok", "youtube"], "note": "  ", "cta": None})
+        self.assertEqual(data["brief"], {"kind": "launch", "platforms": ["tiktok", "youtube"]})
+
+    def test_brief_refuses_other_shapes(self):
+        c = self.client_for(self.alice)
+        body = {"title": "T", "objectives": "O", "service": "web"}
+        for brief in (["a"], {"k": {"nested": 1}}, {"k": "x" * 2001}, {f"k{i}": "v" for i in range(41)}):
+            res = c.post("/api/requests/", {**body, "brief": brief}, format="json")
+            self.assertEqual(res.status_code, 400, brief)
+
     def test_clients_only_see_their_own_requests(self):
         ref = self.create_request(self.alice)["reference"]
         self.assertEqual(self.client_for(self.bob).get(f"/api/requests/{ref}/").status_code, 404)

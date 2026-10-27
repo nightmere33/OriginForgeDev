@@ -62,7 +62,7 @@ export function AuthField({ label, name, type = "text", autoComplete, minLength,
           aria-invalid={!!error}
           aria-describedby={[errorId, helpId].filter(Boolean).join(" ") || undefined}
           onFocus={run}
-          className={cn("font-mono text-[15px]", password && reveal && "pr-12")}
+          className={cn(password && reveal && "pr-12")}
         />
         {password && reveal && (
           <button

@@ -39,7 +39,7 @@ export type Service = {
   prices: { currency: Currency; amount: number; kind: PriceKind }[];
 };
 
-export type PriceKind = "from" | "fixed" | "monthly" | "hourly";
+export type PriceKind = "from" | "fixed" | "monthly" | "hourly" | "per_minute";
 
 export type Category = "platform" | "web" | "mobile" | "automation" | "motion" | "game" | "desktop" | "iot";
 

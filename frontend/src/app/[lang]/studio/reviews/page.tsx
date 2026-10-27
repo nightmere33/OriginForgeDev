@@ -6,6 +6,7 @@ import { getDictionary, hasLocale } from "@/i18n/dictionaries";
 import { Accented } from "@/components/ui/hud";
 import { SectionEyebrow, SectionHeading, SectionShell } from "@/components/ui/section-shell";
 import { ReviewModeration } from "@/components/reviews/moderation";
+import { StudioTabs } from "@/components/studio/studio-tabs";
 
 export const metadata: Metadata = { robots: { index: false } };
 
@@ -19,6 +20,7 @@ export default async function Page() {
     <SectionShell id="studio-reviews" ruler={m.title}>
       <SectionEyebrow index="·" label={m.title} />
       <SectionHeading title={<Accented parts={m.heading} />} lead={m.lead} />
+      <StudioTabs lang={lang} labels={t.studio.dash.tabs} active="reviews" />
       <Suspense fallback={null}>
         <ReviewModeration lang={lang} t={{ studio: t.studio, common: t.common }} />
       </Suspense>

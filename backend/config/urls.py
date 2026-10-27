@@ -19,6 +19,7 @@ urlpatterns = [
     path("api/rates/", include("fx.urls")),
     path("api/live/", include("live.urls")),
     path("api/reviews/", include("reviews.urls")),
+    path("api/studio/", include("studio.urls")),
     path("api/", include("engagements.urls")),
     path("api/", include("billing.urls")),
     path(settings.DJANGO_ADMIN_PATH, admin.site.urls),

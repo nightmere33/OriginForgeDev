@@ -321,6 +321,27 @@
 @keyframes intro-failsafe {
   to {
     opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* The wordmark's steel fill is its parent's background clipped to the
+   letters' text, and that clip ignores the letters' own opacity: they hide
+   with visibility too (hero-intro.tsx shows them as they form). */
+[data-intro] [data-wm-letter][data-intro-hide] {
+  visibility: hidden;
+}
+
+/* Once the intro runs (intro-conductor) it owns these elements; a fresh
+   failsafe (a new animation name, so it starts over) still guards a stall. */
+[data-intro="run"] [data-intro-hide] {
+  animation: intro-failsafe-run 0s 6s forwards;
+}
+
+@keyframes intro-failsafe-run {
+  to {
+    opacity: 1;
+    visibility: visible;
   }
 }
 

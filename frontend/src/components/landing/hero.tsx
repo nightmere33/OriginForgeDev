@@ -2,6 +2,7 @@ import { Hud, Accented } from "@/components/ui/hud";
 import { ButtonLink } from "@/components/ui/button";
 import { fill, type Dictionary, type Locale } from "@/i18n/dictionaries";
 import type { GalaxyItem, SiteSettings } from "@/lib/types";
+import { QuietBoundary } from "@/components/ui/quiet-boundary";
 import GalaxyLoader from "./galaxy-loader";
 import HeroIntro from "./hero-intro";
 import WordmarkLetters from "./wordmark-letters";
@@ -40,9 +41,12 @@ export default function Hero({
         <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 45%, transparent 55%, var(--steel-990) 100%)" }} />
       </div>
 
-      {/* Fallback backdrop: posters of the same clips, faded once WebGL is live. */}
+      {/* Fallback backdrop: posters of the same clips, faded once WebGL is live.
+          Kept dark through the intro so the mark forms on a clean stage; it
+          fades in after only where the galaxy can't run. */}
       <div
         aria-hidden
+        data-intro-hide
         className="hero-mosaic pointer-events-none absolute inset-0 -z-10 grid grid-cols-3 gap-6 p-6 opacity-30 blur-[2px] transition-opacity duration-1000 sm:grid-cols-4 lg:grid-cols-6 [[data-galaxy=on]_&]:opacity-0"
       >
         {mosaic.map((item, i) => (
@@ -63,12 +67,13 @@ export default function Hero({
 
       <GalaxyLoader items={galaxy} lang={lang} label={t.work.open} />
       </div>
-      <HeroIntro />
-      <WordmarkLetters />
+      {/* Motion only: if either fails, the intro's CSS failsafe still shows everything. */}
+      <QuietBoundary><HeroIntro /></QuietBoundary>
+      <QuietBoundary><WordmarkLetters /></QuietBoundary>
 
       {/* Above the ruler's frosted patches (z-39): the wordmark letters end up in the title stack. */}
       <div className="pointer-events-none relative z-[41] mx-auto flex min-h-[calc(100svh-var(--nav-h))] max-w-[1280px] flex-col items-center justify-center px-6 py-16 text-center md:px-10">
-        <span aria-hidden data-hero-mark data-intro-hide className="of-mark mb-6 block size-14 drop-shadow-[0_0_24px_rgb(255_106_26/0.35)] md:size-20" />
+        <span aria-hidden data-hero-mark data-intro-hide className="of-mark relative z-10 mb-6 block size-14 drop-shadow-[0_0_24px_rgb(255_106_26/0.35)] md:size-20" />
 
         <p className="relative font-display text-wordmark uppercase leading-[0.9] tracking-[-0.02em] [font-stretch:125%] [font-weight:760]">
           <span className="sr-only">OriginForge</span>

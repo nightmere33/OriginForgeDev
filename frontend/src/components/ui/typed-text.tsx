@@ -86,6 +86,8 @@ export function TypedMirror({
   useEffect(() => {
     const el = field.current;
     if (!el) return;
+    // The field hides its own text only while this mirror runs (TYPED_FIELD).
+    el.setAttribute("data-typed", "");
     const place = () => {
       const b = box.current;
       const c = content.current;
@@ -139,6 +141,7 @@ export function TypedMirror({
       el.removeEventListener("focus", placeSoon);
       ro.disconnect();
       clearTimeout(t);
+      el.removeAttribute("data-typed");
     };
   }, [field]);
 
@@ -174,7 +177,11 @@ export function TypedMirror({
   );
 }
 
-/** Classes the field itself takes while mirrored. */
+/**
+ * Classes the field takes while mirrored. Its text turns transparent only once
+ * the mirror has started (`data-typed`), so a mirror that never runs leaves a
+ * plain, readable field.
+ */
 export const TYPED_FIELD =
-  "text-transparent caret-ember-400 selection:bg-ember-500/30 forced-colors:text-[CanvasText] " +
-  "[&:-webkit-autofill]:[-webkit-text-fill-color:transparent] [&:-webkit-autofill]:shadow-[inset_0_0_0_100px_var(--color-cell)]";
+  "data-typed:text-transparent caret-ember-400 selection:bg-ember-500/30 forced-colors:text-[CanvasText] " +
+  "data-typed:[&:-webkit-autofill]:[-webkit-text-fill-color:transparent] [&:-webkit-autofill]:shadow-[inset_0_0_0_100px_var(--color-cell)]";

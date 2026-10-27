@@ -17,6 +17,7 @@ import { THEME_FLAG } from "@/lib/theme-flag";
 import { LiveConnection } from "@/lib/live";
 import { CookieNotice } from "@/components/chrome/cookie-notice";
 import { Toaster } from "sonner";
+import { QuietBoundary } from "@/components/ui/quiet-boundary";
 import "../globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
@@ -90,8 +91,9 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         >
           {t.nav.skip}
         </a>
-        <LiveConnection />
-        <CookieNotice lang={locale} labels={t.cookies} />
+        {/* Enhancements fail on their own (an old browser, a weak GPU); the page stays. */}
+        <QuietBoundary><LiveConnection /></QuietBoundary>
+        <QuietBoundary><CookieNotice lang={locale} labels={t.cookies} /></QuietBoundary>
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -106,7 +108,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         />
         <CurrencyProvider rates={rates}>
         <MotionProvider>
-          <IntroConductor />
+          <QuietBoundary><IntroConductor /></QuietBoundary>
           <Suspense fallback={<NavFallback lang={locale} t={t.nav} />}>
             <SiteNav lang={locale} t={t.nav} />
           </Suspense>
@@ -114,7 +116,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
             {children}
           </main>
           <SiteFooter lang={locale} t={t} />
-          <Suspense fallback={null}><ScrollRuler /></Suspense>
+          <QuietBoundary><Suspense fallback={null}><ScrollRuler /></Suspense></QuietBoundary>
         </MotionProvider>
         </CurrencyProvider>
         <DevTools />

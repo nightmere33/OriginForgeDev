@@ -7,11 +7,14 @@
 export const BEATS = {
   mark: 0,
   letters: 0.35,
-  nav: 0.9,
-  copy: 1.2,
-  galaxy: 1.5,
-  end: 3.2,
+  nav: 0.7,
+  galaxy: 1,
+  copy: 1.05,
+  end: 2.8,
 } as const;
+
+/** How long the word takes to form out of the mark, from BEATS.letters. */
+export const WORD_DUR = 0.85;
 
 export const RETURN_SPEED = 2.2;
 export const FAST_FORWARD_SPEED = 6;

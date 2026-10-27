@@ -93,6 +93,10 @@ const MAX_PLAYING = 8;
 const POSTERS_IN_FLIGHT = 2;
 const FPS_FLOOR = 30;
 const PERF_GRACE_S = 4;
+// Still under this with the fewest cards for GIVE_UP_S: the device can't carry
+// the galaxy at all, and the poster mosaic takes over for the visit.
+const GIVE_UP_FPS = 20;
+const GIVE_UP_S = 5;
 const PARK_DELAY_MS = 2500; // scrolled away this long before decoders are parked
 const DEDUP_PX = 300; // two visible cards with the same clip closer than this: the younger one swaps
 
@@ -378,6 +382,7 @@ class GalaxyWorld {
   private postersLoading = 0;
   private frameEma = 1 / 60;
   private perfScale = 1;
+  private slowFor = 0;
   /** Cards in the order the governor sheds and regrows them (golden scatter, never in rings). */
   private readonly liveOrder: number[];
   /** Per clip, when it was last handed to a card (higher = more recent). */
@@ -605,6 +610,11 @@ class GalaxyWorld {
     this.ptr.active = active;
   }
 
+  /** Shed down to the fewest cards and still too slow for a while. */
+  get struggling() {
+    return this.slowFor > GIVE_UP_S;
+  }
+
   /** The card at a client point (for clicks and taps), or -1. */
   cardAt(clientX: number, clientY: number, ctx: Pick<FrameContext, "width" | "height" | "scroll" | "canvasTop">) {
     const x = clientX - ctx.width / 2;
@@ -627,6 +637,8 @@ class GalaxyWorld {
       if (this.frameEma > 1 / FPS_FLOOR) this.perfScale = Math.max(0.35, this.perfScale - dt * 0.3);
       else if (this.frameEma < 0.7 / FPS_FLOOR) this.perfScale = Math.min(1, this.perfScale + dt * 0.05);
     }
+    const floored = this.time > PERF_GRACE_S && this.perfScale <= 0.35 && this.frameEma > 1 / GIVE_UP_FPS;
+    this.slowFor = floored ? this.slowFor + rawDt : 0;
     const liveN = Math.max(6, Math.round(this.cards.length * this.perfScale));
     this.liveOrder.forEach((ci, rank) => (this.cards[ci].live = rank < liveN));
     for (const clip of this.clips) clip.shown += ((clip.videoTex || clip.posterState === 2 ? 1 : 0) - clip.shown) * ease(dt, 0.3);
@@ -954,6 +966,8 @@ export type GalaxyProps = {
   lang: string;
   label: string;
   onReady: () => void;
+  /** The GPU context was lost or the device can't keep up: back to the posters. */
+  onFail: () => void;
 };
 
 export default function ForgeGalaxy(props: GalaxyProps) {
@@ -983,7 +997,7 @@ export default function ForgeGalaxy(props: GalaxyProps) {
 }
 
 function Scene({
-  items, lang, label, tip, active,
+  items, lang, label, tip, active, onFail,
 }: GalaxyProps & {
   tip: React.RefObject<HTMLDivElement | null>;
   active: React.RefObject<boolean>;
@@ -1062,9 +1076,27 @@ function Scene({
   }, [gl, world, setFrameloop, active]);
   useEffect(() => fitCamera(camera as THREE.PerspectiveCamera, size.height), [camera, size.height]);
 
+  // A driver reset or a GPU under pressure can take the context away; old
+  // drivers rarely give it back cleanly, so the posters take over.
+  const failed = useRef(false);
+  const failOnce = useRef(onFail);
+  useEffect(() => {
+    failOnce.current = () => {
+      if (failed.current) return;
+      failed.current = true;
+      onFail();
+    };
+  });
+  useEffect(() => {
+    const lost = () => failOnce.current();
+    gl.domElement.addEventListener("webglcontextlost", lost);
+    return () => gl.domElement.removeEventListener("webglcontextlost", lost);
+  }, [gl]);
+
   useFrame((_, dt) => {
     if (!active.current) return;
     world.update(dt, { width: size.width, height: size.height, scroll: frameScroll(), canvasTop: canvasTop.current, tip: tip.current }, label);
+    if (world.struggling) failOnce.current();
   });
 
   return (

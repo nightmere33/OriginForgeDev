@@ -4,6 +4,7 @@ import { Children, isValidElement, useEffect, useId, useImperativeHandle, useRef
 import { Check, ChevronDown, FileText, UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { DecodeText, SPLIT, tearIn, useDecode, useDismiss } from "@/motion/glitch";
+import { QuietBoundary } from "./quiet-boundary";
 import { TEXT_TYPES, TYPED_FIELD, TypedMirror, useTypingFx } from "./typed-text";
 
 /** DESIGN.md §5 Field set: one wrapper owns label, help, error and their ids. */
@@ -58,7 +59,7 @@ export function Input({ className, ref, type, ...props }: ComponentProps<"input"
   return (
     <span className="relative block">
       <input ref={own} type={type} className={cn(control, "h-12", fx && TYPED_FIELD, className)} {...props} />
-      {fx && <TypedMirror field={own} masked={type === "password"} value={props.value} />}
+      {fx && <QuietBoundary><TypedMirror field={own} masked={type === "password"} value={props.value} /></QuietBoundary>}
     </span>
   );
 }
@@ -71,7 +72,7 @@ export function Textarea({ className, ref, bare, ...props }: ComponentProps<"tex
   return (
     <span className="relative block">
       <textarea ref={own} className={cn(!bare && control, !bare && "min-h-32 resize-y py-3 leading-relaxed", fx && TYPED_FIELD, className)} {...props} />
-      {fx && <TypedMirror field={own} masked={false} multiline value={props.value} />}
+      {fx && <QuietBoundary><TypedMirror field={own} masked={false} multiline value={props.value} /></QuietBoundary>}
     </span>
   );
 }

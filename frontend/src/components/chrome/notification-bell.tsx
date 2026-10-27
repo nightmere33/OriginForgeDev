@@ -24,6 +24,9 @@ function ago(lang: Locale, iso: string | null) {
 /**
  * Nav bell for signed-in visitors: the unread count, a panel that glitches
  * in, and a toast the moment something arrives (live over the socket).
+ * On phones the panel is a full-width sheet under the nav (the bell isn't at
+ * the screen edge, so a dropdown anchored to it would spill off the side);
+ * from `sm` it drops from the bell.
  */
 export function NotificationBell({ lang, labels }: { lang: Locale; labels: Labels }) {
   const router = useRouter();
@@ -47,8 +50,9 @@ export function NotificationBell({ lang, labels }: { lang: Locale; labels: Label
   }, [open]);
 
   if (!loaded) return null;
+  // Static on phones, so the sheet is placed against the sticky header.
   return (
-    <div ref={root} className="relative flex border-l border-line">
+    <div ref={root} className="flex border-l border-line sm:relative">
       <button
         type="button"
         aria-haspopup="dialog"
@@ -69,7 +73,7 @@ export function NotificationBell({ lang, labels }: { lang: Locale; labels: Label
           ref={panel}
           role="dialog"
           aria-label={labels.notifications}
-          className="absolute right-0 top-full z-50 w-[min(24rem,calc(100vw-2rem))] border border-line bg-raised shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]"
+          className="absolute inset-x-0 top-full z-50 border-b border-line bg-raised shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)] sm:left-auto sm:w-96 sm:border"
         >
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <span className="hud text-ink">{labels.notifications}</span>
@@ -82,15 +86,18 @@ export function NotificationBell({ lang, labels }: { lang: Locale; labels: Label
           {items.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted">{labels.noNotifications}</p>
           ) : (
-            <ul data-lenis-prevent className="max-h-[60vh] divide-y divide-line overflow-y-auto overscroll-contain">
+            <ul data-lenis-prevent className="max-h-[min(60vh,26rem)] divide-y divide-line overflow-y-auto overscroll-contain">
               {items.map((n) => (
                 <li key={n.id}>
-                  <button type="button" onClick={() => go(n)} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-cell">
+                  <button type="button" onClick={() => go(n)} className="flex w-full gap-3 px-4 py-2.5 text-left hover:bg-cell sm:py-3">
                     <span aria-hidden className={cn("mt-1.5 size-1.5 shrink-0", n.read ? "bg-transparent" : "bg-ember-500")} />
-                    <span className="flex min-w-0 flex-col gap-1">
-                      <span className={cn("text-sm", n.read ? "text-muted" : "text-ink-strong")}>{n.title}</span>
-                      {n.body && <span className="line-clamp-2 text-sm text-faint">{n.body}</span>}
-                      <span className="hud text-faint">{ago(lang, n.created_at)}</span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      {/* Title and time share a line; phones keep the title to one. */}
+                      <span className="flex items-baseline justify-between gap-3">
+                        <span className={cn("truncate text-sm sm:whitespace-normal", n.read ? "text-muted" : "text-ink-strong")}>{n.title}</span>
+                        <span className="hud shrink-0 text-faint">{ago(lang, n.created_at)}</span>
+                      </span>
+                      {n.body && <span className="line-clamp-1 text-[13px] leading-snug text-faint sm:line-clamp-2 sm:text-sm">{n.body}</span>}
                     </span>
                   </button>
                 </li>

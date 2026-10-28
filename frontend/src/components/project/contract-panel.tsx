@@ -212,7 +212,7 @@ export function ContractSheet({ lang, t, contract, reference, preview, writing }
           )}
           {signed && contract.sha256 && (
             <div aria-label={`${s.fingerprint} SHA-256 ${contract.sha256}`}
-              className="sign-seal pointer-events-none absolute -right-2 -top-4 flex w-44 rotate-[-7deg] flex-col items-center gap-1 border-2 border-[var(--ember-700)] px-3 py-2 text-center text-[var(--ember-700)] sm:-right-4"
+              className="sign-seal pointer-events-none absolute -bottom-10 right-0 flex w-40 rotate-[-7deg] flex-col items-center gap-1 border-2 border-[var(--ember-700)] px-3 py-2 text-center text-[var(--ember-700)] sm:-right-4"
               style={writing ? { animation: "seal-press 0.5s 2.1s cubic-bezier(0.2, 0.9, 0.3, 1.2) both" } : undefined}>
               <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em]">{s.stamp}</span>
               <span className="font-mono text-[0.6rem] tracking-[0.08em]">SHA-256</span>

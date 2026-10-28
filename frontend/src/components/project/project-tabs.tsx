@@ -20,7 +20,8 @@ export function useProjectTab(tabs: TabSpec[]): [ProjectTab, (tab: ProjectTab) =
     const url = new URL(location.href);
     if (tab === "overview") url.searchParams.delete("tab");
     else url.searchParams.set("tab", tab);
-    history.replaceState(history.state, "", url);
+    // null, as Next documents it: its router then updates useSearchParams (its own state object would not).
+    history.replaceState(null, "", url);
   }, []);
   return [active, open];
 }
@@ -65,7 +66,8 @@ export function ProjectTabs({ label, tabs, active, onChange, idBase }: {
   };
 
   return (
-    <div className="sticky top-[var(--nav-h)] z-20 border-t border-line bg-bg/90 backdrop-blur-md">
+    // Under the nav and the section's sticky eyebrow (42px), never behind them.
+    <div className="sticky top-[calc(var(--nav-h)+2.625rem)] z-20 border-y border-line bg-bg/90 backdrop-blur-md">
       <div ref={list} role="tablist" aria-label={label} onKeyDown={onKey}
         className="relative flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => (

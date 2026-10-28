@@ -1228,8 +1228,8 @@
         "step": "Payment {n} of {total}",
         "when": {
           "deposit": "Starts the work",
-          "milestone": "At the main milestone",
-          "balance": "When you approve the work"
+          "milestone": "When the work is far enough along",
+          "balance": "When the work is ready for your review"
         }
       },
       "track": {

@@ -11,6 +11,7 @@ import { Field, Input, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { StatusPill } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
+import { Linked } from "./conversation";
 import { ErrorLine, errorText, timeLeft, type PanelProps } from "./shared";
 
 const MILESTONE_TONE: Record<Milestone["status"], string> = {
@@ -323,7 +324,7 @@ export function WorkPanel(props: PanelProps & { engagement: Engagement }) {
                 <span aria-hidden className="absolute -left-[3.5px] top-1.5 size-1.5 bg-ember-500" />
                 <Hud tone="faint">{dateTime(lang, u.created_at)}</Hud>
                 <p className="mt-2 text-lg text-ink-strong">{u.title}</p>
-                {u.body && <p className="mt-2 whitespace-pre-line leading-relaxed text-muted">{u.body}</p>}
+                {u.body && <Linked text={u.body} className="mt-2 text-muted" />}
                 <Media items={u.attachments} />
               </li>
             ))}

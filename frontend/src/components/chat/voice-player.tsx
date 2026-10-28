@@ -114,7 +114,7 @@ export function VoicePlayer({ src, duration, mine, labels }: {
   const shown = playing || progress > 0 ? progress * length : length;
 
   return (
-    <div ref={root} className="flex w-[15.5rem] max-w-full items-center gap-3 py-0.5">
+    <div ref={root} className="flex w-[17rem] max-w-full items-center gap-3 py-0.5">
       <button type="button" onClick={toggle} aria-label={playing ? labels.pause : labels.play}
         className={cn("flex size-9 shrink-0 items-center justify-center transition-colors duration-[var(--dur-micro)]",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-400",
@@ -137,15 +137,15 @@ export function VoicePlayer({ src, duration, mine, labels }: {
         }}
         onPointerMove={(e) => dragging.current && seekTo(e)}
         onPointerUp={() => (dragging.current = false)}
-        className="flex h-8 min-w-0 flex-1 cursor-pointer touch-none items-center gap-[2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-400">
+        className="flex h-8 min-w-0 flex-1 cursor-pointer touch-none items-center justify-between gap-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-400">
         {bars.map((h, i) => (
           <span key={i} aria-hidden
-            className={cn("w-[3px] shrink-0 transition-[height,background-color] duration-300 ease-out",
+            className={cn("min-w-px max-w-[3px] flex-1 transition-[height,background-color] duration-300 ease-out",
               (i + 0.5) / BARS <= progress ? (mine ? "bg-ember-400" : "bg-ink") : "bg-line-strong")}
             style={{ height: `${Math.round(h * 100)}%` }} />
         ))}
       </div>
-      <span className="flex shrink-0 flex-col items-end gap-0.5">
+      <span className="flex w-9 shrink-0 flex-col items-end gap-0.5">
         <span className="hud tabular-nums text-muted">{clock(shown)}</span>
         <button type="button" onClick={() => {
           const next = RATES[(RATES.indexOf(rate) + 1) % RATES.length];

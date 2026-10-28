@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { CalendarClock, LifeBuoy, MessageSquareReply, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { fill } from "@/i18n/fill";
 import { api } from "@/lib/api-client";
@@ -16,7 +16,7 @@ import { ErrorLine, errorText, timeLeft, type PanelProps } from "./shared";
  * left, reply time, delivery, confidentiality. The studio sees the same card,
  * so both sides talk about the same terms.
  */
-export function PlanCard({ lang, t, side, engagement: e, confidential }: Omit<PanelProps, "reload"> & { engagement: Engagement; confidential: boolean }) {
+export function PlanCard({ lang, t, engagement: e, confidential }: Omit<PanelProps, "reload"> & { engagement: Engagement; confidential: boolean }) {
   const s = t.project.plan;
   const rows = [
     {
@@ -30,14 +30,15 @@ export function PlanCard({ lang, t, side, engagement: e, confidential }: Omit<Pa
       meta: e.revisions_granted ? fill(s.granted, { n: e.revisions_granted }) : "",
     },
     { icon: MessageSquareReply, text: fill(s.reply, { n: e.plan.reply_hours }), meta: "" },
-    { icon: CalendarClock, text: fill(s.timeline, { n: e.timeline_days }), meta: "" },
+    // The delivery estimate matters until the work is delivered.
+    ...(["awaiting_balance", "live", "closed"].includes(e.status) ? [] : [{ icon: CalendarClock, text: fill(s.timeline, { n: e.timeline_days }), meta: "" }]),
     { icon: Sparkles, text: confidential ? s.confidential : s.showcase, meta: "" },
   ];
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <p className="font-display text-2xl font-[620] tracking-[-0.02em] text-ink-strong [font-stretch:125%]">{e.plan.name || e.plan_name}</p>
-        <Hud tone="faint">{side === "client" ? s.includes : s.studioTitle}</Hud>
+        <Hud tone="faint">{s.includes}</Hud>
       </div>
       <ul className="grid gap-px border border-line bg-line sm:grid-cols-2">
         {rows.map((r, i) => (
@@ -67,7 +68,8 @@ export function KeyDates({ lang, t, engagement: e }: Pick<PanelProps, "lang" | "
   ].filter(Boolean) as { k: string; v: string; meta?: string }[];
   if (!dates.length) return null;
   return (
-    <dl className="grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+    // As many columns as dates (up to four), so no cell is ever empty.
+    <dl className="grid gap-px border border-line bg-line sm:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]" style={{ "--n": Math.min(dates.length, 4) } as CSSProperties}>
       {dates.map((d) => (
         <div key={d.k} className="flex flex-col gap-1 bg-bg px-4 py-4">
           <dt className="hud text-faint">{d.k}</dt>

@@ -69,13 +69,17 @@ export function ChatDock({ lang, t }: { lang: Locale; t: T }) {
 
   return (
     <>
+      {open && wide && (
+        // Full window: the page dims behind it; a click outside brings the compact window back.
+        <div aria-hidden onClick={() => setWide(false)} className="fixed inset-0 z-[54] hidden bg-bg/70 backdrop-blur-sm [animation:step-in_var(--dur-standard)_var(--ease-out)] sm:block" />
+      )}
       {open && (
         <div ref={panel} tabIndex={-1} role="dialog" aria-modal="false" aria-label={current?.title ?? c.conversations}
           className={cn(
-            "fixed z-[46] flex flex-col border border-line-strong bg-bg shadow-[0_32px_80px_-32px_rgb(0_0_0/0.85)] outline-none",
+            "fixed z-[55] flex flex-col border border-line-strong bg-bg shadow-[0_32px_80px_-32px_rgb(0_0_0/0.85)] outline-none",
             "origin-bottom-right [animation:dock-in_var(--dur-standard)_var(--ease-out)]",
             "inset-0 sm:inset-auto",
-            wide ? "sm:inset-4 md:inset-8 xl:left-1/2 xl:w-[72rem] xl:-translate-x-1/2" : "sm:bottom-24 sm:right-5 sm:h-[min(38rem,calc(100dvh-8rem))] sm:w-[25rem]",
+            wide ? "sm:inset-4 md:inset-8 xl:left-1/2 xl:w-[72rem] xl:-translate-x-1/2" : "sm:bottom-24 sm:right-5 sm:h-[min(38rem,calc(100dvh-10rem))] sm:w-[25rem]",
           )}>
           <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-2">
             {active && !onPage ? (

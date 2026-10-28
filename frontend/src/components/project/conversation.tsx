@@ -43,10 +43,10 @@ function dayLabel(lang: string, c: PanelProps["t"]["project"]["chat"], iso: stri
 }
 
 /** Text with its links made clickable (they open in a new tab, without the referrer). */
-function Linked({ text, className }: { text: string; className?: string }) {
+export function Linked({ text, className }: { text: string; className?: string }) {
   const parts = text.split(URL_RE);
   return (
-    <p className={cn("whitespace-pre-line break-words leading-relaxed", className)}>
+    <p className={cn("whitespace-pre-line leading-relaxed [overflow-wrap:anywhere]", className)}>
       {parts.map((part, i) => i % 2 ? (
         <a key={i} href={part} target="_blank" rel="noreferrer noopener" className="underline decoration-current/40 underline-offset-4 hover:decoration-current">{part}</a>
       ) : <Fragment key={i}>{part}</Fragment>)}
@@ -229,7 +229,8 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
       const msg = await api.post<Message>(`/requests/${reference}/messages/`, form);
       stick.current = true;
       lastSeen.current = Math.max(lastSeen.current ?? 0, msg.id);
-      setMessages((m) => [...(m ?? []), msg]);
+      // The live refresh may have brought it already.
+      setMessages((m) => (m?.some((x) => x.id === msg.id) ? m : [...(m ?? []), msg]));
       setReplyTo(null);
       playSent();
       if (!extra.voice) {
@@ -343,10 +344,10 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
             )}>
             {m.reply_to && (
               <button type="button" onClick={() => jump(m.reply_to!.id)} aria-label={c.jump}
-                className={cn("mb-2 flex w-full flex-col items-start gap-0.5 border-l-2 py-0.5 pl-2.5 text-left",
+                className={cn("mb-2 flex w-full min-w-0 flex-col items-start gap-0.5 overflow-hidden border-l-2 py-0.5 pl-2.5 text-left",
                   own ? "border-ember-400/70" : "border-line-strong")}>
                 <span className="hud text-faint">{nameOf(m.reply_to)}</span>
-                <span className="line-clamp-2 text-sm text-muted">{quoteText(m.reply_to)}</span>
+                <span className="line-clamp-2 text-sm text-muted [overflow-wrap:anywhere]">{quoteText(m.reply_to)}</span>
               </button>
             )}
             {card ? (
@@ -401,7 +402,7 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
           const el = e.currentTarget;
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         }}
-        className={cn("relative flex flex-col overflow-y-auto px-3 pb-4 pt-2 [overscroll-behavior:contain] md:px-4",
+        className={cn("relative flex flex-col overflow-y-auto overflow-x-hidden px-3 pb-4 pt-2 [overscroll-behavior:contain] md:px-4",
           dock ? "min-h-0 flex-1" : "h-[min(38rem,68dvh)] border border-line bg-bg-sunken")}>
         {messages === null ? (
           <li className="hud m-auto text-faint">{t.common.loading}</li>
@@ -450,6 +451,8 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               <span className="sr-only">{c.attach}</span>
               <input id={fileId} type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </label>
+            {/* The field wraps its textarea (the typing effect): the wrapper takes the row. */}
+            <div className="min-w-0 flex-1">
             <Textarea
               bare
               ref={input}
@@ -466,8 +469,9 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               rows={1}
               aria-label={c.placeholder}
               placeholder={c.placeholder}
-              className="max-h-44 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 leading-[1.625rem] text-ink placeholder:text-faint focus:outline-none"
+              className="block max-h-44 min-h-10 w-full resize-none bg-transparent px-2 py-2 leading-[1.625rem] text-ink placeholder:text-faint focus:outline-none"
             />
+            </div>
             <button type="button" onClick={() => setSound(!sound)} title={sound ? c.soundOn : c.soundOff} aria-pressed={sound}
               className="hidden size-10 shrink-0 items-center justify-center text-faint hover:text-ink sm:flex">
               {sound ? <Volume2 aria-hidden className="size-4" /> : <VolumeX aria-hidden className="size-4" />}

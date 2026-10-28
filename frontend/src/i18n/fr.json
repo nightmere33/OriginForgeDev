@@ -1228,8 +1228,8 @@
         "step": "Paiement {n} sur {total}",
         "when": {
           "deposit": "Lance le travail",
-          "milestone": "À l'étape principale",
-          "balance": "Quand vous validez le travail"
+          "milestone": "Quand le travail est assez avancé",
+          "balance": "Quand le travail est prêt à valider"
         }
       },
       "track": {

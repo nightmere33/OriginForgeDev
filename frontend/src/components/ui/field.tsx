@@ -4,6 +4,7 @@ import { Children, isValidElement, useEffect, useId, useImperativeHandle, useRef
 import { Check, ChevronDown, FileText, UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { DecodeText, SPLIT, tearIn, useDecode, useDismiss } from "@/motion/glitch";
+import { FLOAT, useFloat } from "./float";
 import { QuietBoundary } from "./quiet-boundary";
 import { TEXT_TYPES, TYPED_FIELD, TypedMirror, useTypingFx } from "./typed-text";
 
@@ -142,13 +143,13 @@ export function Select({ id, name, value, defaultValue, onChange, disabled, clas
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: "", at: 0 });
   const listId = useId();
   useDismiss(open, root, setOpen);
+  const panel = useFloat<HTMLUListElement>(open, button, { match: true, max: 288 });
   useEffect(() => {
     if (open) tearIn(panel.current);
-  }, [open]);
+  }, [open, panel]);
   useEffect(() => {
     if (open) document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
   }, [open, active, listId]);
@@ -228,8 +229,8 @@ export function Select({ id, name, value, defaultValue, onChange, disabled, clas
         <ChevronDown aria-hidden className={cn("size-3.5 shrink-0 text-muted transition-transform duration-[var(--dur-micro)]", open && "rotate-180")} />
       </button>
       {open && (
-        <ul ref={panel} id={listId} role="listbox" aria-labelledby={id} tabIndex={-1} data-lenis-prevent
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto overscroll-contain border border-line bg-raised py-1 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]">
+        <ul ref={panel} id={listId} role="listbox" aria-labelledby={id} tabIndex={-1} popover="manual" data-lenis-prevent
+          className={cn(FLOAT, "overflow-y-auto overscroll-contain border border-line bg-raised py-1 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]")}>
           {options.map((o, i) => (
             <SelectOption key={o.value} id={`${listId}-${i}`} opt={o} selected={i === selected} active={i === active}
               onPick={() => pick(i)} onHover={() => !o.disabled && setActive(i)} />

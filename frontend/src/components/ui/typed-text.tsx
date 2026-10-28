@@ -20,6 +20,9 @@ const GLYPHS = "!<>/\\[]{}=+*^?#%&01";
 const glyph = () => GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
 // A paste or a programmatic fill flickers only its last characters.
 const MAX_FRESH = 24;
+// A password's dots are drawn with the browser's own disc (-webkit-text-security,
+// as in the field): phones draw a wider dot than this bullet, and a mismatch
+// would put the caret ahead of the text. The bullet shows only without it.
 const DOT = "•";
 // Chrome and Edge draw a field's single line lower than plain centring would:
 // at the rounded-down centre plus one pixel (measured at several heights and
@@ -64,7 +67,7 @@ function FreshChar({ ch, onSettle }: { ch: string; onSettle: () => void }) {
       {/* Its own line box is the glyph's height (line-height: normal): with the
           line's height (a single-line field's is the whole box) it would draw
           below the character it stands for. */}
-      <span className="absolute left-0 top-0" style={{ lineHeight: "normal", color: "var(--ember-400)", textShadow: SPLIT.textShadow }}>{flicker}</span>
+      <span className="absolute left-0 top-0 [-webkit-text-security:none]" style={{ lineHeight: "normal", color: "var(--ember-400)", textShadow: SPLIT.textShadow }}>{flicker}</span>
     </span>
   );
 }
@@ -184,7 +187,7 @@ export function TypedMirror({
   if (run) parts.push(run);
   return (
     <div ref={box} aria-hidden className="pointer-events-none absolute overflow-hidden text-ink forced-colors:hidden">
-      <div ref={content} style={style}>
+      <div ref={content} style={style} className={masked ? "[-webkit-text-security:disc]" : undefined}>
         {parts}
         {/* A trailing newline still needs its line drawn. */}
         {multiline && "​"}

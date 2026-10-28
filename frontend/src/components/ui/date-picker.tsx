@@ -5,6 +5,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown } from "lucide-rea
 import type { Locale } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { DecodeText, tearIn, useDismiss } from "@/motion/glitch";
+import { FLOAT, useFloat } from "./float";
 import { WheelPicker } from "./wheel-picker";
 
 const LABELS = {
@@ -56,7 +57,6 @@ export function DatePicker({
   const [focus, setFocus] = useState<Date>(() => selected ?? lo ?? new Date());
   const [dir, setDir] = useState<1 | -1>(1);
   const root = useRef<HTMLDivElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const grid = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -64,6 +64,7 @@ export function DatePicker({
     setOpen(o);
     if (!o) setWheels(false);
   });
+  const panel = useFloat<HTMLDivElement>(open, button);
 
   const blocked = (d: Date) => (lo !== null && d < lo) || (hi !== null && d > hi);
   const today = new Date();
@@ -83,7 +84,7 @@ export function DatePicker({
   useEffect(() => {
     if (!open) return;
     tearIn(panel.current);
-  }, [open]);
+  }, [open, panel]);
   // Keyboard focus follows the focused day (the grid is one roving tab stop).
   useEffect(() => {
     if (open && !wheels) grid.current?.querySelector<HTMLButtonElement>(`[data-day="${iso(focus)}"]`)?.focus({ preventScroll: true });
@@ -164,7 +165,9 @@ export function DatePicker({
           role="dialog"
           aria-modal="false"
           aria-labelledby={titleId}
-          className="absolute left-0 top-full z-50 mt-1 w-[19.5rem] max-w-[calc(100vw-2rem)] border border-line bg-raised shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]"
+          popover="manual"
+          data-lenis-prevent
+          className={cn(FLOAT, "w-[19.5rem] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain border border-line bg-raised shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]")}
         >
           <div className="flex items-center justify-between border-b border-line px-2 py-1.5">
             <button type="button" onClick={() => move(addMonths(focus, -1))} aria-label={l.prev} disabled={wheels}

@@ -36,6 +36,7 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
     plan: req.plan ?? "pro",
     timeline_days: String(last?.timeline_days ?? 30),
     nda: last?.nda ?? req.wants_nda,
+    allow_cash: last?.allow_cash ?? false,
     note: "",
   }));
   const [milestones, setMilestones] = useState(() => last?.milestones.map((m) => ({ title: m.title, days: String(m.days) })) ?? [{ title: "", days: "" }]);
@@ -56,7 +57,7 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
     try {
       await api.post(`/requests/${req.reference}/proposals/`, {
         title: form.title, scope: form.scope, deliverables: form.deliverables, exclusions: form.exclusions, note: form.note,
-        price, currency: form.currency, plan: form.plan, timeline_days: Number(form.timeline_days) || 0, nda: form.nda,
+        price, currency: form.currency, plan: form.plan, timeline_days: Number(form.timeline_days) || 0, nda: form.nda, allow_cash: form.allow_cash,
         milestones: milestones.filter((m) => m.title.trim()).map((m) => ({ title: m.title.trim(), days: Number(m.days) || 0 })),
       });
       await reload();
@@ -128,7 +129,10 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
         <p className="mt-2 text-sm text-faint">{st.scheduleHelp}</p>
       </div>
 
-      <ChoiceChip label={st.nda} checked={form.nda} onChange={(e) => set("nda", e.target.checked)} className="sm:max-w-sm" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <ChoiceChip label={st.nda} checked={form.nda} onChange={(e) => set("nda", e.target.checked)} />
+        <ChoiceChip label={st.allowCash} description={st.allowCashHelp} checked={form.allow_cash} onChange={(e) => set("allow_cash", e.target.checked)} />
+      </div>
       <Field label={st.note}>{(a) => <Textarea id={a.id} value={form.note} onChange={(e) => set("note", e.target.value)} className="min-h-12" />}</Field>
       <ErrorLine>{error}</ErrorLine>
       <Button variant="ember" disabled={!price || !form.scope.trim() || versions >= 3} loading={busy} onClick={send}>{st.sendProposal}</Button>

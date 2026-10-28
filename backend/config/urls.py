@@ -4,6 +4,8 @@ from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 
+from billing import webhooks as billing_webhooks
+
 admin.site.site_header = "OriginForge"
 admin.site.site_title = "OriginForge admin"
 admin.site.index_title = "Studio data"
@@ -42,6 +44,9 @@ urlpatterns = [
     path("api/studio/", include("studio.urls")),
     path("api/", include("engagements.urls")),
     path("api/", include("billing.urls")),
+    # Provider notices (nginx routes /webhooks/ here): Chargily and PayPal.
+    path("webhooks/chargily/", billing_webhooks.chargily_webhook),
+    path("webhooks/paypal/", billing_webhooks.paypal_webhook),
     path(settings.DJANGO_ADMIN_PATH, admin.site.urls),
 ]
 

@@ -76,7 +76,7 @@ class EngagementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
 
     def get_queryset(self):
         qs = Engagement.objects.select_related("request").prefetch_related(
-            "charges__proofs", "milestones", "tasks", "updates__attachments")
+            "charges__proofs", "charges__payments", "milestones", "tasks", "updates__attachments")
         return scoped(qs, self.request.user, field="client")
 
     @action(detail=True, methods=["post"], url_path="action")

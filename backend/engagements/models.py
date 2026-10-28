@@ -154,6 +154,9 @@ class Proposal(models.Model):
     timeline_days = models.PositiveSmallIntegerField()
     milestones = models.JSONField(default=list, help_text="List of {title, days}")
     nda = models.BooleanField(default=False)
+    # Cash by hand is offered only to clients Younes knows and trusts; every
+    # other method (card, PayPal, CCP, BaridiMob, USDT) is open to all.
+    allow_cash = models.BooleanField(default=False, help_text="Let this client pay cash, by hand")
 
     expires_at = models.DateTimeField()
     responded_at = models.DateTimeField(null=True, blank=True)

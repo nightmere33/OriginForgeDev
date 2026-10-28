@@ -89,6 +89,8 @@ EVENTS = {
     "studio_declined": {"en": ("Declined: {ref}", "{client} declined the proposal for \"{title}\". {note}")},
     "studio_signed": {"en": ("Signed: {ref}", "{client} signed the contract for \"{title}\". The deposit is due within 5 days.")},
     "studio_proof": {"en": ("Receipt to check: {ref}", "{client} uploaded a {method} receipt for {label} ({amount}).")},
+    "studio_paid_online": {"en": ("Paid online: {ref}", "{client} paid {label} ({amount}) by {method}. It is confirmed: nothing to check.")},
+    "studio_payment_attention": {"en": ("Check a payment: {ref}", "{note}")},
     "review_invite": {
         "en": ("How was it working together?", "{title} is live. When you've had a little time with it, a few honest words and a rating would help other clients decide. It takes a minute, and nothing is published without your consent."),
         "fr": ("Comment s'est passée notre collaboration ?", "{title} est en ligne. Quand vous aurez pris un peu de recul, quelques mots sincères et une note aideraient d'autres clients à se décider. Une minute suffit, et rien n'est publié sans votre accord."),

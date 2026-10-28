@@ -39,6 +39,7 @@ export type Proposal = {
   timeline_days: number;
   milestones: { title: string; days: number }[];
   nda: boolean;
+  allow_cash: boolean;
   expires_at: string;
   responded_at: string | null;
   created_at: string;
@@ -86,8 +87,37 @@ export type Charge = {
   paid_at: string | null;
   overdue: boolean;
   usdt_amount: string | null;
+  /** The online methods open for it while due, with what each would take. */
+  online: {
+    chargily?: { amount: number; currency: "DZD" };
+    paypal?: {
+      amount: string; currency: "USD" | "EUR"; client_id: string;
+      /** A DZD charge paid through PayPal: the live rate the quote comes from. */
+      conversion?: { rate: string; source: string; updated_at: string | null };
+    };
+  };
+  payments: OnlinePayment[];
+  paid_by: PayMethod | null;
   proofs: Proof[];
 };
+
+export type PayMethod = "cash" | "ccp" | "baridimob" | "chargily" | "paypal" | "usdt";
+
+/** A card (Chargily) or PayPal attempt at a charge. */
+export type OnlinePayment = {
+  id: number;
+  provider: "chargily" | "paypal";
+  status: "pending" | "paid" | "failed" | "canceled" | "expired" | "refunded";
+  provider_amount: string | null;
+  provider_currency: string;
+  /** The provider's reason for a refusal or a hold. */
+  detail: string;
+  created_at: string;
+  paid_at: string | null;
+};
+
+/** What the return page follows (GET /payments/<id>/). */
+export type PaymentState = OnlinePayment & { amount: number; currency: Currency; charge: number; charge_status: Charge["status"] };
 
 export type Milestone = {
   id: number;
@@ -139,6 +169,8 @@ export type Engagement = {
   tasks: Task[];
   updates: ProgressUpdate[];
   ready_to_go_live: boolean;
+  /** Younes allowed cash by hand for this client (in the proposal). */
+  cash_allowed: boolean;
 };
 
 export type Message = {
@@ -219,6 +251,12 @@ const intl = (lang: Locale) => (lang === "fr" ? "fr-FR" : "en-GB");
 export function money(lang: Locale, amount: number, currency: string) {
   // Grouped with thin spaces in both languages: "180 000 DZD".
   return `${new Intl.NumberFormat(intl(lang)).format(amount).replace(/[  ,]/g, " ")} ${currency}`;
+}
+
+/** An amount with cents (a PayPal quote): "309.53 USD", "309,53 USD" in French, grouped like `money`. */
+export function cents(lang: Locale, value: string | number, currency: string) {
+  const parts = new Intl.NumberFormat(intl(lang), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(Number(value));
+  return `${parts.map((x) => (x.type === "group" ? " " : x.value)).join("")} ${currency}`;
 }
 
 export function day(lang: Locale, iso: string, withYear = true) {

@@ -7,8 +7,11 @@ import { cn } from "@/lib/cn";
 import type { T } from "./shared";
 
 /**
- * The 10-stage journey as an instrument scale: passed stages ticked, the
- * current one in ember. Scrolls sideways on phones, current stage in view.
+ * The 10-stage journey as an instrument scale: a rail across the top (ember
+ * where the project has been, a slow ember light on the current stage, as on
+ * the payment bar), then each stage's number with a tick or a live dot, and
+ * its name on a line of its own. Scrolls sideways on phones, current stage
+ * in view.
  */
 export function StageTrack({ t, stage, stopped }: { t: T; stage: Stage; stopped?: boolean }) {
   const at = STAGES.indexOf(stage);
@@ -29,14 +32,21 @@ export function StageTrack({ t, stage, stopped }: { t: T; stage: Stage; stopped?
               key={s}
               aria-current={state === "now" ? "step" : undefined}
               className={cn(
-                "relative flex min-w-[8.5rem] shrink-0 snap-center flex-col gap-3 border-r border-line px-4 py-4 last:border-r-0 xl:min-w-0 xl:px-3",
+                "relative flex min-w-[9.5rem] shrink-0 snap-center flex-col gap-3 border-r border-line px-5 pb-6 pt-6 last:border-r-0 xl:min-w-0 xl:px-4",
                 state === "now" && "bg-cell",
               )}
             >
-              <span aria-hidden className={cn("h-px w-full", state === "done" ? "bg-line-strong" : state === "now" ? (stopped ? "bg-err" : "bg-ember-500") : "bg-line")} />
-              <span className={cn("hud flex items-start gap-2", state === "now" ? (stopped ? "text-err" : "text-ember-400") : state === "done" ? "text-muted" : "text-faint")}>
-                {state === "done" ? <Check aria-hidden className="size-3" /> : <span aria-hidden>{String(i + 1).padStart(2, "0")}</span>}
-                <span className="leading-tight">{t.project.stages[s]}</span>
+              <span aria-hidden className={cn("absolute inset-x-0 top-0 h-0.5",
+                state === "done" ? "bg-ember-500" : state === "now" ? (stopped ? "bg-err" : "pay-due") : "bg-line")} />
+              <span className="flex items-center justify-between gap-2">
+                <span className={cn("hud tabular-nums", state === "now" ? (stopped ? "text-err" : "text-ember-400") : state === "done" ? "text-muted" : "text-faint")}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                {state === "done" ? <Check aria-hidden className="size-3.5 text-ember-400" />
+                  : state === "now" && !stopped ? <span aria-hidden className="size-1.5 bg-ember-500" style={{ animation: "live-pulse 2.4s ease-in-out infinite" }} /> : null}
+              </span>
+              <span className={cn("text-sm leading-snug", state === "now" ? "text-ink-strong" : state === "done" ? "text-muted" : "text-faint")}>
+                {t.project.stages[s]}
               </span>
             </li>
           );

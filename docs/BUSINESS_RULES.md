@@ -94,6 +94,10 @@ The platform records the date and time, the IP address, the device, and a finger
 - **Deposit: 40 % of the price** (your range was 40 to 50 %). **Recommendation:** 40 % as the default, **50 %** for small projects under 60 000 DZD (or 400 EUR) and for Rush delivery, because those carry more risk for you.
 - For large projects (above 500 000 DZD or 3 500 EUR), use **milestones** instead: 40 % deposit, 30 % at the main milestone, 30 % before launch.
 - Payment methods: CCP, BaridiMob (RIP), cash, Chargily (CIB / Edahabia), PayPal and card (international).
+  - **Cash by hand** is off by default: you switch it on in the proposal, only for clients you know and trust (added 28 October 2026). You can still record cash yourself on any project.
+  - **Chargily** pays DZD charges; Chargily's card fee is added on its page, paid by the client (§5).
+  - **PayPal** pays EUR and USD charges in their currency, and DZD charges in US dollars at the live street rate (§5.1), rounded up to the cent. The amount is fixed the moment PayPal opens, and PayPal must capture exactly that amount.
+  - Online payments confirm themselves through the provider's signed notice; the client sees each step on the project page. A payment that arrives for a charge already paid (or expired) is flagged to you to refund, never counted twice.
 - **Payment window: 5 days** after signing. Reminders go out automatically on day 2 and day 4. If nothing arrives, the request is marked **expired**. The client can ask to revive it (the proposal is then re-checked against your current calendar and prices).
 - Manual payments (CCP, BaridiMob, cash): the client uploads a photo of the receipt; you confirm it in the studio. Card payments confirm themselves.
 - **Work starts only when the deposit is confirmed.** The project start date and deadlines are counted from that day.

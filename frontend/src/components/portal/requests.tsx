@@ -20,6 +20,7 @@ import { cn } from "@/lib/cn";
 import { ContractPanel } from "@/components/project/contract-panel";
 import { Conversation } from "@/components/project/conversation";
 import { DueCharge, PaymentsLedger } from "@/components/project/payments-panel";
+import { PaymentFollow } from "@/components/project/payment-follow";
 import { ProposalBuilder } from "@/components/project/proposal-builder";
 import { ProposalCard } from "@/components/project/proposal-card";
 import { NextStep, Panel, type Side, type T } from "@/components/project/shared";
@@ -324,6 +325,7 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
     <>
       <Header lang={lang} t={t} req={req} back={side === "client" ? `/${lang}/portal` : `/${lang}/studio/requests`} />
       {top}
+      {side === "client" && eng && <PaymentFollow p={t.project.pay} engagement={eng} reload={reload} />}
       {action ? <NextStep t={t}>{action}</NextStep> : side === "client" && req.status !== "draft" && (
         <p className="border-t border-line px-6 py-6 text-muted md:px-10">{t.project.nothingToDo}</p>
       )}

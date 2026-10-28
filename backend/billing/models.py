@@ -78,6 +78,13 @@ class Payment(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
     provider_ref = models.CharField(max_length=120, blank=True, db_index=True)
     payload = models.JSONField(default=dict, blank=True)
+    # Online payments (billing/online.py): what the provider is asked for (a
+    # DZD charge paid through PayPal is quoted in USD), its page, and what it said.
+    provider_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    provider_currency = models.CharField(max_length=3, blank=True)
+    checkout_url = models.URLField(max_length=600, blank=True)
+    detail = models.CharField(max_length=300, blank=True, help_text="The provider's reason for a refusal or a hold")
+    checked_at = models.DateTimeField(null=True, blank=True, help_text="Last time the provider was asked directly")
     confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

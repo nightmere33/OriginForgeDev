@@ -119,7 +119,7 @@ def send_offer(request, req_id: int, data: dict) -> Proposal:
             price=data["price"], currency=data["currency"], plan=plan, plan_name=plan.name_en,
             maintenance_days=plan.maintenance_days, revision_rounds=plan.revision_rounds, reply_hours=plan.reply_hours,
             deposit_percent=schedule[0]["percent"], schedule=schedule, timeline_days=data["timeline_days"],
-            milestones=data.get("milestones") or [], nda=data.get("nda", req.wants_nda),
+            milestones=data.get("milestones") or [], nda=data.get("nda", req.wants_nda), allow_cash=bool(data.get("allow_cash")),
             expires_at=timezone.now() + timedelta(days=Proposal.VALID_DAYS),
         )
         req.status = R.PROPOSAL_SENT
@@ -317,6 +317,8 @@ def submit_proof(request, charge_id: int, method: str, upload=None, upload_name:
         if charge.status != Charge.Status.DUE:
             raise ValidationError({"status": "This payment is not due."})
         crypto = {}
+        if method == PaymentProof.Method.CASH and not charge.engagement.contract.proposal.allow_cash:
+            raise ValidationError({"method": "Cash by hand isn't offered for this project."})
         if method == PaymentProof.Method.USDT:
             crypto = _usdt_quote(charge, fields.get("tx_hash", ""))
         elif method != PaymentProof.Method.CASH and upload is None:
@@ -516,6 +518,12 @@ def tick(now=None) -> dict:
     now = now or timezone.now()
     counts = {"proposals_expired": 0, "reminders": 0, "deposits_expired": 0, "closed": 0, "waitlist": 0, "review_reminders": 0}
 
+    # Card and PayPal payments whose notice never came are asked about first,
+    # so a deposit paid in the last minutes is settled before its window is checked.
+    from billing import online
+
+    counts["payments_checked"] = online.sweep(now)
+
     for proposal in Proposal.objects.filter(status=P.SENT, expires_at__lt=now).select_related("request__client"):
         with transaction.atomic():
             _expire_proposal(proposal)
@@ -523,7 +531,7 @@ def tick(now=None) -> dict:
 
     for charge in Charge.objects.filter(status=Charge.Status.DUE).select_related("engagement__request__client"):
         req = charge.engagement.request
-        if charge.due_at and charge.due_at < now and charge.kind == Charge.Kind.DEPOSIT:
+        if charge.due_at and charge.due_at < now and charge.kind == Charge.Kind.DEPOSIT and not online.in_flight(charge, now):
             with transaction.atomic():
                 charge.status = Charge.Status.EXPIRED
                 charge.save(update_fields=["status"])

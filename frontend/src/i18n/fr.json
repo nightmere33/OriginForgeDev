@@ -959,7 +959,9 @@
         "sent": "Envoyé à {to}. Vérifiez cette boîte (et les spams).",
         "failed": "Non envoyé :"
       }
-    }
+    },
+    "allowCash": "Autoriser les espèces, en main propre",
+    "allowCashHelp": "Seulement pour les clients que vous connaissez et en qui vous avez confiance. Les autres paient par carte, PayPal, CCP, BaridiMob ou USDT."
   },
   "project": {
     "stages": {
@@ -1104,7 +1106,63 @@
       "txHash": "Hash de la transaction",
       "txHelp": "Dans votre portefeuille ou l'historique de retraits Binance : l'identifiant de transaction, qui commence par 0x.",
       "viewTx": "Voir sur BscScan",
-      "quote": "Devis de {amount} USDT à {rate} DZD"
+      "quote": "Devis de {amount} USDT à {rate} DZD",
+      "cardLead": "Payez par carte CIB ou Edahabia sur la page sécurisée de Chargily. Chargily y ajoute ses frais de carte, avant que vous confirmiez.",
+      "cardGo": "Continuer vers le paiement par carte",
+      "opening": "Ouverture de la page sécurisée…",
+      "paypalLead": "Payez avec votre compte PayPal, ou par carte quand PayPal le propose. PayPal s'ouvre par-dessus cette page.",
+      "youPay": "Vous payez",
+      "conversion": "{amount} à {rate} DZD le dollar américain · {source} · {time}. Arrondi au centime supérieur.",
+      "locked": "Le montant est fixé dès l'ouverture de PayPal : il ne change plus pendant le paiement.",
+      "paypalLoading": "Chargement de PayPal…",
+      "paypalBlocked": "Le bouton PayPal ne s'est pas chargé (un bloqueur de publicité, ou une connexion lente).",
+      "paypalGo": "Continuer sur la page PayPal",
+      "paypalClosed": "PayPal a été fermé. Rien n'a été prélevé.",
+      "paypalError": "PayPal a rencontré un problème. Rien n'a été prélevé : réessayez, ou payez autrement.",
+      "confirming": "Confirmation avec PayPal…",
+      "paidVia": "par {method}",
+      "methods": {
+        "cash": "espèces",
+        "ccp": "CCP",
+        "baridimob": "BaridiMob",
+        "chargily": "carte",
+        "paypal": "PayPal",
+        "usdt": "USDT"
+      },
+      "attempt": {
+        "failed": "Le paiement {provider} du {date} n'a pas abouti. Rien n'a été prélevé.",
+        "held": "{provider} retient votre paiement de {amount} pour une vérification. Il se confirme tout seul : rien à faire.",
+        "refunded": "{provider} a remboursé {amount}."
+      },
+      "progress": {
+        "title": "{percent} % payé",
+        "amounts": "{paid} sur {total}",
+        "left": "Reste {amount}",
+        "done": "Tout est payé. Merci !",
+        "step": "Paiement {n} sur {total}",
+        "when": {
+          "deposit": "Lance le travail",
+          "milestone": "À l'étape principale",
+          "balance": "Quand vous validez le travail"
+        }
+      },
+      "track": {
+        "title": "Votre paiement",
+        "opened": "Page de paiement",
+        "atProvider": "Payé chez {provider}",
+        "confirmed": "Confirmé ici",
+        "waiting": "Confirmation de votre paiement avec {provider}…",
+        "slow": "Toujours en confirmation. Vous pouvez quitter cette page : vous recevrez un e-mail dès la confirmation.",
+        "held": "{provider} retient ce paiement pour une vérification. Il se confirme tout seul : rien à faire.",
+        "paid": "Paiement reçu : {label} est payé.",
+        "failed": "Le paiement n'a pas abouti. Rien n'a été prélevé : réessayez, ou choisissez un autre moyen.",
+        "canceled": "Paiement annulé. Rien n'a été prélevé.",
+        "close": "Fermer",
+        "providers": {
+          "chargily": "Chargily",
+          "paypal": "PayPal"
+        }
+      }
     },
     "work": {
       "title": "Projet",

@@ -2,23 +2,25 @@
 
 import { SecurePayments } from "@/components/ui/secure-payments";
 import { useEffect, useId, useState } from "react";
-import { FileText, Paperclip } from "lucide-react";
+import { ArrowUpRight, FileText, Lock, Paperclip } from "lucide-react";
 import { fill } from "@/i18n/fill";
 import { api } from "@/lib/api-client";
 import { Equivalent } from "@/lib/currency";
-import { dateTime, day, money, type Charge, type Engagement, type PaymentInstructions, type Proof } from "@/lib/lifecycle";
+import { cents, dateTime, day, money, type Charge, type Engagement, type PaymentInstructions, type Proof } from "@/lib/lifecycle";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { StatusPill } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
+import { followPayment } from "./payment-follow";
+import { PaymentProgress } from "./payment-progress";
+import { PayPalButton } from "./paypal-button";
 import { CopyValue, ErrorLine, errorText, timeLeft, type PanelProps } from "./shared";
 
 const CHARGE_TONE: Record<Charge["status"], string> = {
   scheduled: "submitted", due: "proposal_sent", paid: "paid", expired: "declined", void: "archived",
 };
-type Method = "ccp" | "baridimob" | "cash" | "usdt";
-const METHODS: Method[] = ["ccp", "baridimob", "cash"];
+type Method = "card" | "paypal" | "ccp" | "baridimob" | "cash" | "usdt";
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
 
 let instructionsCache: Promise<PaymentInstructions> | null = null;
@@ -31,7 +33,8 @@ function ChargeRow({ lang, t, charge }: Pick<PanelProps, "lang" | "t"> & { charg
         {charge.label} <span className="hud text-faint">{charge.percent} %</span>
       </span>
       <span className="hud text-faint">
-        {charge.status === "paid" && charge.paid_at ? fill(s.paidOn, { date: day(lang, charge.paid_at) })
+        {charge.status === "paid" && charge.paid_at
+          ? fill(s.paidOn, { date: day(lang, charge.paid_at) }) + (charge.paid_by ? ` · ${fill(s.paidVia, { method: s.methods[charge.paid_by] })}` : "")
           : charge.status === "due" && charge.due_at ? (charge.overdue ? s.overdue : fill(s.payBy, { date: day(lang, charge.due_at) })) : ""}
       </span>
       <span className="flex items-center justify-between gap-4 sm:justify-end">
@@ -54,10 +57,94 @@ function ProofLine({ lang, t, proof }: Pick<PanelProps, "lang" | "t"> & { proof:
   );
 }
 
-/** Client: how to pay one due charge, then "I've paid" with the receipt. */
-function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge: Charge; reference: string }) {
+/** The latest card or PayPal attempt, when it says something the client should know. */
+function AttemptLine({ lang, t, charge }: Pick<PanelProps, "lang" | "t"> & { charge: Charge }) {
   const s = t.project.pay;
-  const [method, setMethod] = useState<Method>("ccp");
+  const last = charge.payments[0];
+  if (!last) return null;
+  const provider = s.track.providers[last.provider];
+  const amount = last.provider_amount ? cents(lang, last.provider_amount, last.provider_currency) : "";
+  const text = last.status === "failed" ? fill(s.attempt.failed, { provider, date: day(lang, last.created_at) })
+    : last.status === "pending" && last.detail ? fill(s.attempt.held, { provider, amount }) : "";
+  if (!text) return null;
+  return (
+    <p className={cn("flex items-start gap-2 text-sm", last.status === "failed" ? "text-err" : "text-muted")}>
+      <span aria-hidden className="mt-1.5 size-1.5 shrink-0 bg-current" />
+      <span>{text}</span>
+    </p>
+  );
+}
+
+/** Card through Chargily: its secure page, back here afterwards. */
+function CardPay({ t, charge }: Pick<PanelProps, "t"> & { charge: Charge }) {
+  const s = t.project.pay;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const go = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const res = await api.post<{ url: string }>(`/charges/${charge.id}/checkout/`, { provider: "chargily" });
+      window.location.assign(res.url);
+    } catch (err) {
+      setBusy(false);
+      setError(errorText(t, err, "provider", "status"));
+    }
+  };
+  return (
+    <div className="flex flex-col gap-5 border border-line bg-bg-sunken px-5 py-5 [animation:step-in_var(--dur-standard)_var(--ease-out)]">
+      <div className="flex items-center gap-4">
+        {/* eslint-disable @next/next/no-img-element -- small static marks, one per theme */}
+        <img src="/brand/pay/cib.svg" alt="CIB" width={52} height={28} className="hidden h-7 w-auto [[data-theme=light]_&]:block" />
+        <img src="/brand/pay/cib-dark.svg" alt="CIB" width={52} height={28} className="h-7 w-auto [[data-theme=light]_&]:hidden" />
+        <img src="/brand/pay/edahabia.svg" alt="Edahabia" width={52} height={28} className="h-7 w-auto" />
+        {/* eslint-enable @next/next/no-img-element */}
+        <span className="hud ml-auto flex items-center gap-1.5 text-faint"><Lock aria-hidden className="size-3" />Chargily</span>
+      </div>
+      <p className="text-sm leading-relaxed text-muted">{s.cardLead}</p>
+      <ErrorLine>{error}</ErrorLine>
+      <Button variant="ember" loading={busy} onClick={go}>
+        {busy ? s.opening : s.cardGo}<ArrowUpRight aria-hidden className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
+/** PayPal in its popup; a DZD charge shows the dollar quote and where its rate comes from. */
+function PayPalPay({ lang, t, charge }: Pick<PanelProps, "lang" | "t"> & { charge: Charge }) {
+  const s = t.project.pay;
+  const quote = charge.online.paypal;
+  const [error, setError] = useState<string>();
+  if (!quote) return null;
+  const conv = quote.conversion;
+  return (
+    <div className="flex flex-col gap-5 border border-line bg-bg-sunken px-5 py-5 [animation:step-in_var(--dur-standard)_var(--ease-out)]">
+      <div>
+        <p className="hud text-faint">{s.youPay}</p>
+        <p className="mt-1 font-mono text-2xl tabular-nums tracking-[-0.03em] text-ink-strong">{cents(lang, quote.amount, quote.currency)}</p>
+        {conv && (
+          <p className="hud mt-2 text-faint">
+            {fill(s.conversion, {
+              amount: money(lang, charge.amount, charge.currency), rate: Number(conv.rate).toFixed(2),
+              source: conv.source === "manual" ? s.rateManual : conv.source, time: conv.updated_at ? dateTime(lang, conv.updated_at) : "",
+            })}
+          </p>
+        )}
+        <p className="mt-2 flex items-start gap-1.5 text-sm text-faint"><Lock aria-hidden className="mt-1 size-3 shrink-0" />{s.locked}</p>
+      </div>
+      <p className="text-sm leading-relaxed text-muted">{s.paypalLead}</p>
+      <PayPalButton lang={lang} p={s} chargeId={charge.id} clientId={quote.client_id} currency={quote.currency}
+        onApproved={(id) => followPayment(id)} onError={(err) => setError(err ? errorText(t, err, "provider", "status") : s.paypalError)} />
+      <ErrorLine>{error}</ErrorLine>
+    </div>
+  );
+}
+
+/** Client: how to pay one due charge: online right away, or by hand and then "I've paid" with the receipt. */
+function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProps & { charge: Charge; reference: string; engagement: Engagement }) {
+  const s = t.project.pay;
+  const online = charge.online;
+  const [method, setMethod] = useState<Method>(online.chargily ? "card" : online.paypal ? "paypal" : "ccp");
   const [info, setInfo] = useState<PaymentInstructions | null>(null);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [payer, setPayer] = useState("");
@@ -76,6 +163,14 @@ function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge
   }, []);
 
   const waiting = charge.proofs.some((p) => p.status === "pending");
+  // Card is for dinars (Chargily), PayPal for any currency; "Soon" while their keys aren't set.
+  // Cash by hand only where Younes allowed it in the proposal.
+  const offered: Method[] = [
+    ...(charge.currency === "DZD" ? (["card"] as const) : []), "paypal", "ccp", "baridimob",
+    ...(info?.usdt_address ? (["usdt"] as const) : []), ...(engagement.cash_allowed ? (["cash"] as const) : []),
+  ];
+  const open = (m: Method) => (m === "card" ? !!online.chargily : m === "paypal" ? !!online.paypal : true);
+  const manual = method !== "card" && method !== "paypal";
 
   const send = async () => {
     setBusy(true);
@@ -100,6 +195,7 @@ function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge
 
   return (
     <div className="flex flex-col gap-6">
+      <PaymentProgress lang={lang} p={s} engagement={engagement} compact />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="hud text-faint">{charge.label} · {charge.percent} %</p>
@@ -115,32 +211,34 @@ function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge
       {charge.kind === "deposit" && <p className="text-sm text-faint">{s.windowNote}</p>}
 
       {charge.proofs.length > 0 && <div className="flex flex-col gap-2">{charge.proofs.map((p) => <ProofLine key={p.id} lang={lang} t={t} proof={p} />)}</div>}
+      <AttemptLine lang={lang} t={t} charge={charge} />
 
       {!waiting && (
         <>
           <div>
             <p className="hud mb-3 text-muted">{s.how}</p>
             <div role="radiogroup" aria-label={s.how} className="flex flex-wrap gap-2">
-              {METHODS.map((m) => (
+              {offered.map((m) => open(m) ? (
                 <button key={m} type="button" role="radio" aria-checked={method === m} onClick={() => setMethod(m)}
-                  className={cn("hud border px-3 py-2", method === m ? "border-ember-400 text-ink" : "border-line text-muted hover:text-ink")}>
+                  className={cn("hud border px-3 py-2 transition-colors duration-[var(--dur-micro)]",
+                    method === m ? "border-ember-400 text-ink shadow-[inset_0_0_0_1px_var(--ember-400)]" : "border-line text-muted hover:border-line-strong hover:text-ink")}>
                   {s[m]}
                 </button>
-              ))}
-              {info?.usdt_address && (
-                <button type="button" role="radio" aria-checked={method === "usdt"} onClick={() => setMethod("usdt")}
-                  className={cn("hud border px-3 py-2", method === "usdt" ? "border-ember-400 text-ink" : "border-line text-muted hover:text-ink")}>
-                  {s.usdt}
-                </button>
-              )}
-              {([...(info && !info.usdt_address ? ["usdt"] as const : []), "card", "paypal"] as const).map((m) => (
+              ) : (
                 <span key={m} aria-disabled className="hud flex items-center gap-2 border border-dashed border-line px-3 py-2 text-faint">
                   {s[m]} <span className="text-[0.62rem] text-ember-400">{s.soon}</span>
                 </span>
               ))}
+              {info && !info.usdt_address && (
+                <span aria-disabled className="hud flex items-center gap-2 border border-dashed border-line px-3 py-2 text-faint">
+                  {s.usdt} <span className="text-[0.62rem] text-ember-400">{s.soon}</span>
+                </span>
+              )}
             </div>
           </div>
 
+          {method === "card" && online.chargily && <CardPay key="card" t={t} charge={charge} />}
+          {method === "paypal" && online.paypal && <PayPalPay key="paypal" lang={lang} t={t} charge={charge} />}
           {info && method === "usdt" && (
             <div className="border border-line bg-bg-sunken px-5">
               <div className="border-b border-line py-4">
@@ -180,7 +278,7 @@ function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge
           )}
           {info && method === "cash" && info.cash_note && <p className="whitespace-pre-line text-muted">{info.cash_note}</p>}
 
-          <div className="flex flex-col gap-5 border-t border-line pt-6">
+          {manual && <div className="flex flex-col gap-5 border-t border-line pt-6">
             <p className="text-ink">{s.iPaid}</p>
             {method === "usdt" ? (
               <Field label={s.txHash} help={s.txHelp} error={txHash && !TX_HASH.test(txHash.trim()) ? "0x…" : undefined}>
@@ -211,7 +309,7 @@ function PayCharge({ lang, t, reload, charge, reference }: PanelProps & { charge
             )}
             <ErrorLine>{error}</ErrorLine>
             <Button variant="ember" disabled={method === "usdt" ? !TX_HASH.test(txHash.trim()) : method !== "cash" && !receipt} loading={busy} onClick={send}>{s.send}</Button>
-          </div>
+          </div>}
         </>
       )}
     </div>
@@ -307,17 +405,22 @@ export function DueCharge(props: PanelProps & { engagement: Engagement; referenc
 export function PaymentsLedger(props: PanelProps & { engagement: Engagement }) {
   const { lang, t, side, engagement } = props;
   const total = engagement.charges.filter((c) => c.status !== "void").reduce((n, c) => n + c.amount, 0);
+  // The client reads the progress bar (each share labelled under it); the
+  // studio also keeps the ledger rows beside its actions.
   return (
     <div>
       {side === "studio" && engagement.charges.map((c) => <StudioCharge key={c.id} {...props} charge={c} />)}
-      <div className="divide-y divide-line border-y border-line">
-        {engagement.charges.map((c) => <ChargeRow key={c.id} lang={lang} t={t} charge={c} />)}
-        <div className="flex items-baseline justify-between py-4">
-          <span className="hud text-faint">{t.project.pay.total}</span>
-          <span className="font-mono tabular-nums text-ink-strong">{money(lang, total, engagement.currency)}</span>
+      <PaymentProgress lang={lang} p={t.project.pay} engagement={engagement} />
+      {side === "studio" && (
+        <div className="mt-8 divide-y divide-line border-y border-line">
+          {engagement.charges.map((c) => <ChargeRow key={c.id} lang={lang} t={t} charge={c} />)}
+          <div className="flex items-baseline justify-between py-4">
+            <span className="hud text-faint">{t.project.pay.total}</span>
+            <span className="font-mono tabular-nums text-ink-strong">{money(lang, total, engagement.currency)}</span>
+          </div>
         </div>
-      </div>
-      {side === "client" && <SecurePayments labels={t.trust} compact className="mt-6" />}
+      )}
+      {side === "client" && <SecurePayments labels={t.trust} compact className="mt-8" />}
     </div>
   );
 }

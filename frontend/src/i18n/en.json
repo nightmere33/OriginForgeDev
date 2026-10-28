@@ -959,7 +959,9 @@
         "sent": "Sent to {to}. Check that inbox (and spam).",
         "failed": "Not sent:"
       }
-    }
+    },
+    "allowCash": "Allow cash by hand",
+    "allowCashHelp": "Only for clients you know and trust. Everyone else pays by card, PayPal, CCP, BaridiMob or USDT."
   },
   "project": {
     "stages": {
@@ -1104,7 +1106,63 @@
       "txHash": "Transaction hash",
       "txHelp": "In your wallet or Binance withdrawal history: the transaction ID, starting with 0x.",
       "viewTx": "View on BscScan",
-      "quote": "Quoted {amount} USDT at {rate} DZD"
+      "quote": "Quoted {amount} USDT at {rate} DZD",
+      "cardLead": "Pay by CIB or Edahabia card on Chargily's secure page. Chargily adds its card fee there, before you confirm.",
+      "cardGo": "Continue to card payment",
+      "opening": "Opening the secure page…",
+      "paypalLead": "Pay with your PayPal account, or by card where PayPal offers it. PayPal opens over this page.",
+      "youPay": "You pay",
+      "conversion": "{amount} at {rate} DZD per US dollar · {source} · {time}. Rounded up to the cent.",
+      "locked": "The amount is fixed the moment PayPal opens: it won't change while you pay.",
+      "paypalLoading": "Loading PayPal…",
+      "paypalBlocked": "PayPal's button didn't load (an ad blocker, or a slow connection).",
+      "paypalGo": "Continue on PayPal's page",
+      "paypalClosed": "PayPal was closed. Nothing was taken.",
+      "paypalError": "PayPal ran into a problem. Nothing was taken: try again, or pay another way.",
+      "confirming": "Confirming with PayPal…",
+      "paidVia": "by {method}",
+      "methods": {
+        "cash": "cash",
+        "ccp": "CCP",
+        "baridimob": "BaridiMob",
+        "chargily": "card",
+        "paypal": "PayPal",
+        "usdt": "USDT"
+      },
+      "attempt": {
+        "failed": "{provider} payment on {date} didn't go through. Nothing was taken.",
+        "held": "{provider} is holding your payment of {amount} for a check. It confirms by itself: nothing to do.",
+        "refunded": "{provider} refunded {amount}."
+      },
+      "progress": {
+        "title": "{percent} % paid",
+        "amounts": "{paid} of {total}",
+        "left": "{amount} left",
+        "done": "Everything is paid. Thank you!",
+        "step": "Payment {n} of {total}",
+        "when": {
+          "deposit": "Starts the work",
+          "milestone": "At the main milestone",
+          "balance": "When you approve the work"
+        }
+      },
+      "track": {
+        "title": "Your payment",
+        "opened": "Payment page",
+        "atProvider": "Paid at {provider}",
+        "confirmed": "Confirmed here",
+        "waiting": "Confirming your payment with {provider}…",
+        "slow": "Still confirming. You can leave this page: you'll get an e-mail as soon as it's confirmed.",
+        "held": "{provider} is holding this payment for a check. It confirms by itself: nothing to do.",
+        "paid": "Payment received: {label} is paid.",
+        "failed": "The payment didn't go through. Nothing was taken: try again, or choose another way.",
+        "canceled": "Payment cancelled. Nothing was taken.",
+        "close": "Close",
+        "providers": {
+          "chargily": "Chargily",
+          "paypal": "PayPal"
+        }
+      }
     },
     "work": {
       "title": "Project",

@@ -52,6 +52,16 @@ FACEBOOK_APP_ID = os.environ.get("FACEBOOK_APP_ID", "")
 FACEBOOK_APP_SECRET = os.environ.get("FACEBOOK_APP_SECRET", "")
 FACEBOOK_GRAPH_VERSION = os.environ.get("FACEBOOK_GRAPH_VERSION", "v23.0")
 
+# Online payments (billing/online.py): a method shows once its keys are set.
+# Chargily (CIB, Edahabia; DZD): the secret key signs API calls and webhooks.
+CHARGILY_SECRET_KEY = os.environ.get("CHARGILY_SECRET_KEY", "")
+CHARGILY_MODE = os.environ.get("CHARGILY_MODE", "test")  # test | live
+# PayPal (USD/EUR): one REST app per project; the webhook id verifies its notices.
+PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.environ.get("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
+PAYPAL_MODE = os.environ.get("PAYPAL_MODE", "sandbox")  # sandbox | live
+
 # ---- Apps -------------------------------------------------------------------
 INSTALLED_APPS = [
     # Daphne first: `runserver` then serves ASGI, WebSockets included.

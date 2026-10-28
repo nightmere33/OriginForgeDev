@@ -214,6 +214,32 @@ Desktop (≥1024px, hover): when the estimate readout scrolls out of view, its f
 ### Notifications (`chrome/notification-bell.tsx`, `lib/live.tsx`)
 A bell in the nav for signed-in visitors: an ember count that decodes when it changes, a panel that tears in (newest first, unread marked by an ember square, relative times), and a toast the moment something arrives over the live socket.
 
+### Payments (`project/payment-progress.tsx`, `payment-follow.tsx`, `paypal-button.tsx`, `payments-panel.tsx`)
+- **PaymentProgress:**
+  - One share per payment, as wide as its percentage (the 40 or 50 % deposit, a milestone, the balance), 2px apart.
+  - A paid share fills in ember from the left (`.pay-fill`, 0.9s ease-out, staggered), once when drawn and again the moment it is paid. The share due now is an ember wash with a slow light passing through (`.pay-due`). Later shares stay `line`.
+  - Header: "40 % paid", paid / total in mono, what is left. Under each share: label and %, amount, then its state (paid date and method, "pay by" in ember, or when it will be asked).
+  - Labels align under their shares from `sm`; a list with square markers on phones. `compact` (bar and "payment 1 of 2") sits above the pay form.
+- **PaymentFollow** (top of the client's project, from `?payment=`):
+  - Three steps: payment page, paid at Chargily/PayPal, confirmed here. Square nodes (ember fill and tick when done, a pulsing dot while active, err and a cross on failure), joined by 2px connectors that fill like the shares.
+  - A hairline (`.pay-busy`) runs along the top while confirming. The message decodes in (BootText), in plain words ("Nothing was taken").
+  - Polls every 2.5s and keeps trying through a dropped connection; refreshes the project once paid.
+- **PayPalButton:** PayPal's own buttons in its popup, never restyled:
+  - white on the dark theme, black on the light one, re-rendered when the theme changes;
+  - 48px, at most 28rem wide;
+  - its holder keeps `color-scheme: light`, or the browser paints the frame an opaque backdrop on the dark theme;
+  - a skeleton while the script loads, a tear-in when it is there; when approved, a dimmed button under "Confirming with PayPal" and a hairline;
+  - if the script is blocked, a secondary button opens PayPal's own page.
+- **Pay form:**
+  - Methods as hairline chips: card (DZD only) and PayPal first, then CCP, BaridiMob, USDT, and cash only where the proposal allows it; "Soon" chips (dashed) while a method has no keys.
+  - Card and PayPal panels step in on a sunken surface. The PayPal panel shows the exact quote, the rate, its source and time, and "fixed the moment PayPal opens" with a lock.
+- **The client's payments panel** is the progress bar alone; the studio keeps the ledger rows beside its actions.
+
+### Stage track (`project/stage-track.tsx`)
+- A 2px rail across the top: ember where the project has been, `.pay-due` on the current stage, `line` ahead.
+- Each stage shows its two-digit number in HUD, with a tick (done) or a pulsing dot (now) on the right, and its name below in body/sm.
+- 24px padding, ten columns from `xl`, a sideways strip with the current stage centred on phones.
+
 ### SecurePayments (`ui/secure-payments.tsx`)
 A lock (ok green), "Secured payments." and one sentence, beside the acceptance marks on white plates (Chargily, CIB, Edahabia, Algérie Poste; PayPal and USDT set as type). Full in the footer, compact on the start review step and in the client's payments panel.
 

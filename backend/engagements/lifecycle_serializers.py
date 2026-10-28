@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from billing.models import Charge, PaymentProof
+from billing.models import Charge, Payment, PaymentProof
 from content.models import CarePlan
 from fx import service as fx
 
@@ -25,7 +25,7 @@ class ProposalSerializer(serializers.ModelSerializer):
         fields = (
             "id", "version", "kind", "status", "from_client", "title", "scope", "deliverables", "exclusions", "note",
             "price", "currency", "plan_name", "maintenance_days", "revision_rounds", "reply_hours", "deposit_percent",
-            "schedule", "timeline_days", "milestones", "nda", "expires_at", "responded_at", "created_at",
+            "schedule", "timeline_days", "milestones", "nda", "allow_cash", "expires_at", "responded_at", "created_at",
             "can_respond", "can_counter",
         )
 
@@ -62,6 +62,7 @@ class ProposalCreateSerializer(serializers.Serializer):
     schedule = serializers.ListField(child=serializers.DictField(), required=False)
     milestones = serializers.ListField(child=serializers.DictField(), required=False)
     nda = serializers.BooleanField(required=False)
+    allow_cash = serializers.BooleanField(required=False, default=False)
 
     def validate_milestones(self, value):
         for m in value:
@@ -105,15 +106,38 @@ class ProofSerializer(serializers.ModelSerializer):
         return f"/api/files/receipts/{obj.id}/" if obj.receipt else None
 
 
+class OnlinePaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ("id", "provider", "status", "provider_amount", "provider_currency", "detail", "created_at", "paid_at")
+
+
 class ChargeSerializer(serializers.ModelSerializer):
     proofs = ProofSerializer(many=True, read_only=True)
     overdue = serializers.SerializerMethodField()
     usdt_amount = serializers.SerializerMethodField()
+    online = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
+    paid_by = serializers.SerializerMethodField()
 
     class Meta:
         model = Charge
         fields = ("id", "kind", "label", "percent", "amount", "currency", "status", "due_at", "paid_at", "overdue",
-                  "usdt_amount", "proofs")
+                  "usdt_amount", "online", "payments", "paid_by", "proofs")
+
+    def get_online(self, obj) -> dict:
+        from billing.online import options
+
+        return options(obj)
+
+    def get_payments(self, obj) -> list:
+        """Card and PayPal attempts, newest first (the ones that never opened a page left out)."""
+        rows = [p for p in obj.payments.all() if p.provider in ("chargily", "paypal") and p.provider_ref]
+        return OnlinePaymentSerializer(sorted(rows, key=lambda p: p.created_at, reverse=True)[:5], many=True).data
+
+    def get_paid_by(self, obj) -> str | None:
+        paid = next((p for p in obj.payments.all() if p.status == "paid"), None)
+        return paid.provider if paid else None
 
     def get_usdt_amount(self, obj) -> str | None:
         """Live USDT equivalent while it is due; the proof locks the quote in."""
@@ -152,6 +176,7 @@ class EngagementSerializer(serializers.ModelSerializer):
     updates = UpdateSerializer(many=True, read_only=True)
     ready_to_go_live = serializers.SerializerMethodField()
     revisions_left = serializers.SerializerMethodField()
+    cash_allowed = serializers.SerializerMethodField()
 
     class Meta:
         model = Engagement
@@ -159,8 +184,11 @@ class EngagementSerializer(serializers.ModelSerializer):
             "id", "title", "status", "price", "currency", "plan_name", "maintenance_days", "revision_rounds",
             "revisions_used", "timeline_days", "nda", "started_at", "deadline", "production_at",
             "maintenance_ends_at", "closed_at", "charges", "milestones", "tasks", "updates", "ready_to_go_live",
-            "revisions_left",
+            "revisions_left", "cash_allowed",
         )
+
+    def get_cash_allowed(self, obj) -> bool:
+        return bool(obj.contract.proposal.allow_cash)
 
     def get_revisions_left(self, obj) -> int:
         return max(obj.revision_rounds - obj.revisions_used, 0)

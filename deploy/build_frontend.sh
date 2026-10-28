@@ -5,6 +5,19 @@
 set -euo pipefail
 F=/srv/originforge/app/frontend
 cd "$F"
+# New or changed packages: install exactly what package-lock.json says, only
+# when it changed since the last install (its checksum is kept beside them).
+# The running site is not affected: the standalone server has its own copy.
+LOCK_SUM=$(sha256sum package-lock.json | cut -d' ' -f1)
+if [ ! -d node_modules ] || [ "$(cat node_modules/.lock-sum 2>/dev/null)" != "$LOCK_SUM" ]; then
+  if ! sudo -u originforge -H bash -c "cd $F && npm ci --no-audit --no-fund > /tmp/npmci.log 2>&1"; then
+    tail -30 /tmp/npmci.log
+    echo "npm ci failed: the running site is unchanged"
+    exit 1
+  fi
+  echo "$LOCK_SUM" | sudo -u originforge tee node_modules/.lock-sum > /dev/null
+  echo "node packages installed ($(ls node_modules | wc -l) top-level)"
+fi
 # Next keeps fetched API answers between builds (.next/cache/fetch-cache): a
 # build must render today's content and settings, never a previous build's.
 rm -rf "$F/.next/cache/fetch-cache"

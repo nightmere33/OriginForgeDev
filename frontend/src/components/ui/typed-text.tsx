@@ -75,6 +75,7 @@ function FreshChar({ ch, onSettle }: { ch: string; onSettle: () => void }) {
 // Everything that decides where glyphs land, copied from the field.
 const COPIED = [
   "fontFamily", "fontSize", "fontWeight", "fontStyle", "fontStretch", "letterSpacing", "wordSpacing",
+  "fontVariantNumeric", "fontFeatureSettings", "fontVariationSettings", "fontKerning", "textAlign", "direction",
   "lineHeight", "textTransform", "textIndent", "tabSize", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
 ] as const;
 
@@ -142,10 +143,20 @@ export function TypedMirror({
     };
     syncRef.current = sync;
     const placeSoon = () => requestAnimationFrame(place);
-    el.addEventListener("input", sync);
+    // A field that filters what is typed (digits only, a format) sets its value
+    // back without an input event: read it again once React has committed.
+    const onInput = () => {
+      sync();
+      requestAnimationFrame(sync);
+    };
+    const resync = () => {
+      sync();
+      placeSoon();
+    };
+    el.addEventListener("input", onInput);
     el.addEventListener("scroll", place);
     el.addEventListener("select", placeSoon);
-    el.addEventListener("keyup", placeSoon);
+    el.addEventListener("keyup", resync);
     el.addEventListener("focus", placeSoon);
     const ro = new ResizeObserver(place);
     ro.observe(el);
@@ -153,10 +164,10 @@ export function TypedMirror({
     // Autofill and password managers can fill the field without an event.
     const t = window.setTimeout(sync, 300);
     return () => {
-      el.removeEventListener("input", sync);
+      el.removeEventListener("input", onInput);
       el.removeEventListener("scroll", place);
       el.removeEventListener("select", placeSoon);
-      el.removeEventListener("keyup", placeSoon);
+      el.removeEventListener("keyup", resync);
       el.removeEventListener("focus", placeSoon);
       ro.disconnect();
       clearTimeout(t);

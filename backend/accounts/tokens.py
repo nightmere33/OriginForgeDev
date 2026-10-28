@@ -28,7 +28,8 @@ def new_email_code(user) -> str:
     from .models import EmailCode
 
     code = f"{secrets.randbelow(1_000_000):06d}"
-    EmailCode.objects.filter(user=user, used_at__isnull=True).delete()
+    # Earlier codes expire (kept, so the day's codes can be counted).
+    EmailCode.objects.filter(user=user, used_at__isnull=True, expires_at__gt=timezone.now()).update(expires_at=timezone.now())
     EmailCode.objects.create(user=user, code_hash=_code_hash(user, code),
                              expires_at=timezone.now() + timedelta(minutes=EmailCode.TTL_MINUTES))
     return code

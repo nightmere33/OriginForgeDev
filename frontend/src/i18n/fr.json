@@ -530,7 +530,21 @@
       "unverified": "Votre e-mail n'est pas encore confirmé",
       "verifyNow": "Le confirmer maintenant",
       "toSend": "Confirmez votre e-mail pour envoyer la demande",
-      "sendMe": "M'envoyer le code"
+      "sendMe": "M'envoyer le code",
+      "wrongAddress": "Mauvaise adresse ?",
+      "change": "La modifier",
+      "newAddress": "La bonne adresse e-mail",
+      "sendHere": "Envoyer le code ici",
+      "cancel": "Annuler",
+      "changed": "Nouveau code envoyé à {email}.",
+      "errors": {
+        "same": "C'est déjà l'adresse qui a reçu le code.",
+        "taken": "Cette adresse a déjà un compte : connectez-vous avec elle.",
+        "change_limit": "Vous avez changé d'adresse trois fois aujourd'hui. Réessayez demain, ou écrivez-moi.",
+        "daily_limit": "Beaucoup de codes pour une seule journée. Réessayez demain, ou écrivez-moi.",
+        "invalid": "Saisissez une adresse e-mail valide.",
+        "verified": "Votre adresse est déjà confirmée."
+      }
     }
   },
   "portal": {

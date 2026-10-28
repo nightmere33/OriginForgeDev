@@ -128,6 +128,10 @@ class EmailCode(models.Model):
     TTL_MINUTES = 15
     MAX_ATTEMPTS = 5
     RESEND_SECONDS = 45
+    # Per account and per 24 hours: codes of any kind (sign-up, resend, a
+    # changed address), and changes of a not-yet-confirmed address.
+    DAILY_MAX = 8
+    CHANGES_PER_DAY = 3
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_codes")
     code_hash = models.CharField(max_length=64)

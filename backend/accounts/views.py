@@ -16,6 +16,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.models import AuditLog
 from audit.service import record
 from notifications.events import notify_address
 from notifications.service import notify_user, site_url, user_lang
@@ -145,6 +146,19 @@ class VerifyEmailView(APIView):
         return Response({"ok": True})
 
 
+def _codes_today(user) -> int:
+    from datetime import timedelta
+
+    from .models import EmailCode
+
+    return EmailCode.objects.filter(user=user, created_at__gte=timezone.now() - timedelta(days=1)).count()
+
+
+def _daily_limit():
+    return Response({"detail": "That's a lot of codes for one day. Try again tomorrow, or write to me.", "code": "daily_limit"},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+
 class ResendVerificationView(APIView):
     throttle_scope = "password_reset"
 
@@ -154,6 +168,8 @@ class ResendVerificationView(APIView):
         user = request.user
         if user.email_verified_at is not None:
             return Response({"ok": True, "verified": True})
+        if _codes_today(user) >= EmailCode.DAILY_MAX:
+            return _daily_limit()
         last = EmailCode.objects.filter(user=user).first()
         wait = EmailCode.RESEND_SECONDS - (timezone.now() - last.created_at).total_seconds() if last else 0
         if wait > 0:
@@ -161,6 +177,52 @@ class ResendVerificationView(APIView):
                             status=status.HTTP_429_TOO_MANY_REQUESTS)
         send_verification(user)
         return Response({"ok": True, "retry_after": EmailCode.RESEND_SECONDS})
+
+
+class ChangeEmailView(APIView):
+    """
+    A mistyped address at sign-up: send the code to another one instead,
+    while no address is confirmed yet. Old codes and links stop working (they
+    are tied to the address). At most three changes a day per account, inside
+    the day's code budget; an address that has an account of its own is refused.
+    """
+
+    throttle_scope = "password_reset"
+
+    def post(self, request):
+        from datetime import timedelta
+
+        from rest_framework import serializers
+
+        from .models import EmailCode
+
+        user = request.user
+        if user.email_verified_at is not None:
+            return Response({"detail": "Your address is already confirmed.", "code": "verified"}, status=status.HTTP_400_BAD_REQUEST)
+        field = serializers.EmailField()
+        try:
+            email = field.run_validation(str(request.data.get("email", ""))).strip().lower()
+        except serializers.ValidationError as exc:
+            return Response({"email": exc.detail, "code": "invalid"}, status=status.HTTP_400_BAD_REQUEST)
+        if email == user.email.lower():
+            return Response({"email": ["That's the address the code went to."], "code": "same"}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+            return Response({"email": ["This address already has an account: sign in with it instead."], "code": "taken"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        changes = AuditLog.objects.filter(action="account.email_changed", target_type="accounts.user", target_id=str(user.pk),
+                                          created_at__gte=timezone.now() - timedelta(days=1)).count()
+        if changes >= EmailCode.CHANGES_PER_DAY:
+            return Response({"detail": "You've changed the address three times today. Try again tomorrow, or write to me.",
+                             "code": "change_limit"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        if _codes_today(user) >= EmailCode.DAILY_MAX:
+            return _daily_limit()
+        previous = user.email
+        user.email = email
+        user.save(update_fields=["email"])
+        record(request, "account.email_changed", user, previous=previous)
+        send_verification(user)
+        return Response({**UserSerializer(user).data, "retry_after": EmailCode.RESEND_SECONDS,
+                         "changes_left": EmailCode.CHANGES_PER_DAY - changes - 1})
 
 
 class VerifyCodeView(APIView):

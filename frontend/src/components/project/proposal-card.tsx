@@ -71,7 +71,12 @@ export function ProposalCard({ lang, t, side, reload, proposal: p, compact }: Pa
           <p className="hud text-faint">{s.price}</p>
           <p className="mt-2 font-mono text-4xl tabular-nums tracking-[-0.03em] text-ink-strong md:text-5xl">{money(lang, p.price, p.currency)}</p>
         </div>
-        {p.status === "sent" && <Hud tone="muted">{fill(s.validUntil, { date: day(lang, p.expires_at) })}</Hud>}
+        <span className="flex flex-col items-end gap-2">
+          {!p.from_client && !p.negotiable && (
+            <span className="hud border border-ember-700 px-2 py-1 text-ember-400">{p.version > 1 ? s.finalOffer : s.fixedPrice}</span>
+          )}
+          {p.status === "sent" && <Hud tone="muted">{fill(s.validUntil, { date: day(lang, p.expires_at) })}</Hud>}
+        </span>
       </div>
 
       {p.note && (
@@ -144,7 +149,7 @@ export function ProposalCard({ lang, t, side, reload, proposal: p, compact }: Pa
 
       {p.can_respond && (
         <div className="flex flex-col gap-5 border-t border-line pt-6">
-          {side === "client" && !p.can_counter && <p className="text-sm text-muted">{s.finalVersion}</p>}
+          {side === "client" && !p.can_counter && <p className="text-sm text-muted">{p.version > 1 || p.negotiable ? s.finalOfferLead : s.fixedPrice}</p>}
           {side === "studio" && <p className="text-sm text-muted">{t.studio.counterHint}</p>}
 
           {mode === "counter" && (

@@ -42,6 +42,10 @@ const SECTIONS: { key: keyof D["sections"]; help?: keyof D["help"]; fields: [Fie
     fields: [["ccp_account", "text", "mono"], ["ccp_key", "text", "mono"], ["ccp_holder", "text"], ["ccp_address", "text"], ["baridimob_rip", "text", "mono"],
       ["usdt_bep20_address", "text", "mono"], ["usdt_rate_override", "text", "mono"], ["cash_note_en", "text"], ["cash_note_fr", "text"]],
   },
+  {
+    key: "invoices", help: "invoices",
+    fields: [["seller_name", "text", "wide"], ["seller_address", "long"], ["seller_tax_ids", "long"], ["invoice_note_en", "text"], ["invoice_note_fr", "text"]],
+  },
 ];
 
 function SaveState({ d, state }: { d: D; state: Save }) {

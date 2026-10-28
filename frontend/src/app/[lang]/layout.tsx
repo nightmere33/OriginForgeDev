@@ -19,6 +19,7 @@ import { CookieNotice } from "@/components/chrome/cookie-notice";
 import { Toaster } from "sonner";
 import { QuietBoundary } from "@/components/ui/quiet-boundary";
 import { NavProgress } from "@/components/chrome/nav-progress";
+import { ChatDock } from "@/components/chat/chat-dock";
 import "../globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
@@ -97,6 +98,9 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         <QuietBoundary><CookieNotice lang={locale} labels={t.cookies} /></QuietBoundary>
         <Toaster
           position="bottom-right"
+          // Above the chat launcher (bottom right in the client space and the studio).
+          offset={{ bottom: 92, right: 20 }}
+          mobileOffset={{ bottom: 84 }}
           toastOptions={{
             unstyled: true,
             classNames: {
@@ -119,6 +123,11 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           </main>
           <SiteFooter lang={locale} t={t} />
           <QuietBoundary><Suspense fallback={null}><ScrollRuler /></Suspense></QuietBoundary>
+          <QuietBoundary>
+            <Suspense fallback={null}>
+              <ChatDock lang={locale} t={{ portal: t.portal, studio: t.studio, start: t.start, auth: t.auth, common: t.common, project: t.project, trust: t.trust }} />
+            </Suspense>
+          </QuietBoundary>
         </MotionProvider>
         </CurrencyProvider>
         <DevTools />

@@ -25,8 +25,8 @@ function shareState(lang: Locale, p: P, c: Charge): string {
     return c.paid_by ? `${when} · ${fill(p.paidVia, { method: p.methods[c.paid_by] })}` : when;
   }
   if (c.status === "due") return c.overdue ? p.overdue : c.due_at ? fill(p.payBy, { date: day(lang, c.due_at) }) : p.statuses.due;
-  if (c.status === "scheduled") return p.progress.when[c.kind];
-  return p.statuses[c.status];
+  if (c.status === "scheduled") return p.progress.when[c.kind as keyof P["progress"]["when"]];
+  return p.statuses[c.status as keyof P["statuses"]] ?? c.status;
 }
 
 /**
@@ -38,7 +38,8 @@ function shareState(lang: Locale, p: P, c: Charge): string {
 export function PaymentProgress({ lang, p, engagement, compact, className }: {
   lang: Locale; p: P; engagement: Engagement; compact?: boolean; className?: string;
 }) {
-  const charges = engagement.charges.filter((c) => c.status !== "void");
+  // The contract's own schedule; extras and offers are listed apart (they never change its total).
+  const charges = engagement.charges.filter((c) => c.status !== "void" && c.kind !== "extra");
   if (!charges.length) return null;
   const currency = engagement.currency;
   const total = charges.reduce((n, c) => n + c.amount, 0);

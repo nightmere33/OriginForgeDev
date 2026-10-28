@@ -68,8 +68,8 @@ Gold appears only in ratings (stars, distribution bars). It is never text, never
 | --line | rgba(237,237,239,0.12) | rails, cell dividers *(ref 0.15)* |
 | --line-strong | rgba(237,237,239,0.34) | secondary-button border, ticks *(ref 0.40)* |
 
-### Paper (CV print surface only)
-The only light surface in the system: the CV sheet, on screen and on A4. Ratios computed on #FAFAF7.
+### Paper (documents only)
+The only light surface in the system: documents that stand for paper. The CV sheet (on screen and on A4) and the contract sheet in the client space. Ratios computed on #FAFAF7.
 | Token | Hex | Usage |
 |---|---|---|
 | --paper | #FAFAF7 | sheet background |
@@ -233,7 +233,29 @@ A bell in the nav for signed-in visitors: an ember count that decodes when it ch
 - **Pay form:**
   - Methods as hairline chips: card (DZD only) and PayPal first, then CCP, BaridiMob, USDT, and cash only where the proposal allows it; "Soon" chips (dashed) while a method has no keys.
   - Card and PayPal panels step in on a sunken surface. The PayPal panel shows the exact quote, the rate, its source and time, and "fixed the moment PayPal opens" with a lock.
-- **The client's payments panel** is the progress bar alone; the studio keeps the ledger rows beside its actions.
+- **The client's payments panel** is the progress bar alone; the studio keeps the ledger rows beside its actions. The bar shows the contract's own schedule only: extras are listed apart.
+- **Pay early:** under the bar, a secondary button opens the next scheduled part for payment now (no reminders for it).
+- **Extras and offers** (`project/extras.tsx`): costs outside the contract (Required, ember tag) and optional offers (Optional, hairline tag), newest first, each with its description, amount and status. An offer answers with Accept (ember) or No, thanks (asks once); a due extra opens the pay form inline under an ember rule. The studio adds them from a raised form (label, why, amount, currency, the Optional switch) and can withdraw an unpaid one.
+- **Invoices:** one row per paid payment (number in mono, label, date, method, amount, PDF), the whole row a download link.
+
+### Project hub (`portal/requests.tsx`, `project/project-tabs.tsx`, `project/overview.tsx`)
+- Header (reference, title, plan tag, status), stage track, then **tabs**: Overview, Payments, Progress, Messages, Files, Contract (the ones that apply). The row sticks under the nav, frosted; the ember bar glides between tabs like StudioTabs. The open tab is in the address (`?tab=`), replaced, never pushed: notifications link straight to their tab. A tab with something waiting for this side carries a pulsing ember dot; Messages carries the unread count. Panels cross-fade in (`step-in`).
+- **Overview:** the next step (ember rule), the plan card (the plan's name in display type; what it includes as icon rows: maintenance, revision rounds left, reply time, delivery, portfolio or confidential), key dates in hairline cells, maintenance on live projects (report a problem, extend, close), the review, the request.
+- **Progress:** milestones, tasks and updates, then revision rounds: a meter of square cells (ember = used, outlined = granted by Younes) over the numbered list of what was asked and on what.
+- **Client home:** the projects as cards (3 / 2 / 1 columns, hairline-gapped): reference and status, title, a thin paid bar, then what is next (ember with a live dot when it is the client's move) and new messages. The studio inbox keeps rows, with the plan, what is waiting and unread counts.
+
+### Contract sheet (`project/contract-panel.tsx`)
+- The stored contract typeset on Paper (presentation only: the words are the hashed ones). Letterhead (ORIGINFORGE wordmark, reference, date), the title in display type, clauses numbered in mono ember-700 under paper hairlines, lists with short rules, the payment lines as a table.
+- Two signature blocks. Younes's is signed in a script hand (Mrs Saint Delafield, loaded only here). The client's shows the name being typed, faint, then on signing it is written in one stroke (each glyph's outline drawn while a mask uncovers the line left to right, 1.7s, then the ink fills), the date settles, and a square seal in ember-700 with the SHA-256 fingerprint is pressed (overshoot, -7°). The page moves on to the deposit after 3.2s. Reduced motion: shown at once.
+
+### Conversation (`project/conversation.tsx`, `chat/*`)
+- A messenger: mine on the right (ember-tinted), theirs on the left (cell), grouped when from the same side within 5 minutes, day separators as HUD labels, the time under the last bubble of a group and "Seen" under my last read one.
+- **The one rounded component:** bubbles are 18px-radius shapes whose corners tighten (6px) where bubbles of a group touch, and reactions are pill chips. A conversation should feel like the messengers people use every day (asked for explicitly); everything around it stays square.
+- Hover (or tap on touch) shows React and Reply. Reactions: eight emoji in a strip that tears in; one per person; double-click hearts. Replies quote the original (a 2px bar, name, two lines); clicking the quote glides to it and rings it in ember for a moment.
+- Images inline (up to 16rem, zoom on hover) open in a full-screen viewer (native dialog). Voice notes: a waveform of the note's own loudness (40 bars, read when on screen), play/pause, drag to seek, 1x/1.5x/2x, no download control. Files as chips.
+- Cards in the thread for an extra cost or offer (status, amount, a link to Payments), a progress update (title, text, images, a link to Progress) and a problem report (ember outline).
+- The composer grows to six lines; Enter sends with a keyboard, Shift+Enter (or Enter on a phone) is a new line; the send button replaces the microphone once something is typed. Two quiet synthesized tones (sent, received) with a mute switch kept on the device.
+- **ChatDock** (`chat/chat-dock.tsx`): on every client-space and studio page, a 56px square launcher at the bottom right (steel fill, unread count in an ember square). It opens a 25rem window (full screen on phones) that expands to the whole window; on a project page it shows that project's thread, elsewhere the conversations, unread first. Escape closes it. Toasts sit above it.
 
 ### Stage track (`project/stage-track.tsx`)
 - A 2px rail across the top: ember where the project has been, `.pay-due` on the current stage, `line` ahead.
@@ -374,3 +396,5 @@ Any wheel, key, pointer or touch input fast-forwards the intro.
 | ScrollRuler hidden below 1400px / coarse pointers | Global | It needs a gutter beside the 1280 rail and does not fit touch; native scrollbar remains | Accepted permanently |
 | Docked estimate is desktop only | Start, step 3 | On phones the readout sits under the options, a thumb away; a floating card would cover the chips | Revisit with a bottom bar if phones convert worse |
 | Videos can still be saved by a determined visitor | Players | Browsers must receive the file to play it; ForgeVideo and hotlink protection stop casual copying only | Accepted; DRM is out of scope |
+| Chat bubbles and reaction chips are rounded | Conversation | The only exception to radius 0: the chat should feel like everyday messengers (asked for by Younes) | Accepted |
+| Voice notes can still be saved by a determined visitor | Conversation | The player has no download control, but the browser must receive the file to play it | Accepted |

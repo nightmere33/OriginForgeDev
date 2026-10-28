@@ -412,7 +412,14 @@
     "instagram": "Instagram",
     "messenger": "Messenger",
     "instagramHint": "your.username",
-    "messengerHint": "username or m.me link"
+    "messengerHint": "username or m.me link",
+    "showcase": {
+      "title": "Once it's live",
+      "show": "Show it in the OriginForge portfolio",
+      "showHelp": "I may present it as a case study. You see it before it's published.",
+      "keep": "Keep it confidential",
+      "keepHelp": "Never shown. The contract includes a confidentiality clause."
+    }
   },
   "auth": {
     "loginTitle": [
@@ -592,7 +599,23 @@
     "onboardCta": "Set up",
     "deleteDraft": "Delete draft",
     "deleteDraftConfirm": "Delete",
-    "deleteDraftKeep": "Keep"
+    "deleteDraftKeep": "Keep",
+    "cards": {
+      "waiting": {
+        "pay": "Payment to make",
+        "offer": "An offer to answer",
+        "review": "Ready for your review",
+        "sign": "Contract to sign",
+        "answer": "A proposal to answer",
+        "proof": "Receipt being checked",
+        "offer_studio": "Counter-offer sent"
+      },
+      "paid": "{percent} % paid",
+      "unread": "{n} new",
+      "plan": "{plan} plan",
+      "next": "Next",
+      "none": "Nothing needed from you"
+    }
   },
   "studio": {
     "title": [
@@ -808,12 +831,14 @@
         "contact": "Contact and profiles",
         "about": "About you",
         "payments": "Payment details",
-        "prices": "Starting prices"
+        "prices": "Starting prices",
+        "invoices": "Invoices"
       },
       "help": {
         "availability": "Nobody is turned away: when you're full, requests join the queue with their position and estimated start. Pause starts for holidays.",
         "payments": "Shown only to a signed-in client who has something to pay. Never public.",
-        "prices": "In DZD. Euros and dollars follow today's street rate. Leave empty for \"quoted per project\"."
+        "prices": "In DZD. Euros and dollars follow today's street rate. Leave empty for \"quoted per project\".",
+        "invoices": "The seller on every invoice. Each invoice keeps the details it was issued with."
       },
       "fields": {
         "is_available": "Starting new projects (untick to pause starts: requests still queue)",
@@ -846,7 +871,12 @@
         "cash_note_fr": "Cash payments note (French)",
         "usdt_bep20_address": "USDT address (BEP20)",
         "usdt_rate_override": "Dollar rate override (DZD, empty = live)",
-        "review_hours": "First answer at the latest (hours)"
+        "review_hours": "First answer at the latest (hours)",
+        "seller_name": "Legal name",
+        "seller_address": "Address",
+        "seller_tax_ids": "Tax numbers (one per line: NIF, NIS, RC…)",
+        "invoice_note_en": "Legal mention (English)",
+        "invoice_note_fr": "Legal mention (French)"
       },
       "listed": "Listed on the site",
       "kinds": {
@@ -988,7 +1018,22 @@
       }
     },
     "allowCash": "Allow cash by hand",
-    "allowCashHelp": "Only for clients you know and trust. Everyone else pays by card, PayPal, CCP, BaridiMob or USDT."
+    "allowCashHelp": "Only for clients you know and trust. Everyone else pays by card, PayPal, CCP, BaridiMob or USDT.",
+    "negotiable": "Open to counter-offers",
+    "negotiableHelp": "Off: the client can only accept or decline (a fixed price).",
+    "finalOffer": "Send as the final offer",
+    "finalOfferHelp": "The client can accept or decline it, not counter.",
+    "answerCounter": "Answer with a new offer",
+    "theirPrice": "Their counter-offer: {price}",
+    "waiting": {
+      "pay": "Waiting for payment",
+      "offer": "Offer unanswered",
+      "review": "Client reviewing",
+      "sign": "Contract unsigned",
+      "answer": "Proposal unanswered",
+      "proof": "Receipt to check",
+      "offer_studio": "Counter-offer to answer"
+    }
   },
   "project": {
     "stages": {
@@ -1072,7 +1117,10 @@
         "expired": "Expired"
       },
       "maintenanceLabel": "Maintenance",
-      "revisionsLabel": "Revision rounds"
+      "revisionsLabel": "Revision rounds",
+      "fixedPrice": "Fixed price: accept or decline.",
+      "finalOffer": "Final offer",
+      "finalOfferLead": "This is the final offer: you can accept or decline it."
     },
     "contract": {
       "title": "Contract",
@@ -1083,7 +1131,16 @@
       "signed": "Signed by {name} on {date}",
       "fingerprint": "Fingerprint",
       "print": "Print or save as PDF",
-      "waiting": "Waiting for the client's signature."
+      "waiting": "Waiting for the client's signature.",
+      "sheet": "Service agreement",
+      "between": "Between",
+      "provider": "The provider",
+      "client": "The client",
+      "signedOnline": "Signed electronically",
+      "pending": "Awaiting signature",
+      "date": "Date",
+      "signHere": "Your signature",
+      "stamp": "Sealed with its fingerprint"
     },
     "pay": {
       "title": "Payments",
@@ -1096,7 +1153,9 @@
         "due": "Due now",
         "paid": "Paid",
         "expired": "Expired",
-        "void": "Cancelled"
+        "void": "Cancelled",
+        "proposed": "Offered",
+        "declined": "Declined"
       },
       "how": "How to pay",
       "ccp": "CCP transfer",
@@ -1189,7 +1248,11 @@
           "chargily": "Chargily",
           "paypal": "PayPal"
         }
-      }
+      },
+      "payEarly": "Pay this part now",
+      "payEarlyLead": "Want to settle it early? You can pay it now, by any method.",
+      "requestNow": "Ask for it now",
+      "extra": "Extra"
     },
     "work": {
       "title": "Project",
@@ -1239,7 +1302,40 @@
       "you": "You",
       "voice": "Voice note",
       "read": "Read",
-      "draftFirst": "Send your request first, then we can talk here."
+      "draftFirst": "Send your request first, then we can talk here.",
+      "reply": "Reply",
+      "replyingTo": "Replying to {name}",
+      "cancelReply": "Cancel the reply",
+      "react": "React",
+      "reactWith": "React with {emoji}",
+      "soundOn": "Sounds on",
+      "soundOff": "Sounds off",
+      "open": "Messages",
+      "expand": "Full window",
+      "collapse": "Smaller window",
+      "close": "Close",
+      "seen": "Seen",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "image": "Image",
+      "closeImage": "Close the image",
+      "play": "Play",
+      "pause": "Pause",
+      "jump": "Go to the quoted message",
+      "conversations": "Conversations",
+      "pick": "Pick a project to open its conversation.",
+      "none": "No conversations yet.",
+      "quotedVoice": "Voice note",
+      "quotedFile": "File",
+      "quotedCard": "Card",
+      "cards": {
+        "extra": "Extra cost",
+        "offer": "Offer",
+        "update": "Progress update",
+        "issue": "Problem reported",
+        "toPayments": "Open in Payments",
+        "toProgress": "Open in Progress"
+      }
     },
     "review": {
       "title": "Your review",
@@ -1270,6 +1366,121 @@
         "pending": "Waiting for approval",
         "approved": "Published",
         "rejected": "Needs a change"
+      }
+    },
+    "tabs": {
+      "overview": "Overview",
+      "payments": "Payments",
+      "progress": "Progress",
+      "messages": "Messages",
+      "files": "Files",
+      "contract": "Contract",
+      "label": "Project sections"
+    },
+    "plan": {
+      "title": "Your plan",
+      "studioTitle": "Plan",
+      "includes": "What it includes",
+      "maintenance": "{n} days of maintenance after launch",
+      "maintenanceUntil": "Maintenance until {date}",
+      "revisions": "{left} of {total} revision rounds left",
+      "granted": "including {n} granted by Younes",
+      "reply": "Replies within {n} h",
+      "timeline": "Delivery in about {n} days",
+      "confidential": "Confidential: never shown in the portfolio",
+      "showcase": "May appear in the portfolio once live (you see it first)",
+      "dates": "Key dates",
+      "started": "Started",
+      "deadline": "Estimated delivery",
+      "live": "Live since",
+      "ends": "Maintenance until",
+      "closed": "Closed on"
+    },
+    "care": {
+      "title": "Maintenance",
+      "lead": "Your project is in maintenance until {date}. Something not working as it should? Tell me here and I'll fix it.",
+      "report": "Report a problem",
+      "reportNote": "What's wrong? Where it happens, and what you expected instead.",
+      "send": "Send the report",
+      "sent": "Sent. It's in the conversation, and I've been alerted.",
+      "closedLead": "Maintenance has ended and the project is closed. Write in the conversation if you need anything.",
+      "studioLead": "In maintenance until {date}.",
+      "studioClosed": "Closed. Extending maintenance brings it back into care.",
+      "extend": "Extend maintenance",
+      "days": "Days to add",
+      "extendGo": "Add {n} days",
+      "close": "Close the project",
+      "closeConfirm": "Close it now? Maintenance stops; the client keeps access to everything.",
+      "keep": "Keep it open"
+    },
+    "extras": {
+      "title": "Extras and offers",
+      "lead": "Costs outside the contract (credits, hosting, a feature added along the way) and optional offers. They never change the contract total.",
+      "studioLead": "A required cost is due at once. An optional offer waits for the client's answer. Both get a card in the chat, reminders and their own invoice.",
+      "empty": "No extras so far.",
+      "required": "Required",
+      "optional": "Optional",
+      "outside": "Outside the contract",
+      "accept": "Accept",
+      "decline": "No, thanks",
+      "declineConfirm": "Decline this offer",
+      "acceptLead": "Accepting makes it due: pay it like any other payment.",
+      "statuses": {
+        "proposed": "Awaiting your answer",
+        "scheduled": "Scheduled",
+        "due": "To pay",
+        "paid": "Paid",
+        "declined": "Declined",
+        "expired": "Expired",
+        "void": "Withdrawn"
+      },
+      "studioStatuses": {
+        "proposed": "Awaiting answer",
+        "scheduled": "Scheduled",
+        "due": "Due",
+        "paid": "Paid",
+        "declined": "Declined",
+        "expired": "Expired",
+        "void": "Withdrawn"
+      },
+      "add": "Add a cost or an offer",
+      "label": "What it is",
+      "labelPlaceholder": "AI credits, hosting for a year, an extra page",
+      "description": "Why (the client reads this)",
+      "amount": "Amount",
+      "currency": "Currency",
+      "optionalToggle": "Optional: the client can decline it",
+      "create": "Send to the client",
+      "withdraw": "Withdraw"
+    },
+    "invoices": {
+      "title": "Invoices",
+      "empty": "Each payment gets its invoice here, and by e-mail.",
+      "download": "Download the PDF",
+      "number": "Invoice {number}",
+      "sent": "e-mailed"
+    },
+    "revisions": {
+      "title": "Revision rounds",
+      "empty": "No changes asked for yet.",
+      "round": "Round {n}",
+      "on": "on {milestone}",
+      "whole": "on the whole work",
+      "grant": "Grant one more round",
+      "granted": "{n} extra granted",
+      "used": "{used} of {total} used"
+    },
+    "files": {
+      "empty": "Files you send, chat attachments and progress media gather here.",
+      "sources": {
+        "request": "Your request",
+        "chat": "Conversation",
+        "update": "Progress update"
+      },
+      "studioSources": {
+        "request": "Request",
+        "chat": "Conversation",
+        "update": "Progress update"
       }
     }
   },

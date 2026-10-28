@@ -27,6 +27,7 @@ import { smooth } from "@/motion/smooth";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { BudgetPicker, budgetRanges, convertBudget } from "./budget-picker";
+import { ShowcaseChoice } from "./showcase-choice";
 
 type Draft = {
   service: string;
@@ -615,7 +616,7 @@ export default function StartWizard({
                   onAdd={addFiles} onRemove={(key) => setPending((l) => l.filter((x) => x.key !== key))}
                   disabled={files.length + pending.length >= MAX_FILES} />
               </div>
-              <ChoiceChip label={s.nda} description={s.ndaHelp} checked={draft.wants_nda} onChange={(e) => set("wants_nda", e.target.checked)} />
+              <ShowcaseChoice s={s.showcase} confidential={draft.wants_nda} onChange={(v) => set("wants_nda", v)} />
               <fieldset className="flex flex-col gap-6 border-t border-line pt-8">
                 <legend className="hud mb-6 text-muted">{s.contactTitle}</legend>
                 <Hud tone="ink" dot>{fill(s.signedInAs, { email: user.email })}</Hud>
@@ -681,7 +682,7 @@ export default function StartWizard({
                   { k: s.budget, v: draft.budget_min || draft.budget_max ? `${draft.budget_min || "?"} – ${draft.budget_max || "?"} ${draft.budget_currency}` : "", at: 2 },
                   { k: s.deadline, v: draft.deadline, at: 2 },
                   { k: s.files, v: files.map((f) => f.original_name).join(", "), at: 3 },
-                  { k: s.nda, v: draft.wants_nda ? "✓" : "", at: 3 },
+                  { k: s.showcase.title, v: draft.wants_nda ? s.showcase.keep : s.showcase.show, at: 3 },
                   { k: s.email, v: [user.email, saved.phone, saved.whatsapp !== saved.phone && saved.whatsapp, saved.instagram && `@${saved.instagram}`, saved.messenger]
                     .filter(Boolean).join(" · "), at: 3 },
                 ].filter((r) => r.v).map((r) => (

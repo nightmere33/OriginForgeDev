@@ -412,7 +412,14 @@
     "instagram": "Instagram",
     "messenger": "Messenger",
     "instagramHint": "votre.nom",
-    "messengerHint": "nom d'utilisateur ou lien m.me"
+    "messengerHint": "nom d'utilisateur ou lien m.me",
+    "showcase": {
+      "title": "Une fois en ligne",
+      "show": "Le montrer dans le portfolio OriginForge",
+      "showHelp": "Je pourrai le présenter comme étude de cas. Vous le voyez avant publication.",
+      "keep": "Le garder confidentiel",
+      "keepHelp": "Jamais montré. Le contrat inclut une clause de confidentialité."
+    }
   },
   "auth": {
     "loginTitle": [
@@ -592,7 +599,23 @@
     "onboardCta": "Configurer",
     "deleteDraft": "Supprimer le brouillon",
     "deleteDraftConfirm": "Supprimer",
-    "deleteDraftKeep": "Garder"
+    "deleteDraftKeep": "Garder",
+    "cards": {
+      "waiting": {
+        "pay": "Paiement à effectuer",
+        "offer": "Une offre à examiner",
+        "review": "Prêt pour votre validation",
+        "sign": "Contrat à signer",
+        "answer": "Une proposition à examiner",
+        "proof": "Reçu en cours de vérification",
+        "offer_studio": "Contre-proposition envoyée"
+      },
+      "paid": "{percent} % payé",
+      "unread": "{n} nouveau(x)",
+      "plan": "Formule {plan}",
+      "next": "Prochaine étape",
+      "none": "Rien à faire de votre côté"
+    }
   },
   "studio": {
     "title": [
@@ -808,12 +831,14 @@
         "contact": "Contact et profils",
         "about": "À propos de vous",
         "payments": "Informations de paiement",
-        "prices": "Prix de départ"
+        "prices": "Prix de départ",
+        "invoices": "Factures"
       },
       "help": {
         "availability": "Personne n'est refusé : quand vous êtes complet, les demandes rejoignent la file avec leur position et leur démarrage estimé. Mettez les démarrages en pause pendant les congés.",
         "payments": "Montrées seulement à un client connecté qui a un paiement à faire. Jamais publiques.",
-        "prices": "En DZD. Euros et dollars suivent le taux du marché du jour. Laissez vide pour « sur devis »."
+        "prices": "En DZD. Euros et dollars suivent le taux du marché du jour. Laissez vide pour « sur devis ».",
+        "invoices": "Le vendeur sur chaque facture. Chaque facture garde les informations avec lesquelles elle a été émise."
       },
       "fields": {
         "is_available": "Je démarre de nouveaux projets (décochez pour mettre en pause : les demandes attendent en file)",
@@ -846,7 +871,12 @@
         "cash_note_fr": "Note paiement en espèces (français)",
         "usdt_bep20_address": "Adresse USDT (BEP20)",
         "usdt_rate_override": "Taux du dollar imposé (DZD, vide = en direct)",
-        "review_hours": "Première réponse au plus tard (heures)"
+        "review_hours": "Première réponse au plus tard (heures)",
+        "seller_name": "Raison sociale / nom légal",
+        "seller_address": "Adresse",
+        "seller_tax_ids": "Identifiants fiscaux (un par ligne : NIF, NIS, RC…)",
+        "invoice_note_en": "Mention légale (anglais)",
+        "invoice_note_fr": "Mention légale (français)"
       },
       "listed": "Affiché sur le site",
       "kinds": {
@@ -988,7 +1018,22 @@
       }
     },
     "allowCash": "Autoriser les espèces, en main propre",
-    "allowCashHelp": "Seulement pour les clients que vous connaissez et en qui vous avez confiance. Les autres paient par carte, PayPal, CCP, BaridiMob ou USDT."
+    "allowCashHelp": "Seulement pour les clients que vous connaissez et en qui vous avez confiance. Les autres paient par carte, PayPal, CCP, BaridiMob ou USDT.",
+    "negotiable": "Ouvert aux contre-propositions",
+    "negotiableHelp": "Désactivé : le client peut seulement accepter ou refuser (prix fixe).",
+    "finalOffer": "Envoyer comme offre finale",
+    "finalOfferHelp": "Le client peut l'accepter ou la refuser, sans contre-proposition.",
+    "answerCounter": "Répondre par une nouvelle offre",
+    "theirPrice": "Sa contre-proposition : {price}",
+    "waiting": {
+      "pay": "Paiement attendu",
+      "offer": "Offre sans réponse",
+      "review": "Validation en cours",
+      "sign": "Contrat non signé",
+      "answer": "Proposition sans réponse",
+      "proof": "Reçu à vérifier",
+      "offer_studio": "Contre-proposition à traiter"
+    }
   },
   "project": {
     "stages": {
@@ -1072,7 +1117,10 @@
         "expired": "Expirée"
       },
       "maintenanceLabel": "Maintenance",
-      "revisionsLabel": "Tours de révision"
+      "revisionsLabel": "Tours de révision",
+      "fixedPrice": "Prix fixe : à accepter ou refuser.",
+      "finalOffer": "Offre finale",
+      "finalOfferLead": "C'est l'offre finale : vous pouvez l'accepter ou la refuser."
     },
     "contract": {
       "title": "Contrat",
@@ -1083,7 +1131,16 @@
       "signed": "Signé par {name} le {date}",
       "fingerprint": "Empreinte",
       "print": "Imprimer ou enregistrer en PDF",
-      "waiting": "En attente de la signature du client."
+      "waiting": "En attente de la signature du client.",
+      "sheet": "Contrat de prestation",
+      "between": "Entre",
+      "provider": "Le prestataire",
+      "client": "Le client",
+      "signedOnline": "Signé électroniquement",
+      "pending": "En attente de signature",
+      "date": "Date",
+      "signHere": "Votre signature",
+      "stamp": "Scellé par son empreinte"
     },
     "pay": {
       "title": "Paiements",
@@ -1096,7 +1153,9 @@
         "due": "À régler",
         "paid": "Payé",
         "expired": "Expiré",
-        "void": "Annulé"
+        "void": "Annulé",
+        "proposed": "Proposé",
+        "declined": "Refusé"
       },
       "how": "Comment payer",
       "ccp": "Virement CCP",
@@ -1189,7 +1248,11 @@
           "chargily": "Chargily",
           "paypal": "PayPal"
         }
-      }
+      },
+      "payEarly": "Régler cette part maintenant",
+      "payEarlyLead": "Envie de la régler en avance ? Vous pouvez la payer dès maintenant, par le moyen de votre choix.",
+      "requestNow": "La demander maintenant",
+      "extra": "Extra"
     },
     "work": {
       "title": "Projet",
@@ -1239,7 +1302,40 @@
       "you": "Vous",
       "voice": "Message vocal",
       "read": "Lu",
-      "draftFirst": "Envoyez d'abord votre demande, puis nous pourrons échanger ici."
+      "draftFirst": "Envoyez d'abord votre demande, puis nous pourrons échanger ici.",
+      "reply": "Répondre",
+      "replyingTo": "Réponse à {name}",
+      "cancelReply": "Annuler la réponse",
+      "react": "Réagir",
+      "reactWith": "Réagir avec {emoji}",
+      "soundOn": "Sons activés",
+      "soundOff": "Sons coupés",
+      "open": "Messages",
+      "expand": "Plein écran",
+      "collapse": "Fenêtre réduite",
+      "close": "Fermer",
+      "seen": "Vu",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "image": "Image",
+      "closeImage": "Fermer l'image",
+      "play": "Lire",
+      "pause": "Pause",
+      "jump": "Aller au message cité",
+      "conversations": "Conversations",
+      "pick": "Choisissez un projet pour ouvrir sa conversation.",
+      "none": "Aucune conversation pour l'instant.",
+      "quotedVoice": "Message vocal",
+      "quotedFile": "Fichier",
+      "quotedCard": "Carte",
+      "cards": {
+        "extra": "Coût supplémentaire",
+        "offer": "Offre",
+        "update": "Avancement",
+        "issue": "Problème signalé",
+        "toPayments": "Voir dans Paiements",
+        "toProgress": "Voir dans Avancement"
+      }
     },
     "review": {
       "title": "Votre avis",
@@ -1270,6 +1366,121 @@
         "pending": "En attente de validation",
         "approved": "Publié",
         "rejected": "À modifier"
+      }
+    },
+    "tabs": {
+      "overview": "Vue d'ensemble",
+      "payments": "Paiements",
+      "progress": "Avancement",
+      "messages": "Messages",
+      "files": "Fichiers",
+      "contract": "Contrat",
+      "label": "Sections du projet"
+    },
+    "plan": {
+      "title": "Votre formule",
+      "studioTitle": "Formule",
+      "includes": "Ce qu'elle comprend",
+      "maintenance": "{n} jours de maintenance après la mise en ligne",
+      "maintenanceUntil": "Maintenance jusqu'au {date}",
+      "revisions": "{left} tours de modifications sur {total} restants",
+      "granted": "dont {n} offerts par Younes",
+      "reply": "Réponse sous {n} h",
+      "timeline": "Livraison en {n} jours environ",
+      "confidential": "Confidentiel : jamais montré dans le portfolio",
+      "showcase": "Peut apparaître dans le portfolio une fois en ligne (vous le voyez d'abord)",
+      "dates": "Dates clés",
+      "started": "Démarré le",
+      "deadline": "Livraison estimée",
+      "live": "En ligne depuis",
+      "ends": "Maintenance jusqu'au",
+      "closed": "Clôturé le"
+    },
+    "care": {
+      "title": "Maintenance",
+      "lead": "Votre projet est en maintenance jusqu'au {date}. Quelque chose ne fonctionne pas comme prévu ? Dites-le-moi ici et je le corrige.",
+      "report": "Signaler un problème",
+      "reportNote": "Qu'est-ce qui ne va pas ? Où cela arrive, et ce que vous attendiez.",
+      "send": "Envoyer le signalement",
+      "sent": "Envoyé. C'est dans la conversation, et je suis prévenu.",
+      "closedLead": "La maintenance est terminée et le projet est clôturé. Écrivez dans la conversation si vous avez besoin de quoi que ce soit.",
+      "studioLead": "En maintenance jusqu'au {date}.",
+      "studioClosed": "Clôturé. Prolonger la maintenance le remet sous suivi.",
+      "extend": "Prolonger la maintenance",
+      "days": "Jours à ajouter",
+      "extendGo": "Ajouter {n} jours",
+      "close": "Clôturer le projet",
+      "closeConfirm": "Le clôturer maintenant ? La maintenance s'arrête ; le client garde l'accès à tout.",
+      "keep": "Le garder ouvert"
+    },
+    "extras": {
+      "title": "Extras et offres",
+      "lead": "Les coûts hors contrat (crédits, hébergement, une fonctionnalité ajoutée en cours de route) et les offres facultatives. Ils ne changent jamais le total du contrat.",
+      "studioLead": "Un coût obligatoire est dû tout de suite. Une offre facultative attend la réponse du client. Les deux ont une carte dans la conversation, des rappels et leur propre facture.",
+      "empty": "Aucun extra pour l'instant.",
+      "required": "Obligatoire",
+      "optional": "Facultatif",
+      "outside": "Hors contrat",
+      "accept": "Accepter",
+      "decline": "Non merci",
+      "declineConfirm": "Refuser cette offre",
+      "acceptLead": "L'accepter la rend due : réglez-la comme n'importe quel paiement.",
+      "statuses": {
+        "proposed": "En attente de votre réponse",
+        "scheduled": "Prévu",
+        "due": "À régler",
+        "paid": "Payé",
+        "declined": "Refusé",
+        "expired": "Expiré",
+        "void": "Retiré"
+      },
+      "studioStatuses": {
+        "proposed": "En attente de réponse",
+        "scheduled": "Prévu",
+        "due": "Dû",
+        "paid": "Payé",
+        "declined": "Refusé",
+        "expired": "Expiré",
+        "void": "Retiré"
+      },
+      "add": "Ajouter un coût ou une offre",
+      "label": "De quoi s'agit-il",
+      "labelPlaceholder": "Crédits IA, hébergement d'un an, une page en plus",
+      "description": "Pourquoi (le client le lit)",
+      "amount": "Montant",
+      "currency": "Devise",
+      "optionalToggle": "Facultatif : le client peut le refuser",
+      "create": "Envoyer au client",
+      "withdraw": "Retirer"
+    },
+    "invoices": {
+      "title": "Factures",
+      "empty": "Chaque paiement a sa facture ici, et par e-mail.",
+      "download": "Télécharger le PDF",
+      "number": "Facture {number}",
+      "sent": "envoyée par e-mail"
+    },
+    "revisions": {
+      "title": "Tours de modifications",
+      "empty": "Aucune modification demandée pour l'instant.",
+      "round": "Tour {n}",
+      "on": "sur {milestone}",
+      "whole": "sur l'ensemble",
+      "grant": "Offrir un tour de plus",
+      "granted": "{n} offert(s) en plus",
+      "used": "{used} sur {total} utilisés"
+    },
+    "files": {
+      "empty": "Les fichiers que vous envoyez, les pièces jointes de la conversation et les médias d'avancement sont réunis ici.",
+      "sources": {
+        "request": "Votre demande",
+        "chat": "Conversation",
+        "update": "Avancement"
+      },
+      "studioSources": {
+        "request": "Demande",
+        "chat": "Conversation",
+        "update": "Avancement"
       }
     }
   },

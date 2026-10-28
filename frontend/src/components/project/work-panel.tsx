@@ -247,12 +247,11 @@ export function WorkPanel(props: PanelProps & { engagement: Engagement }) {
             <div className="h-px bg-ember-500 transition-[width] duration-700 ease-out" style={{ width: `${progress * 100}%` }} />
           </div>
         </div>
+        {/* Dates, the plan and the revision rounds have their own place (Overview, Revision rounds). */}
         {e.deadline && !finished && (
           <div><p className="hud text-faint">{w.deadline}</p><p className="mt-1 text-ink">{day(lang, e.deadline)} · <span className="text-muted">{timeLeft(t, `${e.deadline}T18:00:00`)}</span></p></div>
         )}
         {e.production_at && <div><p className="hud text-faint">{t.project.stages.live}</p><p className="mt-1 text-ink">{fill(w.liveSince, { date: day(lang, e.production_at) })}</p></div>}
-        {e.maintenance_ends_at && <div><p className="hud text-faint">{e.plan_name}</p><p className="mt-1 text-ink">{fill(w.maintenanceUntil, { date: day(lang, e.maintenance_ends_at) })}</p></div>}
-        <div><p className="hud text-faint">{t.project.proposal.revisionsLabel}</p><p className="mt-1 text-ink">{fill(t.studio.revisionsUsed, { used: e.revisions_used, total: e.revision_rounds })}</p></div>
       </div>
       {e.status === "on_hold" && <Hud tone="ember" dot>{w.onHold}</Hud>}
 

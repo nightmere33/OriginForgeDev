@@ -40,6 +40,8 @@ export type Proposal = {
   milestones: { title: string; days: number }[];
   nda: boolean;
   allow_cash: boolean;
+  /** Off: accept or decline only (a fixed price, or the final offer). */
+  negotiable: boolean;
   expires_at: string;
   responded_at: string | null;
   created_at: string;
@@ -75,17 +77,42 @@ export type Proof = {
   receipt_name: string;
 };
 
+export type Invoice = {
+  id: number;
+  number: string;
+  issued_at: string;
+  label: string;
+  amount: number;
+  currency: Currency;
+  method: string;
+  emailed_at: string | null;
+  reference: string;
+  /** The PDF (drawn on first download). */
+  url: string;
+};
+
+export type ChargeStatus = "proposed" | "scheduled" | "due" | "paid" | "declined" | "expired" | "void";
+
 export type Charge = {
   id: number;
-  kind: "deposit" | "milestone" | "balance";
+  /** `extra`: a cost outside the contract, or an optional offer. */
+  kind: "deposit" | "milestone" | "balance" | "extra";
   label: string;
+  description: string;
+  /** An extra the client may decline. */
+  optional: boolean;
   percent: number;
   amount: number;
   currency: Currency;
-  status: "scheduled" | "due" | "paid" | "expired" | "void";
+  status: ChargeStatus;
   due_at: string | null;
   paid_at: string | null;
+  answered_at: string | null;
+  created_at: string | null;
   overdue: boolean;
+  /** A scheduled part the client may pay before it is asked for. */
+  can_pay_early: boolean;
+  invoice: Invoice | null;
   usdt_amount: string | null;
   /** The online methods open for it while due, with what each would take. */
   online: {
@@ -117,7 +144,7 @@ export type OnlinePayment = {
 };
 
 /** What the return page follows (GET /payments/<id>/). */
-export type PaymentState = OnlinePayment & { amount: number; currency: Currency; charge: number; charge_status: Charge["status"] };
+export type PaymentState = OnlinePayment & { amount: number; currency: Currency; charge: number; charge_status: ChargeStatus };
 
 export type Milestone = {
   id: number;
@@ -142,6 +169,12 @@ export type Task = {
 
 export type ProgressUpdate = { id: number; title: string; body: string; attachments: Attachment[]; created_at: string };
 
+/** One round of changes the client asked for (on the whole work, or on a milestone). */
+export type Revision = { id: number; number: number; milestone: string | null; note: string; created_at: string };
+
+/** The plan as signed: what it includes. */
+export type PlanTerms = { code: string; name: string; maintenance_days: number; revision_rounds: number; reply_hours: number };
+
 export type EngagementStatus =
   | "awaiting_deposit" | "in_development" | "client_review" | "awaiting_balance" | "live" | "closed"
   | "on_hold" | "cancelled" | "expired";
@@ -153,9 +186,12 @@ export type Engagement = {
   price: number;
   currency: Currency;
   plan_name: string;
+  plan: PlanTerms;
   maintenance_days: number;
+  /** Rounds in the plan plus the ones Younes granted. */
   revision_rounds: number;
   revisions_used: number;
+  revisions_granted: number;
   revisions_left: number;
   timeline_days: number;
   nda: boolean;
@@ -168,19 +204,44 @@ export type Engagement = {
   milestones: Milestone[];
   tasks: Task[];
   updates: ProgressUpdate[];
+  revisions: Revision[];
   ready_to_go_live: boolean;
   /** Younes allowed cash by hand for this client (in the proposal). */
   cash_allowed: boolean;
 };
 
+export const REACTIONS = ["\u2764\ufe0f", "\u{1F44D}", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F525}", "\u{1F64F}", "\u2705"] as const;
+
+export type Reaction = { emoji: string; count: number; mine: boolean };
+
 export type Message = {
   id: number;
+  /** `charge`, `update` and `issue` are cards for something that happened elsewhere. */
+  kind: "text" | "charge" | "update" | "issue";
   from_studio: boolean;
   sender_name: string;
   body: string;
   attachment: Attachment | null;
+  reply_to: { id: number; from_studio: boolean; sender_name: string; body: string; kind: string } | null;
+  charge: Pick<Charge, "id" | "kind" | "label" | "description" | "optional" | "amount" | "currency" | "status" | "due_at" | "paid_at"> | null;
+  update: ProgressUpdate | null;
+  reactions: Reaction[];
   read_at: string | null;
   created_at: string;
+};
+
+/** What a project card shows without opening it (the request list). */
+export type RequestSummary = {
+  plan: string;
+  paid: number;
+  total: number;
+  percent: number;
+  currency: Currency | "";
+  /** What is waiting, and on whom: the client pays / answers an offer / reviews / signs / answers a proposal; the studio checks a receipt or a counter-offer. */
+  waiting: "" | "pay" | "offer" | "proof" | "review" | "sign" | "answer" | "offer_studio";
+  unread: number;
+  deadline: string | null;
+  maintenance_ends_at: string | null;
 };
 
 export type ProjectRequest = {
@@ -216,6 +277,7 @@ export type ProjectRequest = {
   engagement_status: EngagementStatus | null;
   attachments: Attachment[];
   allowed_moves: string[];
+  summary: RequestSummary;
   created_at: string;
   updated_at: string;
   client?: {
@@ -227,6 +289,8 @@ export type ProjectRequest = {
   contract?: Contract | null;
   engagement?: Engagement | null;
   unread?: number;
+  /** Every file of the project (voice notes stay in the chat), newest first. */
+  files?: (Attachment & { source: "request" | "chat" | "update" })[];
 };
 
 export type PaymentInstructions = {

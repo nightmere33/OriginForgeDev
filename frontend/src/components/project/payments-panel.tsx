@@ -17,9 +17,11 @@ import { PaymentProgress } from "./payment-progress";
 import { PayPalButton } from "./paypal-button";
 import { CopyValue, ErrorLine, errorText, timeLeft, type PanelProps } from "./shared";
 
-const CHARGE_TONE: Record<Charge["status"], string> = {
-  scheduled: "submitted", due: "proposal_sent", paid: "paid", expired: "declined", void: "archived",
+export const CHARGE_TONE: Record<Charge["status"], string> = {
+  proposed: "proposal_sent", scheduled: "submitted", due: "proposal_sent", paid: "paid", declined: "withdrawn", expired: "declined", void: "archived",
 };
+/** The contract's own payments (deposit, milestone, balance): extras are counted apart. */
+export const contractCharges = (e: Engagement) => e.charges.filter((c) => c.kind !== "extra");
 type Method = "card" | "paypal" | "ccp" | "baridimob" | "cash" | "usdt";
 const TX_HASH = /^0x[0-9a-fA-F]{64}$/;
 
@@ -30,7 +32,7 @@ function ChargeRow({ lang, t, charge }: Pick<PanelProps, "lang" | "t"> & { charg
   return (
     <div className="grid gap-2 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-6">
       <span className="text-ink">
-        {charge.label} <span className="hud text-faint">{charge.percent} %</span>
+        {charge.label} <span className="hud text-faint">{charge.kind === "extra" ? s.extra : `${charge.percent} %`}</span>
       </span>
       <span className="hud text-faint">
         {charge.status === "paid" && charge.paid_at
@@ -141,7 +143,7 @@ function PayPalPay({ lang, t, charge }: Pick<PanelProps, "lang" | "t"> & { charg
 }
 
 /** Client: how to pay one due charge: online right away, or by hand and then "I've paid" with the receipt. */
-function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProps & { charge: Charge; reference: string; engagement: Engagement }) {
+export function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProps & { charge: Charge; reference: string; engagement: Engagement }) {
   const s = t.project.pay;
   const online = charge.online;
   const [method, setMethod] = useState<Method>(online.chargily ? "card" : online.paypal ? "paypal" : "ccp");
@@ -195,10 +197,10 @@ function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProp
 
   return (
     <div className="flex flex-col gap-6">
-      <PaymentProgress lang={lang} p={s} engagement={engagement} compact />
+      {charge.kind !== "extra" && <PaymentProgress lang={lang} p={s} engagement={engagement} compact />}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="hud text-faint">{charge.label} · {charge.percent} %</p>
+          <p className="hud text-faint">{charge.label} · {charge.kind === "extra" ? t.project.extras.outside : `${charge.percent} %`}</p>
           <p className="mt-2 font-mono text-3xl tabular-nums tracking-[-0.03em] text-ink-strong md:text-4xl">{money(lang, charge.amount, charge.currency)}</p>
           <Equivalent lang={lang} amount={charge.amount} currency={charge.currency} className="hud mt-2 block text-faint" />
         </div>
@@ -209,6 +211,7 @@ function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProp
         )}
       </div>
       {charge.kind === "deposit" && <p className="text-sm text-faint">{s.windowNote}</p>}
+      {charge.kind === "extra" && charge.description && <p className="max-w-2xl whitespace-pre-line text-sm leading-relaxed text-muted">{charge.description}</p>}
 
       {charge.proofs.length > 0 && <div className="flex flex-col gap-2">{charge.proofs.map((p) => <ProofLine key={p.id} lang={lang} t={t} proof={p} />)}</div>}
       <AttemptLine lang={lang} t={t} charge={charge} />
@@ -316,8 +319,8 @@ function PayCharge({ lang, t, reload, charge, reference, engagement }: PanelProp
   );
 }
 
-/** Studio: check a receipt, confirm cash, ask for the next payment. */
-function StudioCharge({ lang, t, reload, charge }: PanelProps & { charge: Charge }) {
+/** Studio: check a receipt, confirm cash, ask for a scheduled payment now (once the deposit is in). */
+function StudioCharge({ lang, t, reload, charge, started }: PanelProps & { charge: Charge; started: boolean }) {
   const st = t.studio;
   const [rejecting, setRejecting] = useState<number | null>(null);
   const [note, setNote] = useState("");
@@ -340,7 +343,8 @@ function StudioCharge({ lang, t, reload, charge }: PanelProps & { charge: Charge
   };
 
   const pending = charge.proofs.filter((p) => p.status === "pending");
-  if (!pending.length && charge.status !== "due" && !(charge.status === "scheduled" && charge.kind === "milestone")) return null;
+  const askable = charge.status === "scheduled" && charge.kind !== "extra" && started;
+  if (!pending.length && charge.status !== "due" && !askable) return null;
 
   return (
     <div className="mb-4 flex flex-col gap-4 border border-line bg-cell px-5 py-5">
@@ -386,9 +390,9 @@ function StudioCharge({ lang, t, reload, charge }: PanelProps & { charge: Charge
           {st.recordCash} · {charge.label}
         </Button>
       )}
-      {charge.status === "scheduled" && charge.kind === "milestone" && (
+      {askable && (
         <Button variant="secondary" size="sm" loading={busy === "req"} onClick={() => run("req", `/charges/${charge.id}/request/`)}>
-          {st.requestPayment} · {charge.label}
+          {t.project.pay.requestNow} · {charge.label} · {money(lang, charge.amount, charge.currency)}
         </Button>
       )}
       <ErrorLine>{error}</ErrorLine>
@@ -396,31 +400,63 @@ function StudioCharge({ lang, t, reload, charge }: PanelProps & { charge: Charge
   );
 }
 
-/** The client's next payment, on its own (used as the "next step"). */
+/** The client's next payment, on its own (used as the "next step"): the contract's first, then extras. */
 export function DueCharge(props: PanelProps & { engagement: Engagement; reference: string }) {
-  const due = props.engagement.charges.find((c) => c.status === "due");
+  const due = contractCharges(props.engagement).find((c) => c.status === "due") ?? props.engagement.charges.find((c) => c.status === "due");
   return due ? <PayCharge {...props} charge={due} /> : null;
+}
+
+/** Client: settle the next scheduled part before it is asked for. */
+function PayEarly({ t, reload, charge }: Pick<PanelProps, "t" | "reload"> & { charge: Charge }) {
+  const s = t.project.pay;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-6">
+      <p className="text-sm text-muted">{s.payEarlyLead}</p>
+      <ErrorLine>{error}</ErrorLine>
+      <Button variant="secondary" size="sm" loading={busy} onClick={async () => {
+        setBusy(true);
+        setError(undefined);
+        try {
+          await api.post(`/charges/${charge.id}/pay-early/`);
+          await reload();
+        } catch (err) {
+          setError(errorText(t, err, "status"));
+          setBusy(false);
+        }
+      }}>{s.payEarly} · {charge.label}</Button>
+    </div>
+  );
 }
 
 export function PaymentsLedger(props: PanelProps & { engagement: Engagement }) {
   const { lang, t, side, engagement } = props;
-  const total = engagement.charges.filter((c) => c.status !== "void").reduce((n, c) => n + c.amount, 0);
+  const contract = contractCharges(engagement);
+  const total = contract.filter((c) => c.status !== "void").reduce((n, c) => n + c.amount, 0);
+  const started = ["in_development", "client_review", "awaiting_balance", "on_hold", "live"].includes(engagement.status);
+  const early = side === "client" && !engagement.charges.some((c) => c.status === "due") ? contract.find((c) => c.can_pay_early) : undefined;
   // The client reads the progress bar (each share labelled under it); the
   // studio also keeps the ledger rows beside its actions.
   return (
-    <div>
-      {side === "studio" && engagement.charges.map((c) => <StudioCharge key={c.id} {...props} charge={c} />)}
+    <div className="flex flex-col gap-8">
+      {side === "studio" && contract.some((c) => c.status === "due" || c.proofs.some((p) => p.status === "pending") || (c.status === "scheduled" && started)) && (
+        <div>{contract.map((c) => <StudioCharge key={c.id} {...props} charge={c} started={started} />)}</div>
+      )}
       <PaymentProgress lang={lang} p={t.project.pay} engagement={engagement} />
+      {early && <PayEarly t={t} reload={props.reload} charge={early} />}
       {side === "studio" && (
-        <div className="mt-8 divide-y divide-line border-y border-line">
-          {engagement.charges.map((c) => <ChargeRow key={c.id} lang={lang} t={t} charge={c} />)}
+        <div className="divide-y divide-line border-y border-line">
+          {contract.map((c) => <ChargeRow key={c.id} lang={lang} t={t} charge={c} />)}
           <div className="flex items-baseline justify-between py-4">
             <span className="hud text-faint">{t.project.pay.total}</span>
             <span className="font-mono tabular-nums text-ink-strong">{money(lang, total, engagement.currency)}</span>
           </div>
         </div>
       )}
-      {side === "client" && <SecurePayments labels={t.trust} compact className="mt-8" />}
+      {side === "client" && <SecurePayments labels={t.trust} compact />}
     </div>
   );
 }
+
+export { ChargeRow, StudioCharge };

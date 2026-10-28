@@ -5,11 +5,11 @@ import { ReviewPanel } from "@/components/reviews/review-form";
 import { fill } from "@/i18n/fill";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowUpRight, Download, Mail, MessageCircle, Phone, Trash2 } from "lucide-react";
 import type { Locale } from "@/i18n/dictionaries";
 import { api, ApiError, type User } from "@/lib/api-client";
-import { day, stageOf, type ProjectRequest } from "@/lib/lifecycle";
+import { day, money, stageOf, type ProjectRequest, type RequestSummary } from "@/lib/lifecycle";
 import { fetchSession, useSession } from "@/lib/session";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Select, Textarea, formatBytes } from "@/components/ui/field";
@@ -19,10 +19,14 @@ import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { ContractPanel } from "@/components/project/contract-panel";
 import { Conversation } from "@/components/project/conversation";
+import { ExtrasPanel, InvoiceList } from "@/components/project/extras";
+import { CarePanel, KeyDates, PlanCard } from "@/components/project/overview";
 import { DueCharge, PaymentsLedger } from "@/components/project/payments-panel";
 import { PaymentFollow } from "@/components/project/payment-follow";
+import { ProjectTabs, TabPanel, useProjectTab, type TabSpec } from "@/components/project/project-tabs";
 import { ProposalBuilder } from "@/components/project/proposal-builder";
 import { ProposalCard } from "@/components/project/proposal-card";
+import { RevisionsPanel } from "@/components/project/revisions";
 import { NextStep, Panel, type Side, type T } from "@/components/project/shared";
 import { StageTrack } from "@/components/project/stage-track";
 import { briefFor, briefRows, featureLabel, say } from "@/components/start/briefs";
@@ -45,8 +49,8 @@ export function useGuard(lang: Locale, developer = false): User | null | undefin
 function useRequests(enabled: boolean, status?: string) {
   const [items, setItems] = useState<ProjectRequest[] | null>(null);
   const [version, setVersion] = useState(0);
-  // A new request or any move on one refreshes the list live.
-  useLiveRefresh(() => setVersion((v) => v + 1));
+  // A new request, any move on one, or a new message refreshes the list live.
+  useLiveRefresh(() => setVersion((v) => v + 1), undefined, { messages: true });
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
@@ -59,8 +63,8 @@ function useRequests(enabled: boolean, status?: string) {
   return [items, () => setVersion((v) => v + 1)] as const;
 }
 
-/** Delete an unsent draft from the list (asks once, inline). */
-function DeleteDraft({ t, reference, onDeleted }: { t: T; reference: string; onDeleted?: () => void }) {
+/** Delete an unsent draft (asks once, inline). */
+function DeleteDraft({ t, reference, onDeleted, className }: { t: T; reference: string; onDeleted?: () => void; className?: string }) {
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const remove = async () => {
@@ -68,7 +72,7 @@ function DeleteDraft({ t, reference, onDeleted }: { t: T; reference: string; onD
     await api.delete(`/requests/${encodeURIComponent(reference)}/`).then(onDeleted, () => setBusy(false));
   };
   return (
-    <span className="absolute right-6 top-5 z-10 flex items-center gap-3 md:right-16 md:top-1/2 md:-translate-y-1/2">
+    <span className={cn("absolute z-10 flex items-center gap-3", className)}>
       {ask ? (
         <>
           <button type="button" onClick={remove} disabled={busy} className="hud text-err hover:underline">{t.portal.deleteDraftConfirm}</button>
@@ -94,7 +98,7 @@ function Loading({ t }: { t: T }) {
   return <SkeletonRows label={t.common.loading} />;
 }
 
-/** A project hub on its way: its header, stage track and first panels, in outline. */
+/** A project hub on its way: its header, stage track, tabs and first panel, in outline. */
 function HubLoading({ t }: { t: T }) {
   return (
     <div role="status" aria-label={t.common.loading} className="border-t border-line">
@@ -106,44 +110,117 @@ function HubLoading({ t }: { t: T }) {
       <div className="grid grid-cols-4 gap-px border-y border-line bg-line md:grid-cols-8">
         {Array.from({ length: 8 }, (_, i) => <span key={i} className={cn("bg-bg px-3 py-4", i > 3 && "hidden md:block")}><Skeleton className="h-2 w-full" /></span>)}
       </div>
-      <div className="grid gap-px bg-line lg:grid-cols-2">
-        {[0, 1].map((i) => (
-          <div key={i} className="flex flex-col gap-3 bg-bg px-6 py-8 md:px-10">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-        ))}
+      <div className="flex gap-6 border-b border-line px-6 py-4 md:px-10">
+        {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-3 w-16" />)}
+      </div>
+      <div className="flex flex-col gap-3 px-6 py-8 md:px-10">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-4 w-1/2" />
       </div>
     </div>
   );
 }
 
-function RequestRows({ lang, t, items, base, showClient, onChange }: { lang: Locale; t: T; items: ProjectRequest[]; base: string; showClient?: boolean; onChange?: () => void }) {
+/** What is waiting, worded for the side reading it. */
+function waitingText(t: T, side: Side, w: RequestSummary["waiting"]) {
+  if (!w) return "";
+  return side === "client" ? t.portal.cards.waiting[w] : t.studio.waiting[w];
+}
+
+/** Waiting on this side (an ember light), or on the other (a quiet note). */
+const waitingOnMe = (side: Side, w: RequestSummary["waiting"]) =>
+  side === "client" ? ["pay", "offer", "review", "sign", "answer"].includes(w) : ["proof", "offer_studio"].includes(w);
+
+/** The studio inbox: one row per request, with the plan, what is waiting and new messages. */
+function RequestRows({ lang, t, items, base }: { lang: Locale; t: T; items: ProjectRequest[]; base: string }) {
   if (!items.length) return <p className="px-6 py-16 text-muted md:px-10">{t.portal.empty}</p>;
   return (
     <ul className="divide-y divide-line border-t border-line">
       {items.map((r) => {
-        const draft = r.status === "draft" && !showClient;
-        // An unsent draft reopens in the wizard, where it was left.
-        const href = draft ? `/${lang}/start?draft=${encodeURIComponent(r.reference)}` : `${base}/${r.reference}`;
+        const s = r.summary;
         return (
-          <li key={r.reference} className="relative">
-            {draft && <DeleteDraft t={t} reference={r.reference} onDeleted={onChange} />}
-            <Link href={href} className="group/row grid gap-3 px-6 py-5 transition-colors hover:bg-cell md:grid-cols-[8rem_1fr_auto_auto] md:items-center md:px-10">
+          <li key={r.reference}>
+            <Link href={`${base}/${r.reference}`} className="group/row grid gap-3 px-6 py-5 transition-colors hover:bg-cell md:grid-cols-[8rem_1fr_auto_auto] md:items-center md:px-10">
               <span className="hud text-faint">{r.reference}</span>
-              <span>
-                <span className="block text-ink">{r.title || "·"}</span>
+              <span className="flex min-w-0 flex-col gap-1">
+                <span className="text-ink">{r.title || "·"}</span>
                 <span className="text-sm text-faint">
-                  {showClient && r.client ? `${r.client.full_name} · ` : ""}
-                  {r.service_title ?? "·"} · {day(lang, r.created_at)}
+                  {r.client ? `${r.client.full_name} · ` : ""}{r.service_title ?? "·"} · {day(lang, r.created_at)}
                 </span>
+                {(s?.plan || s?.waiting) && (
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {s.plan && <span className="hud text-muted">{fill(t.portal.cards.plan, { plan: s.plan })}</span>}
+                    {s.waiting && <Hud tone={waitingOnMe("studio", s.waiting) ? "ember" : "faint"} dot={waitingOnMe("studio", s.waiting)}>{waitingText(t, "studio", s.waiting)}</Hud>}
+                  </span>
+                )}
               </span>
-              <StatusPill status={statusOf(r)} label={statusLabel(t, r)} />
-              <span className={cn("hidden items-center gap-2 md:flex", draft && "md:pr-10")}>
-                {draft && <span className="hud text-ember-400">{t.portal.continueDraft}</span>}
-                <ArrowUpRight aria-hidden className="size-4 text-faint transition-colors group-hover/row:text-ember-400" />
+              <span className="flex items-center gap-3">
+                {s?.unread ? (
+                  <span className="hud flex items-center gap-1.5 text-ember-400"><MessageCircle aria-hidden className="size-3.5" />{fill(t.portal.cards.unread, { n: s.unread })}</span>
+                ) : null}
+                <StatusPill status={statusOf(r)} label={statusLabel(t, r)} />
+              </span>
+              <ArrowUpRight aria-hidden className="hidden size-4 text-faint transition-colors group-hover/row:text-ember-400 md:block" />
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * The client's projects as cards: status, what is next and on whom, how
+ * much is paid, the plan, and new messages. A draft reopens in the wizard.
+ */
+function ProjectCards({ lang, t, items, onChange }: { lang: Locale; t: T; items: ProjectRequest[]; onChange: () => void }) {
+  if (!items.length) return <p className="border-t border-line px-6 py-16 text-muted md:px-10">{t.portal.empty}</p>;
+  return (
+    <ul className="grid gap-px border-t border-line bg-line sm:grid-cols-2 xl:grid-cols-3">
+      {items.map((r) => {
+        const draft = r.status === "draft";
+        const s = r.summary;
+        const href = draft ? `/${lang}/start?draft=${encodeURIComponent(r.reference)}` : `/${lang}/portal/requests/${r.reference}`;
+        const mine = s && waitingOnMe("client", s.waiting);
+        return (
+          <li key={r.reference} className="relative bg-bg">
+            {draft && <DeleteDraft t={t} reference={r.reference} onDeleted={onChange} className="right-5 top-5" />}
+            <Link href={href} className="group/card flex h-full flex-col gap-5 px-6 py-6 transition-colors hover:bg-cell md:px-7">
+              <span className={cn("flex items-center justify-between gap-3", draft && "pr-8")}>
+                <span className="hud text-faint">{r.reference}</span>
+                {!draft && <StatusPill status={statusOf(r)} label={statusLabel(t, r)} />}
+              </span>
+              <span className="flex flex-col gap-1.5">
+                <span className="text-lg leading-snug text-ink-strong">{r.title || "·"}</span>
+                <span className="text-sm text-faint">{r.service_title ?? "·"} · {day(lang, r.created_at)}</span>
+              </span>
+              {s && s.total > 0 && (
+                <span className="flex flex-col gap-2">
+                  <span aria-hidden className="relative block h-1.5 bg-line">
+                    <span className="pay-fill absolute inset-y-0 left-0 bg-ember-500" style={{ width: `${s.percent}%`, "--d": "0.1s" } as CSSProperties} />
+                  </span>
+                  <span className="hud flex justify-between gap-3 text-faint">
+                    <span>{fill(t.portal.cards.paid, { percent: s.percent })}</span>
+                    <span className="tabular-nums">{money(lang, s.paid, s.currency || "DZD")} / {money(lang, s.total, s.currency || "DZD")}</span>
+                  </span>
+                </span>
+              )}
+              <span className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+                {draft ? (
+                  <span className="hud text-ember-400">{t.portal.continueDraft}</span>
+                ) : s?.waiting ? (
+                  <Hud tone={mine ? "ember" : "faint"} dot={mine} live={mine}>{waitingText(t, "client", s.waiting)}</Hud>
+                ) : (
+                  <Hud tone="faint">{s?.plan ? fill(t.portal.cards.plan, { plan: s.plan }) : t.portal.cards.none}</Hud>
+                )}
+                <span className="flex items-center gap-3">
+                  {s?.unread ? (
+                    <span className="hud flex items-center gap-1.5 text-ember-400"><MessageCircle aria-hidden className="size-3.5" />{fill(t.portal.cards.unread, { n: s.unread })}</span>
+                  ) : null}
+                  <ArrowUpRight aria-hidden className="size-4 text-faint transition-colors group-hover/card:text-ember-400" />
+                </span>
               </span>
             </Link>
           </li>
@@ -186,15 +263,15 @@ export function PortalHome({ lang, t }: { lang: Locale; t: T }) {
           <Link href={`/${lang}/welcome?next=${encodeURIComponent(`/${lang}/portal`)}`} className="hud text-ember-400 hover:underline">{t.portal.onboardCta}</Link>
         </div>
       )}
-      <div className="flex items-center justify-between gap-4 border-t border-line px-6 py-4 md:px-10">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line px-6 py-4 md:px-10">
         <Hud tone="muted">{t.portal.requests} · {items.length}</Hud>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <ButtonLink href={`/${lang}/portal/settings`} variant="ghost" size="sm">{t.portal.settings}</ButtonLink>
           <Button variant="ghost" size="sm" onClick={logout}>{t.auth.logout}</Button>
           <ButtonLink href={`/${lang}/start`} variant="ember" size="sm" arrow>{t.portal.new}</ButtonLink>
         </div>
       </div>
-      <RequestRows lang={lang} t={t} items={items} base={`/${lang}/portal/requests`} onChange={refreshItems} />
+      <ProjectCards lang={lang} t={t} items={items} onChange={refreshItems} />
     </>
   );
 }
@@ -232,7 +309,7 @@ function Details({ lang, t, req }: { lang: Locale; t: T; req: ProjectRequest }) 
     { k: t.studio.features, v: req.features.map((f) => featureLabel(lang, f)).join(" · ") },
     { k: say(lang, brief.details), v: req.requirements },
     { k: t.studio.links, v: req.reference_links },
-    { k: t.start.nda, v: req.wants_nda ? "✓" : "" },
+    { k: t.start.showcase.title, v: req.wants_nda ? t.start.showcase.keep : t.start.showcase.show },
   ].filter((r) => r.v);
   return (
     <dl className="divide-y divide-line">
@@ -246,17 +323,22 @@ function Details({ lang, t, req }: { lang: Locale; t: T; req: ProjectRequest }) 
   );
 }
 
-function Files({ req }: { req: ProjectRequest }) {
-  const files = req.attachments.filter((a) => !a.is_voice);
-  if (!files.length) return null;
+/** Every file of the project, newest first, with where it came from. */
+function Files({ lang, t, side, req }: { lang: Locale; t: T; side: Side; req: ProjectRequest }) {
+  const files = req.files ?? req.attachments.filter((a) => !a.is_voice).map((a) => ({ ...a, source: "request" as const }));
+  const sources = side === "client" ? t.project.files.sources : t.project.files.studioSources;
+  if (!files.length) return <p className="text-muted">{t.project.files.empty}</p>;
   return (
-    <ul className="mt-4 grid gap-px border border-line bg-line sm:grid-cols-2">
+    <ul className="grid gap-px border border-line bg-line sm:grid-cols-2">
       {files.map((a) => (
         <li key={a.id} className="bg-bg">
-          <a href={a.url} className="flex items-center gap-3 px-4 py-3 text-sm text-ink hover:text-ember-400">
-            <Download aria-hidden className="size-4 shrink-0 text-faint" />
-            <span className="min-w-0 flex-1 truncate">{a.original_name}</span>
-            <span className="hud text-faint">{formatBytes(a.size)}</span>
+          <a href={a.url} className="group/file flex items-center gap-3 px-4 py-3.5 text-sm text-ink transition-colors hover:bg-cell">
+            <Download aria-hidden className="size-4 shrink-0 text-faint transition-colors group-hover/file:text-ember-400" />
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate">{a.original_name}</span>
+              <span className="hud text-faint">{sources[a.source]} · {day(lang, a.created_at)}</span>
+            </span>
+            <span className="hud shrink-0 text-faint">{formatBytes(a.size)}</span>
           </a>
         </li>
       ))}
@@ -266,6 +348,7 @@ function Files({ req }: { req: ProjectRequest }) {
 
 function Header({ lang, t, req, back }: { lang: Locale; t: T; req: ProjectRequest; back: string }) {
   const stopped = ["declined", "withdrawn", "expired"].includes(req.status) || ["cancelled", "expired"].includes(req.engagement?.status ?? "");
+  const plan = req.engagement?.plan.name || req.summary?.plan;
   return (
     <>
       <div className="border-t border-line px-6 py-8 md:px-10">
@@ -275,7 +358,10 @@ function Header({ lang, t, req, back }: { lang: Locale; t: T; req: ProjectReques
             <Hud tone="faint">{req.reference} · {req.service_title ?? "·"} · {day(lang, req.created_at)}</Hud>
             <h2 className="mt-2 text-h3 tracking-[-0.02em] text-ink-strong">{req.engagement?.title || req.title}</h2>
           </div>
-          <StatusPill status={stopped ? "declined" : statusOf(req)} label={statusLabel(t, req)} />
+          <span className="flex flex-wrap items-center gap-3">
+            {plan && <span className="hud border border-line-strong px-2.5 py-1 text-ink">{fill(t.portal.cards.plan, { plan })}</span>}
+            <StatusPill status={stopped ? "declined" : statusOf(req)} label={statusLabel(t, req)} />
+          </span>
         </div>
         {req.status_note && (
           <div className="mt-6 border-l-2 border-ember-500 bg-cell px-5 py-4">
@@ -311,63 +397,119 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
   return null;
 }
 
+/**
+ * One project, in tabs: Overview (what's next, the plan, key dates, care,
+ * the request), Payments (schedule, extras and offers, invoices), Progress
+ * (milestones, tasks, updates, revision rounds), Messages, Files, Contract.
+ * The open tab is in the address, so every notification lands on its tab.
+ */
 function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; side: Side; req: ProjectRequest; reload: () => Promise<void>; user: User; top?: ReactNode }) {
   const props = { lang, t, side, reload };
   const action = nextAction(lang, t, side, req, reload, user);
   const eng = req.engagement;
   const open = req.proposals?.find((p) => p.status === "sent");
-  const history = (req.proposals ?? []).filter((p) => p !== open || !action);
   const accepted = req.proposals?.find((p) => p.status === "accepted");
+  const history = (req.proposals ?? []).filter((p) => p !== open || !action).filter((p) => p !== accepted || !eng);
   const canPropose = side === "studio" && !eng && !req.contract && ["submitted", "in_review", "clarification", "proposal_sent"].includes(req.status)
     && (req.proposals?.length ?? 0) < 3 && (!open || open.from_client);
+  const tb = t.project.tabs;
+
+  const paymentsWaiting = !!eng && (side === "client"
+    ? eng.charges.some((c) => c.status === "due" || c.status === "proposed")
+    : eng.charges.some((c) => c.proofs.some((p) => p.status === "pending")));
+  const reviewWaiting = !!eng && side === "client" && (eng.status === "client_review" || eng.milestones.some((m) => m.status === "review"));
+  const tabs: TabSpec[] = [
+    { key: "overview", label: tb.overview, dot: !!action && !paymentsWaiting && !reviewWaiting },
+    ...(eng ? [{ key: "payments" as const, label: tb.payments, dot: paymentsWaiting }, { key: "progress" as const, label: tb.progress, dot: reviewWaiting }] : []),
+    { key: "messages", label: tb.messages, badge: req.unread || undefined },
+    { key: "files", label: tb.files },
+    ...(req.contract ? [{ key: "contract" as const, label: tb.contract, dot: req.contract.status === "pending" && side === "client" }] : []),
+  ];
+  const [tab, setTab] = useProjectTab(tabs);
+  const idBase = `project-${req.reference}`;
+  const nothing = side === "client" && req.status !== "draft" && <p className="border-t border-line px-6 py-6 text-muted md:px-10">{t.project.nothingToDo}</p>;
 
   return (
     <>
       <Header lang={lang} t={t} req={req} back={side === "client" ? `/${lang}/portal` : `/${lang}/studio/requests`} />
       {top}
       {side === "client" && eng && <PaymentFollow p={t.project.pay} engagement={eng} reload={reload} />}
-      {action ? <NextStep t={t}>{action}</NextStep> : side === "client" && req.status !== "draft" && (
-        <p className="border-t border-line px-6 py-6 text-muted md:px-10">{t.project.nothingToDo}</p>
-      )}
+      <ProjectTabs label={tb.label} tabs={tabs} active={tab} onChange={setTab} idBase={idBase} />
+      <TabPanel idBase={idBase} active={tab}>
+        {tab === "overview" && (
+          <>
+            {action ? <NextStep t={t}>{action}</NextStep> : nothing}
+            {canPropose && <Panel title={t.project.proposal.title}><ProposalBuilder lang={lang} t={t} reload={reload} req={req} /></Panel>}
+            {eng && (
+              <Panel title={side === "client" ? t.project.plan.title : t.project.plan.studioTitle}>
+                <div className="flex flex-col gap-6">
+                  <PlanCard {...props} engagement={eng} confidential={eng.nda} />
+                  <KeyDates lang={lang} t={t} engagement={eng} />
+                </div>
+              </Panel>
+            )}
+            {eng && ["live", "closed"].includes(eng.status) && (
+              <Panel title={t.project.care.title}><CarePanel {...props} engagement={eng} onReported={() => setTab("messages")} /></Panel>
+            )}
+            {side === "client" && eng && ["live", "closed"].includes(eng.status) && (
+              <Panel title={t.project.review.title}><ReviewPanel r={t.project.review} reference={req.reference} user={user} /></Panel>
+            )}
+            {!eng && history.length > 0 && (
+              <Panel title={t.project.proposal.history}>
+                <div className="divide-y divide-line border-y border-line">
+                  {history.map((p) => <ProposalCard key={p.id} {...props} proposal={p} compact />)}
+                </div>
+              </Panel>
+            )}
+            <Panel title={t.portal.details}><Details lang={lang} t={t} req={req} /></Panel>
+          </>
+        )}
 
-      <div className="grid border-t border-line xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <div className="min-w-0 xl:border-r xl:border-line [&>section:first-child]:border-t-0">
-          {canPropose && (
-            <Panel title={t.project.proposal.title}><ProposalBuilder lang={lang} t={t} reload={reload} req={req} /></Panel>
-          )}
-          {side === "client" && eng && ["live", "closed"].includes(eng.status) && (
-            <Panel title={t.project.review.title}><ReviewPanel r={t.project.review} reference={req.reference} user={user} /></Panel>
-          )}
-          {eng && <Panel title={t.project.work.title}><WorkPanel {...props} engagement={eng} /></Panel>}
-          {eng && <Panel title={t.project.pay.title}><PaymentsLedger {...props} engagement={eng} /></Panel>}
-          {accepted && eng && (
-            <Panel title={t.project.proposal.title}><ProposalCard {...props} proposal={accepted} /></Panel>
-          )}
-          {history.length > 0 && !(accepted && eng && history.length === 1) && (
-            <Panel title={t.project.proposal.history}>
-              <div className="divide-y divide-line border-y border-line">
-                {history.filter((p) => p !== accepted || !eng).map((p) => <ProposalCard key={p.id} {...props} proposal={p} compact />)}
-              </div>
-            </Panel>
-          )}
-          {req.contract && req.contract.status !== "pending" && (
+        {tab === "payments" && eng && (
+          <>
+            {side === "client" && eng.charges.some((c) => c.status === "due") && (
+              <NextStep t={t}><DueCharge {...props} engagement={eng} reference={req.reference} /></NextStep>
+            )}
+            <Panel title={t.project.pay.title}><PaymentsLedger {...props} engagement={eng} /></Panel>
+            {(side === "studio" || eng.charges.some((c) => c.kind === "extra")) && (
+              <Panel title={t.project.extras.title}><ExtrasPanel {...props} engagement={eng} reference={req.reference} /></Panel>
+            )}
+            <Panel title={t.project.invoices.title}><InvoiceList lang={lang} t={t} engagement={eng} /></Panel>
+          </>
+        )}
+
+        {tab === "progress" && eng && (
+          <>
+            {reviewWaiting && <NextStep t={t}><ClientReview {...props} engagement={eng} /></NextStep>}
+            <Panel title={t.project.work.title}><WorkPanel {...props} engagement={eng} /></Panel>
+            <Panel title={t.project.revisions.title}><RevisionsPanel {...props} engagement={eng} /></Panel>
+          </>
+        )}
+
+        {tab === "messages" && (
+          <Panel title={t.project.chat.title}>
+            <Conversation lang={lang} t={t} side={side} reference={req.reference} enabled={req.status !== "draft"} onOpenTab={setTab} />
+          </Panel>
+        )}
+
+        {tab === "files" && <Panel title={t.project.tabs.files}><Files lang={lang} t={t} side={side} req={req} /></Panel>}
+
+        {tab === "contract" && req.contract && (
+          <>
             <Panel title={t.project.contract.title}>
               <ContractPanel {...props} contract={req.contract} reference={req.reference} defaultName={user.full_name} />
             </Panel>
-          )}
-          <Panel title={t.portal.details}>
-            <Details lang={lang} t={t} req={req} />
-            <Files req={req} />
-          </Panel>
-        </div>
-        <aside className="border-t border-line xl:border-t-0">
-          <div className="xl:sticky xl:top-[calc(var(--nav-h)+1rem)]">
-            <Panel title={`${t.project.chat.title}${req.unread ? ` · ${req.unread}` : ""}`} className="border-t-0">
-              <Conversation lang={lang} t={t} side={side} reference={req.reference} enabled={req.status !== "draft"} />
-            </Panel>
-          </div>
-        </aside>
-      </div>
+            {accepted && <Panel title={t.project.proposal.title}><ProposalCard {...props} proposal={accepted} /></Panel>}
+            {eng && history.length > 0 && (
+              <Panel title={t.project.proposal.history}>
+                <div className="divide-y divide-line border-y border-line">
+                  {history.map((p) => <ProposalCard key={p.id} {...props} proposal={p} compact />)}
+                </div>
+              </Panel>
+            )}
+          </>
+        )}
+      </TabPanel>
     </>
   );
 }
@@ -429,7 +571,7 @@ export function StudioInbox({ lang, t }: { lang: Locale; t: T }) {
           </button>
         ))}
       </div>
-      {items ? <RequestRows lang={lang} t={t} items={items} base={`/${lang}/studio/requests`} showClient /> : <Loading t={t} />}
+      {items ? <RequestRows lang={lang} t={t} items={items} base={`/${lang}/studio/requests`} /> : <Loading t={t} />}
     </>
   );
 }

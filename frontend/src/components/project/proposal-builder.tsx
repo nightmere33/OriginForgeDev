@@ -9,9 +9,12 @@ import type { CarePlan, Currency } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ChoiceChip, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
+import { Toggle } from "@/components/ui/toggle";
 import { ErrorLine, errorText, type PanelProps } from "./shared";
 
 const SMALL: Record<Currency, number> = { DZD: 60_000, EUR: 400, USD: 400 };
+// Quoted per minute: a fixed price unless Younes opens it (engagements/lifecycle.py FIXED_PRICE_SERVICES).
+const FIXED_PRICE_SERVICES = ["product-films"];
 const LARGE: Record<Currency, number> = { DZD: 500_000, EUR: 3_500, USD: 3_500 };
 
 /** Preview of the schedule the server will apply (engagements/lifecycle.py default_schedule). */
@@ -25,6 +28,10 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
   const st = t.studio;
   const versions = req.proposals?.length ?? 0;
   const last = req.proposals?.[versions - 1];
+  // Answering the client's counter-offer: start from the terms on the table, at their price.
+  const counter = last?.status === "sent" && last.from_client ? last : undefined;
+  // The third version is always the last word.
+  const lastWord = versions + 1 >= 3;
   const [plans, setPlans] = useState<CarePlan[]>([]);
   const [form, setForm] = useState(() => ({
     title: last?.title ?? req.title,
@@ -37,6 +44,7 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
     timeline_days: String(last?.timeline_days ?? 30),
     nda: last?.nda ?? req.wants_nda,
     allow_cash: last?.allow_cash ?? false,
+    negotiable: versions === 0 ? !FIXED_PRICE_SERVICES.includes(req.service ?? "") : true,
     note: "",
   }));
   const [milestones, setMilestones] = useState(() => last?.milestones.map((m) => ({ title: m.title, days: String(m.days) })) ?? [{ title: "", days: "" }]);
@@ -58,6 +66,7 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
       await api.post(`/requests/${req.reference}/proposals/`, {
         title: form.title, scope: form.scope, deliverables: form.deliverables, exclusions: form.exclusions, note: form.note,
         price, currency: form.currency, plan: form.plan, timeline_days: Number(form.timeline_days) || 0, nda: form.nda, allow_cash: form.allow_cash,
+        negotiable: lastWord ? false : form.negotiable,
         milestones: milestones.filter((m) => m.title.trim()).map((m) => ({ title: m.title.trim(), days: Number(m.days) || 0 })),
       });
       await reload();
@@ -74,6 +83,13 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
         <p className="text-lg text-ink-strong">{versions ? st.newVersion : st.builder}</p>
         <Hud tone="muted">{fill(st.versionsLeft, { n: 3 - versions })}</Hud>
       </div>
+      {counter && (
+        <p className="border-l-2 border-line-strong bg-cell px-4 py-3 text-sm text-ink">
+          <span className="hud mr-2 text-faint">{st.answerCounter}</span>
+          {fill(st.theirPrice, { price: money(lang, counter.price, counter.currency) })}
+          {counter.note && <span className="mt-1 block text-muted">{counter.note}</span>}
+        </p>
+      )}
       {req.estimate_low ? (
         <Hud tone="faint">{st.clientEstimate} · {money(lang, req.estimate_low, req.estimate_currency || "DZD")} – {money(lang, req.estimate_high ?? req.estimate_low, req.estimate_currency || "DZD")}</Hud>
       ) : null}
@@ -128,6 +144,20 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
         </p>
         <p className="mt-2 text-sm text-faint">{st.scheduleHelp}</p>
       </div>
+
+      {lastWord ? (
+        <Hud tone="ember" dot>{t.project.proposal.finalOffer} · {st.finalOfferHelp}</Hud>
+      ) : versions === 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <Toggle label={st.negotiable} checked={form.negotiable} onChange={(e) => set("negotiable", e.target.checked)} />
+          <p className="text-sm text-faint">{st.negotiableHelp}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <Toggle label={st.finalOffer} checked={!form.negotiable} onChange={(e) => set("negotiable", !e.target.checked)} />
+          <p className="text-sm text-faint">{st.finalOfferHelp}</p>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <ChoiceChip label={st.nda} checked={form.nda} onChange={(e) => set("nda", e.target.checked)} />

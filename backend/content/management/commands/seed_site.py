@@ -93,16 +93,8 @@ SERVICES = [
         "summary_fr": "Des logiciels de bureau en C# pour Windows : stock, ventes, caisse et les outils que votre équipe utilise chaque jour.",
         "description_en": "Fast native apps that keep working without internet, share one database across the office or sync to a server, print receipts and reports, and install in one click.",
         "description_fr": "Des applications natives rapides qui fonctionnent sans internet, partagent une base de données au bureau ou se synchronisent avec un serveur, impriment tickets et rapports, et s'installent en un clic.",
-        "deliverables_en": "Workflow & screens
-C# / .NET desktop app
-Local or shared database
-Reports, printing & exports
-Installer & updates",
-        "deliverables_fr": "Parcours & écrans
-Application C# / .NET
-Base de données locale ou partagée
-Rapports, impression & exports
-Installateur & mises à jour",
+        "deliverables_en": "Workflow & screens\nC# / .NET desktop app\nLocal or shared database\nReports, printing & exports\nInstaller & updates",
+        "deliverables_fr": "Parcours & écrans\nApplication C# / .NET\nBase de données locale ou partagée\nRapports, impression & exports\nInstallateur & mises à jour",
         "timeline_en": "3–10 weeks", "timeline_fr": "3 à 10 semaines",
     },
     {
@@ -189,6 +181,26 @@ CASE_STUDIES = [
         "outcome_fr": "Une nouvelle langue ou un nouvel écran, c'est un nouveau rendu, pas un nouveau tournage.",
         "metrics_en": "3 | languages per film\n9:16 | cut for Reels, TikTok and Shorts",
         "metrics_fr": "3 | langues par film\n9:16 | pour Reels, TikTok et Shorts",
+    },
+    {
+        "slug": "vdz-service", "title": "VDZ Service", "client_name": "VDZ Service, visa agency", "year": 2026,
+        "category": CaseStudy.Category.AUTOMATION, "accent": "#4F46E5", "order": 3,
+        "stack": "Python, Django 5, Tailwind CSS, JavaScript, ReportLab, Tampermonkey",
+        "live_url": "https://vdzservice.com/fr/",
+        "tagline_en": "A visa agency's applicant form that turns into a ready-to-run fill script.",
+        "tagline_fr": "Le formulaire d'une agence de visa, transformé en script de remplissage prêt à lancer.",
+        "summary_en": "Agents enter each trip once: up to five travellers, their passports and family ties. The site checks it, prints a clean summary and hands back one file the agency's automation uses to fill the appointment portal.",
+        "summary_fr": "Les agents saisissent chaque voyage une seule fois : jusqu'à cinq voyageurs, leurs passeports et leurs liens de parenté. Le site vérifie, imprime un récapitulatif propre et rend un seul fichier que l'automatisation de l'agence utilise pour remplir le portail de rendez-vous.",
+        "role_en": "Client project: design, full-stack development and the automation output",
+        "role_fr": "Projet client : design, développement full-stack et fichier d'automatisation",
+        "challenge_en": "Booking a visa appointment means typing the same passport details into a slow portal, traveller after traveller, often at the minute the slots open. One typo costs the slot.",
+        "challenge_fr": "Prendre un rendez-vous de visa, c'est retaper les mêmes informations de passeport dans un portail lent, voyageur après voyageur, souvent à la minute où les créneaux s'ouvrent. Une faute de frappe coûte le créneau.",
+        "approach_en": "A Django site with agency accounts by invitation. The form checks every field before anything is generated, keeps each agency's defaults (travel dates, number of travellers), and offers a printable preview and a PDF that handles Arabic. The output is a userscript and its configuration: travellers, passports and relations, with timed clicks, ready for the agency's browser automation.",
+        "approach_fr": "Un site Django avec des comptes agence sur invitation. Le formulaire vérifie chaque champ avant de générer quoi que ce soit, garde les valeurs par défaut de chaque agence (dates de voyage, nombre de voyageurs), et propose un aperçu imprimable et un PDF qui gère l'arabe. Il produit un script utilisateur et sa configuration : voyageurs, passeports et liens de parenté, avec des clics temporisés, prêts pour l'automatisation du navigateur de l'agence.",
+        "outcome_en": "The agency fills a file once, at its own pace; its automation handles the race for the slot.",
+        "outcome_fr": "L'agence remplit un dossier une fois, à son rythme ; son automatisation s'occupe de la course au créneau.",
+        "metrics_en": "5 | travellers per file, with family ties\n1 file | from the form to the fill script\nPDF | printable summary, Arabic-ready",
+        "metrics_fr": "5 | voyageurs par dossier, avec liens de parenté\n1 fichier | du formulaire au script de remplissage\nPDF | récapitulatif imprimable, prêt pour l'arabe",
     },
     {
         "slug": "ecommerce-dz", "title": "E-commerce DZ", "year": 2025,
@@ -435,6 +447,13 @@ class Command(BaseCommand):
                 study.film.name, study.film_av1.name, study.film_poster.name = film["file"], film["file_av1"], film["poster"]
                 study.film_width, study.film_height, study.film_duration = film["width"], film["height"], film["duration"]
                 study.save(update_fields=["film", "film_av1", "film_poster", "film_width", "film_height", "film_duration"])
+
+        for photo in manifest.get("cover_photos", []):
+            study = studies.get(photo["slug"])
+            # Footage wins: a cover photo only stands in where there is no loop.
+            if study and not study.cover_video:
+                study.cover_image.name = photo["file"]
+                study.save(update_fields=["cover_image"])
 
         for logo in manifest.get("logos", []):
             study = studies.get(logo["slug"])

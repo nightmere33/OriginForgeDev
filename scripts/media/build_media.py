@@ -40,6 +40,8 @@ ALQ_WEB = PROJECTS / "alquilar/ADS/website captures/desktop reference"
 MG_SHOTS = PROJECTS / "wadoud_quiz/marketing/video-brief/screenshots"
 MG_BRAND = PROJECTS / "wadoud_quiz/brand"
 GV_ZIP = PICS / "GameVerse_feature_clips.zip"
+# vdzservice.com, captured from its public pages (28 Oct 2026); no applicant data.
+VDZ = PICS / "vdzservice"
 # The CSI game's Unity Recorder captures (1920x1080, 30 fps, with sound).
 CSI_REC = Path.home() / "OneDrive/Documents/Unity 6 Projects/CSI GAME 2/Recordings"
 
@@ -185,6 +187,9 @@ STILLS = [
     ("alquilar", ALQ_WEB / "Screenshot 2026-09-11 234252.png", "Checkout: BaridiMob, CIB or cash", "Paiement : BaridiMob, CIB ou espèces"),
     ("alquilar", ALQ_WEB / "Screenshot 2026-09-11 234329.png", "Map search across Algeria", "Recherche sur la carte de l'Algérie"),
     ("alquilar", ALQ_WEB / "Screenshot 2026-09-11 234225.png", "Listing page with the booking box", "Fiche logement et réservation"),
+    ("vdz-service", VDZ / "vdz-home-desktop.png", "Three steps, from the form to the file", "Trois étapes, du formulaire au fichier"),
+    ("vdz-service", VDZ / "vdz-agency-login.png", "Agency accounts, by invitation only", "Comptes agence, sur invitation uniquement"),
+    ("vdz-service", VDZ / "vdz-home-mobile.png", "Made for the phone as well", "Pensé aussi pour le téléphone"),
     ("gameverse", PICS / "Screenshot 2025-05-26 151758.png", "Homepage and publisher sale", "Accueil et promotion éditeur"),
     ("gameverse", PICS / "Screenshot 2025-05-23 010408.png", "Featured games carousel", "Carrousel des jeux à la une"),
     ("gameverse", PICS / "Screenshot 2025-05-26 152452.png", "Newest games", "Les derniers jeux"),
@@ -363,6 +368,10 @@ def build(only: str | None, force: bool) -> dict:
     if wanted("logos"):
         manifest["logos"] = build_logos(force)
 
+    if wanted("stills"):
+        print("cover photos")
+        manifest["cover_photos"] = build_cover_photos(force)
+
     if wanted("galaxy") or wanted("stills"):
         # Feature photos of these projects also fly in the galaxy: 640px copies
         # (the gallery masters are 1920px), never decoded, so they cost little.
@@ -413,8 +422,107 @@ def build_logos(force: bool) -> list[dict]:
     white.putalpha(gray.point(lambda v: 255 - v))
     white.save(dest / "alquilar-logo.png", optimize=True)
     out.append({"slug": "alquilar", "logo": rel(dest / "alquilar-logo.png"), "mark": rel(dest / "alquilar-mark.png")})
+    out.append(vdz_logo(dest))
     for item in out:
         print(f"  {item['slug']}: {item['logo']}, {item['mark']}")
+    return out
+
+
+def vdz_logo(dest: Path) -> dict:
+    """VDZ Service: the mark cut from the site's header (captured at 4x), corners made
+    transparent; the wordmark set beside it in indigo, which reads on both themes."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    capture = Image.open(VDZ / "vdz-logo-capture.png").convert("RGBA")
+    px = capture.load()
+    # The mark is the blue square on the left: its bounding box by colour.
+    blue = [(x, y) for y in range(capture.height) for x in range(capture.width // 3)
+            if px[x, y][2] > 150 and px[x, y][2] > px[x, y][0] + 60]
+    xs, ys = [p[0] for p in blue], [p[1] for p in blue]
+    mark = capture.crop((min(xs), min(ys), max(xs) + 1, max(ys) + 1))
+    mask = Image.new("L", mark.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, mark.width - 1, mark.height - 1), radius=round(mark.width * 0.2), fill=255)
+    mark.putalpha(mask)
+    mark.save(dest / "vdz-service-mark.png", optimize=True)
+
+    font = ImageFont.truetype(r"C:\Windows\Fonts\segoeuib.ttf", round(mark.height * 0.6))
+    text, gap = "VDZService", round(mark.width * 0.28)
+    width = mark.width + gap + round(ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength(text, font=font))
+    lockup = Image.new("RGBA", (width, mark.height), (0, 0, 0, 0))
+    lockup.alpha_composite(mark)
+    ImageDraw.Draw(lockup).text((mark.width + gap, mark.height // 2), text, font=font, fill=(99, 102, 241, 255), anchor="lm")
+    lockup.save(dest / "vdz-service-logo.png", optimize=True)
+    return {"slug": "vdz-service", "logo": rel(dest / "vdz-service-logo.png"), "mark": rel(dest / "vdz-service-mark.png")}
+
+
+# Cover photos for projects without footage: (slug, desktop screenshot, phone screenshot, url shown, glow).
+COVER_PHOTOS = [
+    ("vdz-service", VDZ / "vdz-home-desktop.png", VDZ / "vdz-home-mobile.png", "vdzservice.com/fr", (79, 70, 229)),
+]
+
+
+def build_cover_photos(force: bool) -> list[dict]:
+    """A square cover: the site in a browser window and on a phone, over a dark tint of
+    the brand colour. Square and centred, so the 4:3 work card and the tall case-study
+    hero both crop it cleanly."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+    size, out = 1600, []
+    for slug, desktop_src, phone_src, url, glow in COVER_PHOTOS:
+        dest = OUT / "stills" / f"{slug}-cover-web.jpg"
+        if force or not dest.exists():
+            base = Image.new("RGB", (size, size), (10, 12, 28))
+            # The brand colour as a soft light from the upper left.
+            light = Image.new("L", (size, size), 0)
+            ImageDraw.Draw(light).ellipse((-400, -500, 1300, 1100), fill=150)
+            light = light.filter(ImageFilter.GaussianBlur(260))
+            base = Image.composite(Image.new("RGB", (size, size), glow), base, light)
+            canvas = base.convert("RGBA")
+
+            def shadow(box, radius, blur=46, alpha=150, drop=34):
+                layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+                x0, y0, x1, y1 = box
+                ImageDraw.Draw(layer).rounded_rectangle((x0, y0 + drop, x1, y1 + drop), radius=radius, fill=(0, 0, 0, alpha))
+                canvas.alpha_composite(layer.filter(ImageFilter.GaussianBlur(blur)))
+
+            # Browser window: a light title bar with the address, then the page.
+            shot = Image.open(desktop_src).convert("RGB")
+            # Everything inside the middle 1200 px both ways: the 4:3 card and the tall hero crop safely.
+            w = 1040
+            page = shot.resize((w, round(shot.height * w / shot.width)), Image.LANCZOS)
+            bar = 46
+            win = Image.new("RGBA", (w, bar + page.height), (243, 244, 246, 255))
+            win.paste(page, (0, bar))
+            d = ImageDraw.Draw(win)
+            for i, colour in enumerate(((255, 95, 87), (254, 188, 46), (40, 200, 64))):
+                d.ellipse((22 + i * 26, 16, 36 + i * 26, 30), fill=colour)
+            d.rounded_rectangle((w // 2 - 190, 10, w // 2 + 190, 36), radius=13, fill=(255, 255, 255))
+            d.text((w // 2, 23), url, font=ImageFont.truetype(r"C:\Windows\Fonts\segoeui.ttf", 17), fill=(107, 114, 128), anchor="mm")
+            mask = Image.new("L", win.size, 0)
+            ImageDraw.Draw(mask).rounded_rectangle((0, 0, win.width - 1, win.height - 1), radius=16, fill=255)
+            win.putalpha(mask)
+            wx, wy = 190, 380
+            shadow((wx, wy, wx + win.width, wy + win.height), 16)
+            canvas.alpha_composite(win, (wx, wy))
+
+            # Phone: a dark bezel around the mobile capture, in front of the window.
+            phone_shot = Image.open(phone_src).convert("RGB")
+            sw = 320
+            screen = phone_shot.resize((sw, round(phone_shot.height * sw / phone_shot.width)), Image.LANCZOS)
+            bezel = 14
+            phone = Image.new("RGBA", (sw + 2 * bezel, screen.height + 2 * bezel), (11, 11, 15, 255))
+            smask = Image.new("L", screen.size, 0)
+            ImageDraw.Draw(smask).rounded_rectangle((0, 0, sw - 1, screen.height - 1), radius=40, fill=255)
+            phone.paste(screen, (bezel, bezel), smask)
+            pmask = Image.new("L", phone.size, 0)
+            ImageDraw.Draw(pmask).rounded_rectangle((0, 0, phone.width - 1, phone.height - 1), radius=54, fill=255)
+            phone.putalpha(pmask)
+            px_, py_ = 1050, 560
+            shadow((px_, py_, px_ + phone.width, py_ + phone.height), 54, blur=40, alpha=170, drop=26)
+            canvas.alpha_composite(phone, (px_, py_))
+            canvas.convert("RGB").save(dest, quality=90, optimize=True, progressive=True)
+        out.append({"slug": slug, "file": rel(dest), "width": size, "height": size})
+        print(f"  {dest.name} {size}x{size}")
     return out
 
 

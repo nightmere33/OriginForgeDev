@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -61,6 +62,10 @@ export default async function WorkIndex({ params }: PageProps<"/[lang]/work">) {
                         <LoopVideo src={study.cover_video} av1={study.cover_video_av1} poster={study.cover_image} width={study.cover_width} height={study.cover_height} />
                       </ReelPlate>
                     </div>
+                  ) : study.cover_image ? (
+                    // A cover photo where there is no footage (screens composed by build_media.py).
+                    <Image src={study.cover_image} alt="" fill quality={82} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                      className="object-cover transition-transform duration-700 ease-out group-hover/cell:scale-[1.03]" />
                   ) : (
                     <TypeCover title={study.title} stack={study.stack} />
                   )}

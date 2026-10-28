@@ -152,6 +152,8 @@ async function CaseStudy({ params }: { params: PageProps<"/[lang]/work/[slug]">[
                   </div>
                 )}
               </ReelPlate>
+            ) : study.cover_image ? (
+              <Image src={study.cover_image} alt="" fill priority quality={82} sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
             ) : (
               <div className="flex h-full items-center justify-center bg-bg-sunken">
                 <span aria-hidden className="of-mark size-24 opacity-60" />
@@ -212,27 +214,42 @@ async function CaseStudy({ params }: { params: PageProps<"/[lang]/work/[slug]">[
             <Hud tone="muted">{t.caseStudy.features}</Hud>
             <Hud tone="faint">{String(images.length).padStart(2, "0")}</Hud>
           </div>
-          {[images.filter(tall), images.filter((m) => !tall(m))].map((group, g) => group.length > 0 && (
-            <div key={g} data-reveal-group className={g === 0 ? "grid grid-cols-2 gap-px bg-line lg:grid-cols-4" : "grid gap-px border-t border-line bg-line first:border-t-0 md:grid-cols-2"}>
-              {group.map((m, k) => (
-                <figure key={m.id} data-reveal="contents"
-                  // Gapless: an odd last screenshot spans the row.
-                  className={`group/fig flex flex-col bg-bg ${g === 1 && k === group.length - 1 && group.length % 2 ? "md:col-span-2" : ""}`}>
-                  <div className="overflow-hidden bg-bg-sunken">
-                    <Image src={m.file} alt={m.caption || study.title} width={m.width} height={m.height} quality={82}
-                      sizes={g === 0 ? "(min-width: 1024px) 25vw, 50vw" : "(min-width: 768px) 50vw, 100vw"}
-                      className="h-auto w-full transition-transform duration-700 ease-[var(--ease-out)] group-hover/fig:scale-[1.02]" />
-                  </div>
-                  {m.caption && (
-                    <figcaption className="flex items-baseline gap-3 border-t border-line px-5 py-3">
-                      <span className="hud text-ember-400">{String(images.indexOf(m) + 1).padStart(2, "0")}</span>
-                      <span className="text-sm text-ink">{m.caption}</span>
-                    </figcaption>
-                  )}
-                </figure>
-              ))}
-            </div>
-          ))}
+          {/* App screens lead when there are many (a 4-up grid); a few phone shots follow the screens. */}
+          {(images.filter(tall).length >= 4 ? [images.filter(tall), images.filter((m) => !tall(m))] : [images.filter((m) => !tall(m)), images.filter(tall)])
+            .map((group) => {
+            if (!group.length) return null;
+            const g = tall(group[0]) ? 0 : 1;
+            const figure = (m: (typeof images)[number], className: string, sizes: string) => (
+              <figure key={m.id} data-reveal="contents" className={`group/fig flex flex-col bg-bg ${className}`}>
+                <div className="overflow-hidden bg-bg-sunken">
+                  <Image src={m.file} alt={m.caption || study.title} width={m.width} height={m.height} quality={82} sizes={sizes}
+                    className="h-auto w-full transition-transform duration-700 ease-[var(--ease-out)] group-hover/fig:scale-[1.02]" />
+                </div>
+                {m.caption && (
+                  <figcaption className="flex items-baseline gap-3 border-t border-line px-5 py-3">
+                    <span className="hud text-ember-400">{String(images.indexOf(m) + 1).padStart(2, "0")}</span>
+                    <span className="text-sm text-ink">{m.caption}</span>
+                  </figcaption>
+                )}
+              </figure>
+            );
+            // One to three phone screens: centred on a stage at phone size, never
+            // stretched across a row of empty cells.
+            if (g === 0 && group.length < 4) {
+              return (
+                <div key={g} data-reveal-group className="flex flex-wrap justify-center gap-px border-b border-line bg-bg-sunken px-6 py-10 md:py-14">
+                  {group.map((m) => figure(m, "w-[min(100%,18rem)] border border-line", "18rem"))}
+                </div>
+              );
+            }
+            return (
+              <div key={g} data-reveal-group className={g === 0 ? "grid grid-cols-2 gap-px bg-line lg:grid-cols-4" : "grid gap-px border-t border-line bg-line first:border-t-0 md:grid-cols-2"}>
+                {/* Gapless: an odd last screenshot spans the row. */}
+                {group.map((m, k) => figure(m, g === 1 && k === group.length - 1 && group.length % 2 ? "md:col-span-2" : "",
+                  g === 0 ? "(min-width: 1024px) 25vw, 50vw" : "(min-width: 768px) 50vw, 100vw"))}
+              </div>
+            );
+          })}
         </SectionShell>
       )}
 

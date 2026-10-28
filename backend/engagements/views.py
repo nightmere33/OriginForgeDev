@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -32,9 +32,13 @@ class ProjectRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixi
         return ProjectRequestDetailSerializer if self.action == "retrieve" else ProjectRequestSerializer
 
     def get_queryset(self):
-        qs = ProjectRequest.objects.select_related("client", "service", "engagement").prefetch_related(
-            "attachments__uploaded_by", "attachments__updates", "attachments__message")
+        qs = ProjectRequest.objects.select_related("client", "service", "engagement", "plan").prefetch_related(
+            "attachments__uploaded_by", "attachments__updates", "attachments__message",
+            "engagement__charges__proofs", "engagement__milestones", "proposals")
         user = self.request.user
+        # Unread: the other side's messages this user hasn't opened yet.
+        mine = Q(messages__sender__role="developer") | Q(messages__sender__is_staff=True) if user.is_developer else Q(messages__sender=user)
+        qs = qs.annotate(unread_count=Count("messages", filter=Q(messages__read_at__isnull=True) & ~mine, distinct=True))
         status_filter = self.request.query_params.get("status")
         if not user.is_developer:
             # Another client's request is simply not found: a 404, not a 403.

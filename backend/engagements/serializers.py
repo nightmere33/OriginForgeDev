@@ -69,6 +69,7 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
     allowed_moves = serializers.SerializerMethodField()
     engagement_status = serializers.SerializerMethodField()
     queue = serializers.SerializerMethodField()
+    summary = serializers.SerializerMethodField()
 
     class Meta:
         model = ProjectRequest
@@ -77,7 +78,7 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
             "budget_min", "budget_max", "budget_currency", "deadline", "deadline_flexible",
             "reference_links", "language", "plan", "options", "estimate_low", "estimate_high", "estimate_currency",
             "wants_nda", "status", "status_label", "status_note", "engagement_status", "attachments", "allowed_moves", "queue",
-            "created_at", "updated_at",
+            "summary", "created_at", "updated_at",
         )
         read_only_fields = ("reference", "status", "status_note", "estimate_low", "estimate_high", "estimate_currency",
                             "created_at", "updated_at")
@@ -104,6 +105,39 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
     def get_engagement_status(self, obj):
         eng = getattr(obj, "engagement", None)
         return eng.status if eng else None
+
+    def get_summary(self, obj) -> dict:
+        """
+        What a project card shows without opening it: the plan, how much is
+        paid, unread messages and what is waiting on whom (`waiting`: pay,
+        offer, review, sign, answer, proof, or "").
+        """
+        eng = getattr(obj, "engagement", None)
+        plan = eng.plan_name if eng else (pick(obj.plan, "name", request_lang(self.context.get("request"))) if obj.plan else "")
+        out = {"plan": plan, "paid": 0, "total": 0, "percent": 0, "currency": eng.currency if eng else "", "waiting": "",
+               "unread": getattr(obj, "unread_count", 0), "deadline": None, "maintenance_ends_at": None}
+        if eng:
+            contract = [c for c in eng.charges.all() if c.kind != "extra" and c.status != "void"]
+            out["total"] = sum(c.amount for c in contract)
+            out["paid"] = sum(c.amount for c in contract if c.status == "paid")
+            out["percent"] = sum(c.percent for c in contract if c.status == "paid")
+            out["deadline"] = eng.deadline
+            out["maintenance_ends_at"] = eng.maintenance_ends_at
+            charges = list(eng.charges.all())
+            if any(c.status == "due" and not any(p.status == "pending" for p in c.proofs.all()) for c in charges):
+                out["waiting"] = "pay"
+            elif any(c.status == "proposed" for c in charges):
+                out["waiting"] = "offer"
+            elif any(p.status == "pending" for c in charges for p in c.proofs.all()):
+                out["waiting"] = "proof"
+            elif eng.status == "client_review" or any(m.status == "review" for m in eng.milestones.all()):
+                out["waiting"] = "review"
+        elif obj.status == ProjectRequest.Status.ACCEPTED:
+            out["waiting"] = "sign"
+        elif obj.status == ProjectRequest.Status.PROPOSAL_SENT:
+            open_one = next((p for p in obj.proposals.all() if p.status == "sent"), None)
+            out["waiting"] = "answer" if open_one and open_one.kind == "offer" else "offer_studio" if open_one else ""
+        return out
 
     def get_service_title(self, obj):
         return pick(obj.service, "title", request_lang(self.context.get("request"))) if obj.service else None
@@ -184,9 +218,20 @@ class ProjectRequestDetailSerializer(ProjectRequestSerializer):
     engagement = serializers.SerializerMethodField()
     unread = serializers.SerializerMethodField()
     choices = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()
 
     class Meta(ProjectRequestSerializer.Meta):
-        fields = ProjectRequestSerializer.Meta.fields + ("proposals", "contract", "engagement", "unread", "choices")
+        fields = ProjectRequestSerializer.Meta.fields + ("proposals", "contract", "engagement", "unread", "choices", "files")
+
+    def get_files(self, obj) -> list[dict]:
+        """Every file of the project in one place (voice notes stay in the chat), newest first, with where it came from."""
+        rows = []
+        for a in sorted(obj.attachments.all(), key=lambda a: a.created_at, reverse=True):
+            if a.is_voice:
+                continue
+            source = "update" if a.updates.all() else "chat" if hasattr(a, "message") else "request"
+            rows.append({**AttachmentSerializer(a, context=self.context).data, "source": source})
+        return rows
 
     def get_choices(self, obj) -> list[dict]:
         """The calculator options picked, labelled in the reader's language."""

@@ -10,6 +10,7 @@ router.register("contracts", api.ContractViewSet, basename="contract")
 router.register("engagements", api.EngagementViewSet, basename="engagement")
 router.register("milestones", api.MilestoneViewSet, basename="milestone")
 router.register("tasks", api.TaskViewSet, basename="task")
+router.register("messages", api.MessageViewSet, basename="message")
 
 urlpatterns = router.urls + [
     path("files/attachments/<uuid:pk>/", views.download_attachment),

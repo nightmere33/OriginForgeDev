@@ -174,6 +174,7 @@ class StudioSettingsSerializer(serializers.ModelSerializer):
             "years_experience", "projects_shipped", "reply_hours", "review_hours",
             "ccp_account", "ccp_key", "ccp_holder", "ccp_address", "baridimob_rip", "cash_note_en", "cash_note_fr",
             "usdt_bep20_address", "usdt_rate_override",
+            "seller_name", "seller_address", "seller_tax_ids", "invoice_note_en", "invoice_note_fr",
         )
 
     def validate_ccp_account(self, value):

@@ -28,8 +28,24 @@ EVENTS = {
         "fr": ("Rappel : {label} pour {title}", "Petit rappel : {label} ({amount}) est attendu avant le {due}. Sans ce paiement, le projet ne peut pas démarrer ou continuer."),
     },
     "payment_received": {
-        "en": ("Payment received, thank you", "I received {amount} for \"{title}\" ({label}). Your receipt is in your client space."),
-        "fr": ("Paiement reçu, merci", "J'ai bien reçu {amount} pour « {title} » ({label}). Votre reçu est dans votre espace client."),
+        "en": ("Payment received, thank you", "I received {amount} for \"{title}\" ({label}). Invoice {number} is attached, and it stays in your client space."),
+        "fr": ("Paiement reçu, merci", "J'ai bien reçu {amount} pour « {title} » ({label}). La facture {number} est jointe, et elle reste dans votre espace client."),
+    },
+    "extra_due": {
+        "en": ("A cost to settle for {title}: {label}", "{label}: {amount}. This cost comes on top of the contract ({why}). Please pay it within 5 days, by any method in your client space; it gets its own invoice."),
+        "fr": ("Un coût à régler pour {title} : {label}", "{label} : {amount}. Ce coût s'ajoute au contrat ({why}). Merci de le régler sous 5 jours, par le moyen de votre choix dans votre espace client ; il a sa propre facture."),
+    },
+    "offer_proposed": {
+        "en": ("An option for {title}: {label}", "I suggest an addition to \"{title}\": {label}, for {amount}. It's optional: accept it and pay, or decline it, from your client space. Ask me anything about it in the conversation."),
+        "fr": ("Une option pour {title} : {label}", "Je vous propose un ajout à « {title} » : {label}, pour {amount}. C'est facultatif : acceptez-le et réglez-le, ou refusez-le, depuis votre espace client. Posez-moi vos questions dans la conversation."),
+    },
+    "revision_granted": {
+        "en": ("An extra revision round for {title}", "I added a revision round to \"{title}\". You have {left} left."),
+        "fr": ("Un tour de modifications en plus pour {title}", "J'ai ajouté un tour de modifications à « {title} ». Il vous en reste {left}."),
+    },
+    "maintenance_extended": {
+        "en": ("Maintenance extended for {title}", "Maintenance for \"{title}\" now runs until {until}. Report any problem from your client space."),
+        "fr": ("Maintenance prolongée pour {title}", "La maintenance de « {title} » court maintenant jusqu'au {until}. Signalez tout problème depuis votre espace client."),
     },
     "proof_rejected": {
         "en": ("I could not confirm your payment", "Your receipt for {label} could not be confirmed: {note}. You can upload a new one from your client space."),
@@ -115,6 +131,8 @@ EVENTS = {
         "fr": ("Votre compte a été supprimé", "Votre compte OriginForge et vos données personnelles ont été supprimés, comme demandé. Les contrats signés et les factures sont conservés de façon anonyme, car la loi l'exige. Si ce n'était pas vous, répondez à cet e-mail tout de suite."),
     },
     "studio_changes": {"en": ("Changes requested on {ref}", "{client}: {note}")},
+    "studio_offer_answer": {"en": ("Offer {answer}: {ref}", "{client} {answer} \"{label}\" ({amount}).")},
+    "studio_issue": {"en": ("Problem reported on {ref}", "{client} reported a problem on the live project: {note}")},
     "studio_approved": {"en": ("Approved: {ref}", "{client} approved \"{what}\".")},
     "studio_deposit_expired": {"en": ("Deposit not received: {ref}", "The deposit window for \"{title}\" closed; the project lapsed.")},
     "studio_message": {"en": ("Message from {client} on {ref}", "{preview}")},
@@ -134,15 +152,15 @@ def _render(key: str, lang: str, **ctx) -> tuple[str, str]:
     return subject.format(**ctx), text.format(**ctx)
 
 
-def notify_address(key: str, email: str, name: str, lang: str, path: str, **ctx):
+def notify_address(key: str, email: str, name: str, lang: str, path: str, *, invoice_id: int | None = None, **ctx):
     lang = lang if lang in TEMPLATE else "en"
     subject, text = _render(key, lang, **ctx)
     body = TEMPLATE[lang].format(name=(name or "").split(" ")[0] or email, text=text, link=site_url(f"/{lang}{path}"))
-    transaction.on_commit(lambda: send_email_task.delay(subject, body, [email], lang))
+    transaction.on_commit(lambda: send_email_task.delay(subject, body, [email], lang, invoice_id))
 
 
-def notify_client(key: str, user, path: str, **ctx):
-    notify_address(key, user.email, user.full_name, user_lang(user), path, **ctx)
+def notify_client(key: str, user, path: str, *, invoice_id: int | None = None, **ctx):
+    notify_address(key, user.email, user.full_name, user_lang(user), path, invoice_id=invoice_id, **ctx)
     # The same news, live on the website.
     from live.service import notify_in_app
 

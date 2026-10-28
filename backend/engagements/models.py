@@ -157,6 +157,9 @@ class Proposal(models.Model):
     # Cash by hand is offered only to clients Younes knows and trusts; every
     # other method (card, PayPal, CCP, BaridiMob, USDT) is open to all.
     allow_cash = models.BooleanField(default=False, help_text="Let this client pay cash, by hand")
+    # Off: the client can accept or decline, not counter (a fixed price on a
+    # first offer, a final offer later in the discussion).
+    negotiable = models.BooleanField(default=True)
 
     expires_at = models.DateTimeField()
     responded_at = models.DateTimeField(null=True, blank=True)
@@ -210,6 +213,8 @@ class Engagement(models.Model):
         EXPIRED = "expired", "Expired (deposit not received)"
 
     ACTIVE = (Status.IN_DEVELOPMENT, Status.CLIENT_REVIEW, Status.AWAITING_BALANCE)
+    # The deposit is in and the project is not over.
+    STARTED = (*ACTIVE, Status.ON_HOLD, Status.LIVE)
 
     request = models.OneToOneField(ProjectRequest, on_delete=models.CASCADE, related_name="engagement")
     contract = models.OneToOneField(Contract, on_delete=models.PROTECT, related_name="engagement")
@@ -220,8 +225,9 @@ class Engagement(models.Model):
     currency = models.CharField(max_length=3, choices=Currency.choices)
     plan_name = models.CharField(max_length=60)
     maintenance_days = models.PositiveSmallIntegerField()
-    revision_rounds = models.PositiveSmallIntegerField()
+    revision_rounds = models.PositiveSmallIntegerField(help_text="Rounds in the plan, plus any granted")
     revisions_used = models.PositiveSmallIntegerField(default=0)
+    revisions_granted = models.PositiveSmallIntegerField(default=0, help_text="Extra rounds Younes added")
     timeline_days = models.PositiveSmallIntegerField()
     nda = models.BooleanField(default=False)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -263,6 +269,22 @@ class Milestone(models.Model):
         return self.title
 
 
+class Revision(models.Model):
+    """One round of changes the client asked for, on the whole work or on a milestone."""
+
+    engagement = models.ForeignKey(Engagement, on_delete=models.CASCADE, related_name="revisions")
+    number = models.PositiveSmallIntegerField()
+    milestone = models.ForeignKey(Milestone, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["number"]
+
+    def __str__(self):
+        return f"{self.engagement.request.reference} round {self.number}"
+
+
 class Task(models.Model):
     """A unit of work the client can watch, with an estimated finish time."""
 
@@ -302,12 +324,27 @@ class ProgressUpdate(models.Model):
 
 
 class Message(models.Model):
-    """The project conversation: text, files and voice notes, from request to closure."""
+    """
+    The project conversation: text, files and voice notes, from request to
+    closure. Some messages are cards for something that happened elsewhere
+    (an extra cost or offer, a progress update, a problem reported on a live
+    project), so it can be discussed where everything else is.
+    """
+
+    class Kind(models.TextChoices):
+        TEXT = "text", "Message"
+        CHARGE = "charge", "Extra cost or offer"
+        UPDATE = "update", "Progress update"
+        ISSUE = "issue", "Problem reported"
 
     request = models.ForeignKey(ProjectRequest, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.TEXT)
     body = models.TextField(blank=True)
     attachment = models.OneToOneField(Attachment, on_delete=models.SET_NULL, null=True, blank=True, related_name="message")
+    reply_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    charge = models.ForeignKey("billing.Charge", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    update = models.ForeignKey(ProgressUpdate, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
@@ -316,6 +353,20 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.request.reference} · {self.sender}"
+
+
+class Reaction(models.Model):
+    """One emoji per person per message; choosing another replaces it."""
+
+    EMOJI = ("❤️", "\U0001f44d", "\U0001f602", "\U0001f62e", "\U0001f622", "\U0001f525", "\U0001f64f", "✅")
+
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="reactions")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    emoji = models.CharField(max_length=8)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["message", "user"], name="one_reaction_per_person")]
 
 
 class WaitlistEntry(models.Model):

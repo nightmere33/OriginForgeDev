@@ -17,10 +17,12 @@ from notifications.events import notify_client
 
 from . import lifecycle
 from .lifecycle_serializers import (
-    ContractSerializer, EngagementActionSerializer, EngagementSerializer, MessageSerializer, MilestoneSerializer,
-    ProposalSerializer, RespondSerializer, SignSerializer, TaskSerializer, UpdateSerializer,
+    ChargeSerializer, ContractSerializer, EngagementActionSerializer, EngagementSerializer, ExtraSerializer, MessageSerializer,
+    MilestoneSerializer, ProposalSerializer, RespondSerializer, SignSerializer, TaskSerializer, UpdateSerializer,
 )
-from .models import Attachment, Contract, Engagement, Milestone, ProgressUpdate, ProjectRequest, Proposal, Task, WaitlistEntry
+from .models import (
+    Attachment, Contract, Engagement, Message, Milestone, ProgressUpdate, ProjectRequest, Proposal, Task, WaitlistEntry,
+)
 
 VOICE_TYPES = ("audio/",)
 
@@ -75,8 +77,9 @@ class EngagementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
     serializer_class = EngagementSerializer
 
     def get_queryset(self):
-        qs = Engagement.objects.select_related("request").prefetch_related(
-            "charges__proofs", "charges__payments", "milestones", "tasks", "updates__attachments")
+        qs = Engagement.objects.select_related("request", "contract__proposal__plan").prefetch_related(
+            "charges__proofs", "charges__payments", "charges__invoices__charge__engagement__request", "milestones",
+            "tasks", "updates__attachments__uploaded_by", "revisions__milestone")
         return scoped(qs, self.request.user, field="client")
 
     @action(detail=True, methods=["post"], url_path="action")
@@ -86,6 +89,14 @@ class EngagementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         body.is_valid(raise_exception=True)
         eng = lifecycle.engagement_action(request, eng.pk, **body.validated_data)
         return Response(self.get_serializer(eng).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsDeveloper])
+    def extras(self, request, pk=None):
+        """Studio: a cost outside the contract (required) or an offer the client may decline (optional)."""
+        body = ExtraSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        charge = lifecycle.add_extra(request, self.get_object().pk, **body.validated_data)
+        return Response(ChargeSerializer(charge).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], permission_classes=[IsDeveloper])
     def tasks(self, request, pk=None):
@@ -107,8 +118,11 @@ class EngagementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
                                                body=(request.data.get("body") or "").strip())
         for upload in request.FILES.getlist("files")[:10]:
             update.attachments.add(store_upload(request, eng.request, upload))
+        # The same news as a card in the conversation, where it can be discussed.
+        card = Message.objects.create(request=eng.request, sender=request.user, kind=Message.Kind.UPDATE, update=update, body=title[:160])
+        lifecycle._announce(card)
         record(request, "update.posted", eng.request, update=title)
-        notify_client("update_posted", eng.client, f"/portal/requests/{eng.request.reference}", title=eng.title, update=title)
+        notify_client("update_posted", eng.client, f"/portal/requests/{eng.request.reference}?tab=progress", title=eng.title, update=title)
         return Response(UpdateSerializer(update).data, status=status.HTTP_201_CREATED)
 
 
@@ -157,12 +171,30 @@ def request_messages(viewset, request, req: ProjectRequest):
         else:
             unread = unread.exclude(sender=request.user)
         unread.update(read_at=timezone.now())
-        msgs = req.messages.select_related("sender", "attachment")
-        return Response(MessageSerializer(msgs, many=True).data)
+        msgs = req.messages.select_related(
+            "sender", "attachment__uploaded_by", "reply_to__sender", "reply_to__attachment", "charge",
+        ).prefetch_related("reactions", "update__attachments__uploaded_by")
+        return Response(MessageSerializer(msgs, many=True, context={"request": request}).data)
     upload = request.FILES.get("file")
     attachment = store_upload(request, req, upload, request.data.get("voice") in ("1", "true"), request.data.get("duration")) if upload else None
-    message = lifecycle.post_message(request, req, request.data.get("body", ""), attachment)
-    return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
+    reply_to = request.data.get("reply_to")
+    message = lifecycle.post_message(request, req, request.data.get("body", ""), attachment,
+                                     reply_to=int(reply_to) if str(reply_to or "").isdigit() else None)
+    return Response(MessageSerializer(message, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+
+class MessageViewSet(viewsets.GenericViewSet):
+    """Reactions on a message of a conversation the user is part of."""
+
+    serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        return scoped(Message.objects.select_related("request", "sender"), self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def react(self, request, pk=None):
+        message = lifecycle.react(request, self.get_object(), str(request.data.get("emoji", "")))
+        return Response({"id": message.pk, "reactions": MessageSerializer(message, context={"request": request}).data["reactions"]})
 
 
 class WaitlistView(APIView):

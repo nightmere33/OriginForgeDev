@@ -6,6 +6,7 @@ from . import api, webhooks
 router = SimpleRouter()
 router.register("charges", api.ChargeViewSet, basename="charge")
 router.register("proofs", api.ProofViewSet, basename="proof")
+router.register("invoices", api.InvoiceViewSet, basename="invoice")
 
 urlpatterns = router.urls + [
     path("files/receipts/<int:pk>/", api.download_receipt),

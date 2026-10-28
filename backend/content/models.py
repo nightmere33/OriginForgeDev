@@ -86,6 +86,13 @@ class SiteSettings(models.Model):
     baridimob_rip = models.CharField("RIP (BaridiMob)", max_length=32, blank=True)
     cash_note_en, cash_note_fr, cash_note_ar = tr(models.CharField, max_length=255, blank=True)
 
+    # The seller on every invoice (copied into each one when it is issued).
+    seller_name = models.CharField(max_length=150, blank=True, help_text="Legal name, e.g. Younes Ouali (auto-entrepreneur)")
+    seller_address = models.TextField(blank=True)
+    seller_tax_ids = models.TextField(blank=True, help_text="One per line, e.g. NIF: 0000, NIS: 0000, RC: 0000")
+    invoice_note_en, invoice_note_fr, invoice_note_ar = tr(
+        models.CharField, max_length=300, blank=True, help_text="Legal mention at the foot of invoices, e.g. VAT not applicable")
+
     class Meta:
         verbose_name = verbose_name_plural = "site settings"
 

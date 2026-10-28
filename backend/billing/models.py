@@ -1,10 +1,12 @@
 """
 Money, per project (BUSINESS_RULES.md §3.7, §3.9, §5).
 
-  Charge        what the client owes and when: the deposit, a milestone, the balance
+  Charge        what the client owes and when: the deposit, a milestone, the balance,
+                or an extra (a cost outside the contract, or an optional offer)
   Payment       money that moved (or is moving) against a charge, from any provider
   PaymentProof  a CCP / BaridiMob / cash receipt the client uploaded, waiting for
                 Younes to look at it. Not a payment: a claim that one was made.
+  Invoice       the numbered invoice issued for each paid payment (PDF on demand)
   WebhookEvent  raw provider callbacks, stored before they are interpreted
 
 Amounts are whole units of the currency (DZD has no centimes in practice;
@@ -26,32 +28,53 @@ class Charge(models.Model):
         DEPOSIT = "deposit", "Deposit"
         MILESTONE = "milestone", "Milestone payment"
         BALANCE = "balance", "Final payment"
+        EXTRA = "extra", "Extra cost"
 
     class Status(models.TextChoices):
+        PROPOSED = "proposed", "Offered"
         SCHEDULED = "scheduled", "Scheduled"
         DUE = "due", "Due"
         PAID = "paid", "Paid"
+        DECLINED = "declined", "Declined"
         EXPIRED = "expired", "Expired"
         VOID = "void", "Void"
+
+    CONTRACT_KINDS = (Kind.DEPOSIT, Kind.MILESTONE, Kind.BALANCE)
+    # What still stands between the project and going live.
+    OPEN = (Status.SCHEDULED, Status.DUE)
 
     engagement = models.ForeignKey("engagements.Engagement", on_delete=models.CASCADE, related_name="charges")
     order = models.PositiveSmallIntegerField(default=0)
     kind = models.CharField(max_length=10, choices=Kind.choices)
     label = models.CharField(max_length=80)
-    percent = models.PositiveSmallIntegerField()
+    # Extras: what it pays for (AI credits, hosting, a feature), and whether
+    # the client may decline it (an offer) or must pay it (a required cost).
+    description = models.TextField(blank=True)
+    optional = models.BooleanField(default=False)
+    percent = models.PositiveSmallIntegerField(default=0)
     amount = models.PositiveIntegerField()
     currency = models.CharField(max_length=3, choices=Currency.choices)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.SCHEDULED, db_index=True)
     due_from = models.DateTimeField(null=True, blank=True)
     due_at = models.DateTimeField(null=True, blank=True)
     reminders_sent = models.PositiveSmallIntegerField(default=0)
+    answered_at = models.DateTimeField(null=True, blank=True, help_text="When the client accepted or declined an offer")
     paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
-        ordering = ["engagement", "order"]
+        ordering = ["engagement", "order", "id"]
 
     def __str__(self):
         return f"{self.label} · {self.amount} {self.currency} ({self.status})"
+
+    @property
+    def is_extra(self) -> bool:
+        return self.kind == self.Kind.EXTRA
+
+    def can_pay_early(self) -> bool:
+        """A scheduled part of the contract, once the deposit is in (the work has started)."""
+        return self.status == self.Status.SCHEDULED and self.engagement.status in self.engagement.STARTED
 
 
 class Payment(models.Model):
@@ -151,6 +174,42 @@ class PaymentProof(models.Model):
     @property
     def explorer_url(self) -> str:
         return f"https://bscscan.com/tx/{self.tx_hash}" if self.tx_hash else ""
+
+
+class InvoiceSequence(models.Model):
+    """The last invoice number used per year: numbers follow each other with no gap."""
+
+    year = models.PositiveSmallIntegerField(primary_key=True)
+    last = models.PositiveIntegerField(default=0)
+
+
+class Invoice(models.Model):
+    """
+    One per paid payment, numbered OF-<year>-<0001>. The seller and buyer are
+    copied in when it is issued, so later edits to the settings or to the
+    client's account never change an invoice already sent.
+    """
+
+    number = models.CharField(max_length=20, unique=True)
+    payment = models.OneToOneField(Payment, on_delete=models.PROTECT, related_name="invoice")
+    charge = models.ForeignKey(Charge, on_delete=models.PROTECT, related_name="invoices")
+    issued_at = models.DateTimeField()
+    label = models.CharField(max_length=160)
+    description = models.TextField(blank=True)
+    amount = models.PositiveIntegerField()
+    currency = models.CharField(max_length=3, choices=Currency.choices)
+    method = models.CharField(max_length=40)
+    language = models.CharField(max_length=2, default="en")
+    seller = models.JSONField(default=dict)
+    buyer = models.JSONField(default=dict)
+    pdf = models.FileField(storage=private_storage, upload_to=private_upload_path("invoices"), blank=True)
+    emailed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+
+    def __str__(self):
+        return f"{self.number} · {self.amount} {self.currency}"
 
 
 class WebhookEvent(models.Model):

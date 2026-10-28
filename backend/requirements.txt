@@ -3,6 +3,8 @@ djangorestframework>=3.16
 dj-database-url>=2.3
 python-dotenv>=1.0
 Pillow>=12.0
+# Invoices (PDF)
+reportlab>=4.2,<6
 httpx>=0.28
 celery>=5.5
 redis>=5.2

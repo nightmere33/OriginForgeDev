@@ -30,7 +30,9 @@ def png() -> SimpleUploadedFile:
 
 
 @override_settings(PRIVATE_MEDIA_ROOT=TMP, MEDIA_ROOT=TMP, NEXT_REVALIDATE_URL="")
-class LifecycleTests(TestCase):
+class LifecycleBase(TestCase):
+    """Clients, the studio, and the shortcuts every lifecycle test starts from."""
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -70,6 +72,19 @@ class LifecycleTests(TestCase):
                 "milestones": [{"title": "Design", "days": 10}, {"title": "Build", "days": 20}], **extra}
         return self.ok(self.api(self.dev).post(f"/api/requests/{ref}/proposals/", body, format="json"), 201)
 
+    def started_project(self, price=200000):
+        """A signed project with its deposit confirmed: in development."""
+        alice, dev = self.api(self.alice), self.api(self.dev)
+        ref = self.submitted_request()
+        v1 = self.offer(ref, price=price)
+        self.ok(alice.post(f"/api/proposals/{v1['id']}/respond/", {"action": "accept"}, format="json"))
+        contract = self.ok(alice.get(f"/api/requests/{ref}/"))["contract"]
+        eng = self.ok(alice.post(f"/api/contracts/{contract['id']}/sign/", {"signed_name": "Alice A", "agree": True}, format="json"), 201)
+        self.ok(dev.post(f"/api/charges/{eng['charges'][0]['id']}/cash/"))
+        return eng["id"]
+
+
+class LifecycleTests(LifecycleBase):
     def test_full_lifecycle(self):
         alice, dev, bob = self.api(self.alice), self.api(self.dev), self.api(self.bob)
         ref = self.submitted_request()
@@ -191,17 +206,6 @@ class LifecycleTests(TestCase):
     def test_waitlist_is_open_to_visitors(self):
         self.assertEqual(APIClient().post("/api/waitlist/", {"email": "Later@Example.com"}, format="json").status_code, 201)
         self.assertEqual(APIClient().post("/api/waitlist/", {"email": "nope"}, format="json").status_code, 400)
-
-    def started_project(self, price=200000):
-        """A signed project with its deposit confirmed: in development."""
-        alice, dev = self.api(self.alice), self.api(self.dev)
-        ref = self.submitted_request()
-        v1 = self.offer(ref, price=price)
-        self.ok(alice.post(f"/api/proposals/{v1['id']}/respond/", {"action": "accept"}, format="json"))
-        contract = self.ok(alice.get(f"/api/requests/{ref}/"))["contract"]
-        eng = self.ok(alice.post(f"/api/contracts/{contract['id']}/sign/", {"signed_name": "Alice A", "agree": True}, format="json"), 201)
-        self.ok(dev.post(f"/api/charges/{eng['charges'][0]['id']}/cash/"))
-        return eng["id"]
 
     def test_at_the_project_cap_requests_queue_and_are_released_in_order(self):
         from django.core import mail

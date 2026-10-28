@@ -13,17 +13,17 @@ from common.i18n import pick, request_lang
 from content.models import SiteSettings
 from engagements import lifecycle
 from fx import service as fx
-from engagements.lifecycle_serializers import ChargeSerializer, ProofSerializer
+from engagements.lifecycle_serializers import ChargeSerializer, InvoiceSerializer, ProofSerializer
 
-from . import online, paypal
-from .models import Charge, Payment, PaymentProof
+from . import invoices, online, paypal
+from .models import Charge, Invoice, Payment, PaymentProof
 
 
 class ChargeViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = ChargeSerializer
 
     def get_queryset(self):
-        qs = Charge.objects.select_related("engagement__request").prefetch_related("proofs", "payments")
+        qs = Charge.objects.select_related("engagement__request").prefetch_related("proofs", "payments", "invoices")
         return qs if self.request.user.is_developer else qs.filter(engagement__client=self.request.user)
 
     def get_throttles(self):
@@ -67,6 +67,42 @@ class ChargeViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=["post"], url_path="request", permission_classes=[IsDeveloper])
     def request_payment(self, request, pk=None):
         return Response(ChargeSerializer(lifecycle.request_charge(request, self.get_object().pk)).data)
+
+    @action(detail=True, methods=["post"], url_path="pay-early")
+    def pay_early(self, request, pk=None):
+        """Client: pay a scheduled part now, before it is asked for."""
+        return Response(ChargeSerializer(lifecycle.pay_early(request, self.get_object().pk)).data)
+
+    @action(detail=True, methods=["post"])
+    def offer(self, request, pk=None):
+        """Client: accept (then pay) or decline an optional offer."""
+        decision = request.data.get("decision")
+        if decision not in ("accept", "decline"):
+            raise ValidationError({"decision": "Accept or decline."})
+        return Response(ChargeSerializer(lifecycle.answer_offer(request, self.get_object().pk, decision == "accept")).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsDeveloper])
+    def withdraw(self, request, pk=None):
+        return Response(ChargeSerializer(lifecycle.withdraw_extra(request, self.get_object().pk)).data)
+
+
+class InvoiceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """The client's invoices (all of them for the studio), newest first, each with its PDF."""
+
+    serializer_class = InvoiceSerializer
+
+    def get_queryset(self):
+        qs = Invoice.objects.select_related("charge__engagement__request", "payment")
+        if not self.request.user.is_developer:
+            qs = qs.filter(charge__engagement__client=self.request.user)
+        ref = self.request.query_params.get("reference")
+        return qs.filter(charge__engagement__request__reference=ref) if ref else qs
+
+    @action(detail=True, methods=["get"])
+    def pdf(self, request, pk=None):
+        invoice = invoices.ensure_pdf(self.get_object())
+        record(request, "invoice.downloaded", invoice.charge.engagement.request, number=invoice.number)
+        return serve_private(invoice.pdf, f"{invoice.number}.pdf")
 
 
 class ProofViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

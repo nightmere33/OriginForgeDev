@@ -188,6 +188,28 @@ class OnlinePaymentTests(TestCase):
         self.assertEqual((state["status"], state["charge_status"]), ("pending", "due"))
 
     @mock.patch("billing.paypal.verify_webhook", return_value=True)
+    @mock.patch("billing.paypal.get_order", return_value=paypal_order(status="APPROVED"))
+    @mock.patch("billing.paypal.create_order", return_value=paypal_order())
+    def test_a_refusal_from_paypal_fails_once_and_is_never_retried(self, create, get_order, verify):
+        from .paypal import PayPalError
+
+        refused = PayPalError("PayPal returned 422", status_code=422,
+                              payload={"details": [{"issue": "COMPLIANCE_VIOLATION"}]})
+        _, deposit = self.due_deposit()
+        pay = self.ok(self.start(deposit["id"], "paypal"), 201)
+        with mock.patch("billing.paypal.capture", side_effect=refused) as capture:
+            state = self.ok(self.api(self.alice).post(f"/api/payments/{pay['id']}/approved/"))
+            self.assertEqual(state["status"], "failed")
+            self.assertIn("COMPLIANCE_VIOLATION", state["detail"])
+            # The notice that follows, the return page and the tracker leave it alone.
+            notice = self.client.post("/webhooks/paypal/", json.dumps({
+                "id": "WH-R", "event_type": "CHECKOUT.ORDER.APPROVED", "resource": {"id": "ORDER-1"}}), content_type="application/json")
+            self.assertEqual(notice.status_code, 200)
+            self.ok(self.api(self.alice).get(f"/api/payments/{pay['id']}/"))
+            self.assertEqual(capture.call_count, 1)
+        self.assertEqual(Charge.objects.get(pk=deposit["id"]).status, "due")
+
+    @mock.patch("billing.paypal.verify_webhook", return_value=True)
     @mock.patch("billing.paypal.get_order", return_value=captured("309.53"))
     @mock.patch("billing.paypal.create_order", return_value=paypal_order())
     def test_paypal_notices_settle_then_report_a_refund(self, create, get_order, verify):

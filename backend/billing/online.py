@@ -16,6 +16,7 @@ from datetime import timedelta
 from decimal import ROUND_UP, Decimal, InvalidOperation
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -219,12 +220,27 @@ def from_paypal(order: dict) -> Payment | None:
         logger.error("PayPal order %s has no payment here", order.get("id"))
         return None
     if order.get("status") == "APPROVED":
+        if payment.status != PENDING:
+            return payment  # already settled (or refused): never capture again
+        # One capture at a time per payment: the popup, the notice, the return
+        # page and the tick can all arrive together, and PayPal counts each try.
+        lock = f"paypal-capture:{payment.pk}"
+        if not cache.add(lock, 1, 30):
+            return payment
         try:
             order = paypal.capture(order["id"], payment.pk)
         except paypal.PayPalError as exc:
-            if exc.issue in ("INSTRUMENT_DECLINED", "PAYER_CANNOT_PAY", "TRANSACTION_REFUSED"):
-                return settle(payment.pk, "failed", exc.payload, detail=exc.issue)
+            # 409: the same capture is still running at PayPal; it reports soon.
+            if exc.status_code == 409:
+                return payment
+            # Any other 4xx is PayPal's answer, not a hiccup (a refused card, a
+            # compliance hold, too many tries): the payment failed, and retrying
+            # would only use up the order's attempts.
+            if exc.status_code and 400 <= exc.status_code < 500 and exc.status_code not in (401, 429):
+                return settle(payment.pk, "failed", exc.payload, detail=f"PayPal refused it: {exc.issue or exc.status_code}")
             raise
+        finally:
+            cache.delete(lock)
     cap = paypal.first_capture(order)
     status = cap.get("status")
     if order.get("status") == "COMPLETED" and status == "COMPLETED":

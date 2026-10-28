@@ -240,7 +240,11 @@ CELERY_BROKER_URL = os.environ.get("REDIS_URL", "") or "memory://"
 # Live updates: Redis in production (every worker shares the groups); in
 # development a single process, so memory is enough.
 if os.environ.get("REDIS_URL"):
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [os.environ["REDIS_URL"]]}}}
+    # channels-redis waits on BZPOPMIN for 5 s at a time; redis-py 8 gives every
+    # connection a 5 s read timeout by default, so each wait died just before
+    # Redis answered and the live socket crashed in a loop. Reads may take longer.
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer",
+                                  "CONFIG": {"hosts": [{"address": os.environ["REDIS_URL"], "socket_timeout": 30}]}}}
 else:
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 # Throttle counts and sign-in attempt limits are shared by every worker (in

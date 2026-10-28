@@ -85,12 +85,22 @@ export function PayPalButton({ lang, p, chargeId, clientId, currency, onApproved
           started.current = await api.post<Started>(`/charges/${chargeId}/checkout/`, { provider: "paypal" });
           return started.current.order_id;
         },
+        // Shown only once PayPal has drawn them: no blank frame, no jump.
+        onInit: () => {
+          if (!alive) return;
+          setPhase("ready");
+          requestAnimationFrame(() => tearIn(host.current));
+        },
         onApprove: async () => {
           const payment = started.current;
           if (!payment) return;
           setPhase("busy");
-          await api.post(`/payments/${payment.id}/approved/`).catch(() => undefined);
+          const state = await api.post<{ status: string }>(`/payments/${payment.id}/approved/`).catch(() => null);
+          // The tracker above follows it from here; the button is free again
+          // (a refused payment can be tried once more, as a new order).
           handlers.current.onApproved(payment.id);
+          setPhase("ready");
+          if (state?.status === "failed") setNote(p.paypalError);
         },
         onCancel: () => setNote(p.paypalClosed),
         onError: (err: unknown) => {
@@ -100,9 +110,6 @@ export function PayPalButton({ lang, p, chargeId, clientId, currency, onApproved
       });
       el.replaceChildren();
       await buttons.render(el);
-      if (!alive) return;
-      setPhase("ready");
-      tearIn(el);
     }).catch(() => {
       if (alive) setPhase("blocked");
     });
@@ -110,7 +117,7 @@ export function PayPalButton({ lang, p, chargeId, clientId, currency, onApproved
       alive = false;
       buttons?.close().catch(() => undefined);
     };
-  }, [clientId, currency, lang, theme, chargeId, p.paypalClosed]);
+  }, [clientId, currency, lang, theme, chargeId, p.paypalClosed, p.paypalError]);
 
   // PayPal's own page, when its script can't run here (a blocker, a strict browser).
   const viaPage = async () => {
@@ -126,15 +133,18 @@ export function PayPalButton({ lang, p, chargeId, clientId, currency, onApproved
 
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
-      <div className="relative min-h-12">
+      {/* The height of PayPal's two buttons and its line, kept while it loads. */}
+      <div className="relative min-h-[7.25rem]">
         {phase === "loading" && (
-          <div role="status" aria-label={p.paypalLoading} className="absolute inset-0 flex flex-col gap-2">
+          <div role="status" aria-label={p.paypalLoading} className="absolute inset-0 flex flex-col gap-3">
+            <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
         )}
         {/* PayPal's frame is a light page: on our dark scheme the browser would
             paint it an opaque backdrop. The same scheme keeps it see-through. */}
-        <div ref={host} className={cn("relative [color-scheme:light] transition-opacity duration-[var(--dur-standard)]", phase === "busy" && "pointer-events-none opacity-30")} />
+        <div ref={host} className={cn("relative [color-scheme:light] transition-opacity duration-[var(--dur-standard)]",
+          phase === "loading" ? "opacity-0" : phase === "busy" ? "pointer-events-none opacity-30" : "opacity-100")} />
         {phase === "busy" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <span aria-hidden className="relative block h-px w-40 overflow-hidden bg-line"><span className="pay-busy absolute inset-y-0 left-0 w-1/3" /></span>

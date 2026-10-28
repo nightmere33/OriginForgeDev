@@ -44,7 +44,8 @@ def _label(eng: Engagement) -> str:
 def submit(request, engagement_id: int, data: dict) -> Review:
     user = request.user
     with transaction.atomic():
-        eng = Engagement.objects.select_for_update().select_related("request__client", "request__service").filter(pk=engagement_id).first()
+        # Lock the project row only: PostgreSQL refuses FOR UPDATE across the optional service join.
+        eng = Engagement.objects.select_for_update(of=("self",)).select_related("request__client", "request__service").filter(pk=engagement_id).first()
         # Someone else's project is simply not there.
         if not eng or eng.request.client_id != user.id:
             raise ValidationError({"engagement": "Project not found."})
@@ -80,7 +81,7 @@ def moderate(request, review: Review, decision: str, reply: str = "", reason: st
         raise ValidationError({"decision": "approve, reject or unpublish"})
     now = timezone.now()
     with transaction.atomic():
-        review = Review.objects.select_for_update().select_related("engagement__request", "author", "case_study").get(pk=review.pk)
+        review = Review.objects.select_for_update(of=("self",)).select_related("engagement__request", "author", "case_study").get(pk=review.pk)
         review.reply = reply.strip()
         review.moderated_at = now
         if decision == "approve":
@@ -136,7 +137,7 @@ def open_invite(token: str) -> ReviewInvite | None:
 def submit_invited(request, token: str, data: dict) -> Review:
     user = request.user
     with transaction.atomic():
-        inv = ReviewInvite.objects.select_for_update().select_related("case_study").filter(token=token).first()
+        inv = ReviewInvite.objects.select_for_update(of=("self",)).select_related("case_study").filter(token=token).first()
         if not inv or inv.expires_at < timezone.now():
             raise ValidationError({"detail": "This invitation has expired. Write to me for a new one."})
         if inv.used_at:

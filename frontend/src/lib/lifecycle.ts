@@ -219,7 +219,7 @@ export type ProjectRequest = {
   created_at: string;
   updated_at: string;
   client?: {
-    full_name: string; email: string; company: string; phone: string; whatsapp: string; country: string;
+    full_name: string; email: string; company: string; phone: string; whatsapp: string; instagram: string; messenger: string; country: string;
     contact_channel: string; contact_channel_label: string; contact_handle: string; heard_from_label: string; heard_from_detail: string;
   };
   // Detail only:

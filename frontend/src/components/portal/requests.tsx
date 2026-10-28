@@ -444,8 +444,12 @@ function ClientBar({ t, req }: { t: T; req: ProjectRequest }) {
       <ButtonLink href={`mailto:${c.email}`} variant="secondary" size="sm"><Mail aria-hidden className="size-3.5" />{c.email}</ButtonLink>
       {c.phone && <ButtonLink href={`tel:${c.phone}`} variant="secondary" size="sm"><Phone aria-hidden className="size-3.5" />{c.phone}</ButtonLink>}
       {wa && <ButtonLink href={`https://wa.me/${wa}`} variant="secondary" size="sm"><MessageCircle aria-hidden className="size-3.5" />WhatsApp</ButtonLink>}
-      {c.contact_channel === "instagram" && c.contact_handle && (
-        <ButtonLink href={`https://instagram.com/${encodeURIComponent(c.contact_handle.replace(/^@/, ""))}`} variant="secondary" size="sm">@{c.contact_handle.replace(/^@/, "")}</ButtonLink>
+      {(c.instagram || (c.contact_channel === "instagram" && c.contact_handle)) && (() => {
+        const handle = (c.instagram || c.contact_handle).replace(/^@/, "");
+        return <ButtonLink href={`https://instagram.com/${encodeURIComponent(handle)}`} variant="secondary" size="sm">Instagram · @{handle}</ButtonLink>;
+      })()}
+      {c.messenger && (
+        <ButtonLink href={`https://m.me/${encodeURIComponent(c.messenger)}`} variant="secondary" size="sm"><MessageCircle aria-hidden className="size-3.5" />Messenger</ButtonLink>
       )}
       <Hud tone="faint" className="basis-full">
         {fill(t.studio.prefers, { channel: c.contact_channel_label + (c.contact_channel === "discord" && c.contact_handle ? ` (${c.contact_handle})` : "") })}

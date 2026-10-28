@@ -355,7 +355,8 @@ class DeleteAccountView(APIView):
             record(request, "account.deleted", user)
             user.email = f"deleted-{user.pk}-{secrets.token_hex(4)}@deleted.invalid"
             user.full_name = "Deleted user"
-            for field in ("company", "phone", "whatsapp", "country", "address", "city", "postal_code", "contact_handle", "heard_from_detail"):
+            for field in ("company", "phone", "whatsapp", "instagram", "messenger", "country", "address", "city", "postal_code",
+                          "contact_handle", "heard_from_detail"):
                 setattr(user, field, "")
             user.set_unusable_password()
             user.is_active = False

@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -13,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id", "email", "full_name", "role", "is_developer", "company", "phone",
-            "whatsapp", "country", "address", "city", "postal_code", "language", "currency", "email_verified",
+            "whatsapp", "instagram", "messenger", "country", "address", "city", "postal_code", "language", "currency", "email_verified",
             "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "onboarded", "has_password",
         )
         read_only_fields = ("id", "email", "role", "is_developer", "email_verified", "onboarded")
@@ -32,6 +34,20 @@ class UserSerializer(serializers.ModelSerializer):
     def get_has_password(self, obj) -> bool:
         # Accounts made through Google or Facebook have none (deletion then asks only for the word).
         return obj.has_usable_password()
+
+    # A handle, a link or "@name": whatever is pasted, the username is kept.
+    def validate_instagram(self, value: str) -> str:
+        handle = re.sub(r"^(https?://)?(www\.)?instagram\.com/", "", value.strip(), flags=re.I).split("?")[0].strip("/@ ")
+        if handle and not re.fullmatch(r"[A-Za-z0-9._]{1,30}", handle):
+            raise serializers.ValidationError("Use your Instagram username (letters, digits, dots and underscores).")
+        return handle
+
+    def validate_messenger(self, value: str) -> str:
+        handle = re.sub(r"^(https?://)?(www\.|m\.)?(m\.me|messenger\.com/t|facebook\.com|fb\.com)/", "", value.strip(), flags=re.I)
+        handle = handle.split("?")[0].strip("/@ ")
+        if handle and not re.fullmatch(r"[A-Za-z0-9.\-]{1,80}", handle):
+            raise serializers.ValidationError("Use your Facebook username, or your m.me link.")
+        return handle
 
 
 class RegisterSerializer(serializers.ModelSerializer):

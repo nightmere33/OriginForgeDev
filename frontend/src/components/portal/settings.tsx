@@ -9,12 +9,13 @@ import { api, ApiError, type User } from "@/lib/api-client";
 import { CurrencyToggle, useCurrency } from "@/lib/currency";
 import { fetchSession, useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { ChoiceChip, Field, Input, Select } from "@/components/ui/field";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Hud } from "@/components/ui/hud";
 import { EmailCode } from "@/components/auth/email-code";
 
-type T = Pick<Dictionary, "settings" | "start" | "portal" | "common" | "nav" | "onboarding" | "auth">;
-type Profile = Pick<User, "full_name" | "phone" | "whatsapp" | "company" | "country" | "address" | "city" | "postal_code" | "language" | "contact_channel" | "contact_handle">;
+type T = Pick<Dictionary, "settings" | "start" | "portal" | "common" | "nav" | "onboarding" | "auth" | "phoneInput">;
+type Profile = Pick<User, "full_name" | "phone" | "whatsapp" | "instagram" | "messenger" | "company" | "country" | "address" | "city" | "postal_code" | "language" | "contact_channel" | "contact_handle">;
 const CHANNELS = ["site", "whatsapp", "instagram", "discord", "email", "phone"] as const;
 
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
@@ -26,10 +27,12 @@ function Band({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function ProfileForm({ t, user }: { t: T; user: User }) {
+function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
   const s = t.settings;
+  const [waSame, setWaSame] = useState(!user.whatsapp || user.whatsapp === user.phone);
   const [form, setForm] = useState<Profile>({
-    full_name: user.full_name, phone: user.phone, whatsapp: user.whatsapp, company: user.company, country: user.country, language: user.language,
+    full_name: user.full_name, phone: user.phone, whatsapp: user.whatsapp, instagram: user.instagram ?? "", messenger: user.messenger ?? "",
+    company: user.company, country: user.country, language: user.language,
     address: user.address ?? "", city: user.city ?? "", postal_code: user.postal_code ?? "",
     contact_channel: user.contact_channel || "site", contact_handle: user.contact_handle,
   });
@@ -43,12 +46,14 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
     setState("busy");
     setErrors({});
     try {
-      await api.patch("/auth/me/", form);
+      await api.patch("/auth/me/", { ...form, whatsapp: waSame ? form.phone : form.whatsapp });
       await fetchSession(true);
       setState("saved");
     } catch (err) {
       setState("");
-      setErrors(err instanceof ApiError ? { full_name: err.field("full_name"), phone: err.field("phone"), form: err.message } : { form: t.common.error });
+      setErrors(err instanceof ApiError
+        ? { full_name: err.field("full_name"), phone: err.field("phone"), instagram: err.field("instagram"), messenger: err.field("messenger"), form: err.message }
+        : { form: t.common.error });
     }
   };
   return (
@@ -60,8 +65,31 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
           {(a) => <Input id={a.id} autoComplete="name" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
         </Field>
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label={t.start.phone} error={errors.phone}>{(a) => <Input id={a.id} type="tel" autoComplete="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} />}</Field>
-          <Field label={t.start.whatsapp}>{(a) => <Input id={a.id} type="tel" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />}</Field>
+          <Field label={t.start.phone} error={errors.phone}>
+            {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={form.phone} invalid={a.invalid} describedBy={a.describedBy} onChange={(v) => set("phone", v)} />}
+          </Field>
+          <ChoiceChip label={t.start.whatsappSame} checked={waSame} onChange={(e) => {
+            setWaSame(e.target.checked);
+            setState("");
+          }} className="self-end" />
+          {!waSame && (
+            <Field label={t.start.whatsapp} className="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
+              {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={form.whatsapp} autoComplete="off" onChange={(v) => set("whatsapp", v)} />}
+            </Field>
+          )}
+          <Field label={t.start.instagram} error={errors.instagram}>
+            {(a) => (
+              <div className="relative">
+                <span aria-hidden className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-faint">@</span>
+                <Input id={a.id} value={form.instagram} placeholder={t.start.instagramHint} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                  aria-invalid={a.invalid} onChange={(e) => set("instagram", e.target.value.replace(/^@+/, ""))} className="pl-8" />
+              </div>
+            )}
+          </Field>
+          <Field label={t.start.messenger} error={errors.messenger}>
+            {(a) => <Input id={a.id} value={form.messenger} placeholder={t.start.messengerHint} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+              aria-invalid={a.invalid} onChange={(e) => set("messenger", e.target.value)} />}
+          </Field>
           <Field label={t.start.company}>{(a) => <Input id={a.id} autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} />}</Field>
           <Field label={s.country}>{(a) => <Input id={a.id} autoComplete="country-name" value={form.country} onChange={(e) => set("country", e.target.value)} />}</Field>
         </div>
@@ -201,7 +229,7 @@ export function SettingsPage({ lang, t }: { lang: Locale; t: T }) {
       <div className="border-t border-line px-6 py-4 md:px-10">
         <Link href={`/${lang}/${user.is_developer ? "studio" : "portal"}`} className="hud text-muted hover:text-ink">← {t.portal.requests}</Link>
       </div>
-      <ProfileForm t={t} user={user} />
+      <ProfileForm lang={lang} t={t} user={user} />
       <PasswordForm t={t} />
       {!user.is_developer && <DeleteAccount lang={lang} t={t} hasPassword={user.has_password} />}
     </>

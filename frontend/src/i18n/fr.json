@@ -406,7 +406,13 @@
     "budgetCustom": "Ma propre fourchette",
     "budgetUnder": "Moins de {amount}",
     "budgetOver": "Plus de {amount}",
-    "budgetPlaceholder": "ex. {amount}"
+    "budgetPlaceholder": "ex. {amount}",
+    "whatsappSame": "Ce numéro est aussi sur WhatsApp",
+    "alsoReach": "Me joindre aussi sur (facultatif)",
+    "instagram": "Instagram",
+    "messenger": "Messenger",
+    "instagramHint": "votre.nom",
+    "messengerHint": "nom d'utilisateur ou lien m.me"
   },
   "auth": {
     "loginTitle": [

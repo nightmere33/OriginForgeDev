@@ -45,6 +45,8 @@ class ClientSummarySerializer(serializers.Serializer):
     company = serializers.CharField()
     phone = serializers.CharField()
     whatsapp = serializers.CharField()
+    instagram = serializers.CharField()
+    messenger = serializers.CharField()
     country = serializers.CharField()
     # From onboarding: where they'd rather talk, and how they found the studio.
     contact_channel = serializers.CharField()

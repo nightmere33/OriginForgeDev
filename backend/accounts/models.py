@@ -47,6 +47,9 @@ class User(AbstractUser):
     company = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=40, blank=True)
     whatsapp = models.CharField(max_length=40, blank=True)
+    # Optional ways to reach the client, besides the phone and the website chat.
+    instagram = models.CharField(max_length=60, blank=True, help_text="Username, without the @")
+    messenger = models.CharField(max_length=120, blank=True, help_text="Facebook username or m.me link")
     country = models.CharField(max_length=80, blank=True)
     # Postal address (invoices, couriers); all optional, edited in Settings.
     address = models.CharField(max_length=255, blank=True)

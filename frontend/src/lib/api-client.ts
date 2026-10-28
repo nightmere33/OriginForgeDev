@@ -14,6 +14,8 @@ export type User = {
   company: string;
   phone: string;
   whatsapp: string;
+  instagram: string;
+  messenger: string;
   country: string;
   address: string;
   city: string;

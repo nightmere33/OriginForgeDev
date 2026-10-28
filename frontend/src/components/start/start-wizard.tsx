@@ -151,7 +151,8 @@ export default function StartWizard({
   const [resumed, setResumed] = useState(false);
   const [save, setSave] = useState<Save>("idle");
   // Contact details live on the profile; edits here are saved there on submit.
-  const [contactEdits, setContactEdits] = useState<Partial<Record<"phone" | "whatsapp" | "company", string>>>({});
+  const [contactEdits, setContactEdits] = useState<Partial<Record<"phone" | "whatsapp" | "instagram" | "messenger" | "company", string>>>({});
+  const [waSameEdit, setWaSame] = useState<boolean | null>(null);
   const [step, setStep] = useState(0);
   const wizard = useRef<HTMLDivElement>(null);
   const stepHeading = useRef<HTMLHeadingElement>(null);
@@ -288,8 +289,13 @@ export default function StartWizard({
   const contact = {
     phone: contactEdits.phone ?? user?.phone ?? "",
     whatsapp: contactEdits.whatsapp ?? user?.whatsapp ?? "",
+    instagram: contactEdits.instagram ?? user?.instagram ?? "",
+    messenger: contactEdits.messenger ?? user?.messenger ?? "",
     company: contactEdits.company ?? user?.company ?? "",
   };
+  // One number for calls and WhatsApp unless the client says otherwise.
+  const waSame = waSameEdit ?? (!user?.whatsapp || user.whatsapp === user.phone);
+  const saved = { ...contact, whatsapp: waSame ? contact.phone : contact.whatsapp };
   const setContact = (key: keyof typeof contactEdits, value: string) => setContactEdits((c) => ({ ...c, [key]: value }));
   const shownEstimate = draft.service ? estimate : null;
 
@@ -319,7 +325,7 @@ export default function StartWizard({
       // The phone is required (that's how a project gets moving); WhatsApp is optional but must be a number.
       if (!contact.phone) e.phone = s.phoneRequired;
       else if (!isValidPhoneNumber(contact.phone)) e.phone = s.phoneInvalid;
-      if (contact.whatsapp && !isValidPhoneNumber(contact.whatsapp)) e.whatsapp = s.phoneInvalid;
+      if (!waSame && contact.whatsapp && !isValidPhoneNumber(contact.whatsapp)) e.whatsapp = s.phoneInvalid;
     }
     return e;
   };
@@ -372,8 +378,8 @@ export default function StartWizard({
     try {
       const ref = await ensureDraft(draft);
       await api.patch(`/requests/${ref}/`, toBody(draft, lang, true));
-      if (contact.phone !== user?.phone || contact.whatsapp !== user?.whatsapp || contact.company !== user?.company) {
-        await api.patch("/auth/me/", contact).catch(() => undefined);
+      if ((Object.keys(saved) as (keyof typeof saved)[]).some((k) => saved[k] !== (user?.[k] ?? ""))) {
+        await api.patch("/auth/me/", saved).catch(() => undefined);
       }
       const sent = await api.post<ProjectRequest>(`/requests/${ref}/submit/`);
       setDone({ reference: ref, email: user?.email ?? "", queue: sent.queue });
@@ -621,12 +627,32 @@ export default function StartWizard({
                         setErrors((e) => ({ ...e, phone: undefined }));
                       }} />}
                   </Field>
-                  <Field label={s.whatsapp} error={errors.whatsapp}>
-                    {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.whatsapp} invalid={a.invalid} describedBy={a.describedBy}
-                      autoComplete="off" onChange={(v) => {
-                        setContact("whatsapp", v);
-                        setErrors((e) => ({ ...e, whatsapp: undefined }));
-                      }} />}
+                  <ChoiceChip label={s.whatsappSame} checked={waSame} onChange={(e) => {
+                    setWaSame(e.target.checked);
+                    setErrors((er) => ({ ...er, whatsapp: undefined }));
+                  }} className="self-end" />
+                  {!waSame && (
+                    <Field label={s.whatsapp} error={errors.whatsapp} className="[animation:step-in_var(--dur-standard)_var(--ease-out)] sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
+                      {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.whatsapp} invalid={a.invalid} describedBy={a.describedBy}
+                        autoComplete="off" onChange={(v) => {
+                          setContact("whatsapp", v);
+                          setErrors((e) => ({ ...e, whatsapp: undefined }));
+                        }} />}
+                    </Field>
+                  )}
+                  <p className="hud -mb-2 text-muted sm:col-span-2">{s.alsoReach}</p>
+                  <Field label={s.instagram}>
+                    {(a) => (
+                      <div className="relative">
+                        <span aria-hidden className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-faint">@</span>
+                        <Input id={a.id} value={contact.instagram} placeholder={s.instagramHint} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                          onChange={(e) => setContact("instagram", e.target.value.replace(/^@+/, ""))} className="pl-8" />
+                      </div>
+                    )}
+                  </Field>
+                  <Field label={s.messenger}>
+                    {(a) => <Input id={a.id} value={contact.messenger} placeholder={s.messengerHint} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+                      onChange={(e) => setContact("messenger", e.target.value)} />}
                   </Field>
                   <Field label={s.company} className="sm:col-span-2">{(a) => <Input id={a.id} autoComplete="organization" value={contact.company} onChange={(e) => setContact("company", e.target.value)} />}</Field>
                 </div>
@@ -656,7 +682,8 @@ export default function StartWizard({
                   { k: s.deadline, v: draft.deadline, at: 2 },
                   { k: s.files, v: files.map((f) => f.original_name).join(", "), at: 3 },
                   { k: s.nda, v: draft.wants_nda ? "✓" : "", at: 3 },
-                  { k: s.email, v: [user.email, contact.phone, contact.whatsapp].filter(Boolean).join(" · "), at: 3 },
+                  { k: s.email, v: [user.email, saved.phone, saved.whatsapp !== saved.phone && saved.whatsapp, saved.instagram && `@${saved.instagram}`, saved.messenger]
+                    .filter(Boolean).join(" · "), at: 3 },
                 ].filter((r) => r.v).map((r) => (
                   <div key={r.k} className="grid gap-2 py-4 sm:grid-cols-[10rem_1fr_auto] sm:items-baseline">
                     <dt className="hud text-faint">{r.k}</dt>

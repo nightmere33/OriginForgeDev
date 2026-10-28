@@ -406,7 +406,13 @@
     "budgetCustom": "My own range",
     "budgetUnder": "Under {amount}",
     "budgetOver": "Over {amount}",
-    "budgetPlaceholder": "e.g. {amount}"
+    "budgetPlaceholder": "e.g. {amount}",
+    "whatsappSame": "This number is on WhatsApp too",
+    "alsoReach": "Also reach me on (optional)",
+    "instagram": "Instagram",
+    "messenger": "Messenger",
+    "instagramHint": "your.username",
+    "messengerHint": "username or m.me link"
   },
   "auth": {
     "loginTitle": [

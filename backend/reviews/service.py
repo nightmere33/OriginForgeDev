@@ -9,7 +9,7 @@ from audit.service import record
 from engagements.models import Engagement
 from notifications.events import notify_client, notify_studio_event
 
-from .models import Review
+from .models import Review, ReviewInvite
 
 # A review is about a delivered product.
 REVIEWABLE = (Engagement.Status.LIVE, Engagement.Status.CLOSED)
@@ -71,7 +71,7 @@ def edit(request, review: Review, data: dict) -> Review:
         setattr(review, key, value)
     review.status, review.rejection_reason = Review.Status.PENDING, ""
     review.save()
-    record(request, "review.edited", review.engagement.request)
+    record(request, "review.edited", _target(review))
     return review
 
 
@@ -80,7 +80,7 @@ def moderate(request, review: Review, decision: str, reply: str = "", reason: st
         raise ValidationError({"decision": "approve, reject or unpublish"})
     now = timezone.now()
     with transaction.atomic():
-        review = Review.objects.select_for_update().select_related("engagement__request", "author").get(pk=review.pk)
+        review = Review.objects.select_for_update().select_related("engagement__request", "author", "case_study").get(pk=review.pk)
         review.reply = reply.strip()
         review.moderated_at = now
         if decision == "approve":
@@ -94,12 +94,62 @@ def moderate(request, review: Review, decision: str, reply: str = "", reason: st
             review.rejection_reason = reason.strip()
             review.published_at = None
         review.save()
-        record(request, f"review.{decision}", review.engagement.request, review=review.pk)
+        record(request, f"review.{decision}", _target(review), review=review.pk)
     author = review.author
     if author and author.is_active:
-        path = f"/portal/requests/{review.engagement.request.reference}"
+        path = f"/portal/requests/{review.engagement.request.reference}" if review.engagement else "/portal/settings"
         if decision == "approve":
             notify_client("review_published", author, path, title=review.project_label)
         elif decision == "reject":
             notify_client("review_rejected", author, path, title=review.project_label, reason=review.rejection_reason)
+    return review
+
+
+def _target(review: Review):
+    """What the audit log files a review under: its request, else its case study."""
+    return review.engagement.request if review.engagement else (review.case_study or review)
+
+
+def invite(request, *, email: str, full_name: str, case_study, language: str) -> ReviewInvite:
+    """Ask a client from outside the platform for a review of this project."""
+    from datetime import timedelta
+
+    from notifications.events import notify_address
+
+    inv = ReviewInvite.objects.create(
+        email=email.lower().strip(), full_name=full_name.strip(), language=language if language in ("en", "fr") else "en",
+        case_study=case_study, created_by=request.user, expires_at=timezone.now() + timedelta(days=ReviewInvite.VALID_DAYS),
+    )
+    record(request, "review.invited", case_study, email=inv.email)
+    notify_address("review_invite_project", inv.email, inv.full_name, inv.language, f"/reviews/invite/{inv.token}",
+                   project=case_study.title)
+    return inv
+
+
+def open_invite(token: str) -> ReviewInvite | None:
+    inv = ReviewInvite.objects.select_related("case_study", "review").filter(token=token).first()
+    if not inv or inv.used_at or inv.expires_at < timezone.now():
+        return inv if inv and inv.used_at else None
+    return inv
+
+
+def submit_invited(request, token: str, data: dict) -> Review:
+    user = request.user
+    with transaction.atomic():
+        inv = ReviewInvite.objects.select_for_update().select_related("case_study").filter(token=token).first()
+        if not inv or inv.expires_at < timezone.now():
+            raise ValidationError({"detail": "This invitation has expired. Write to me for a new one."})
+        if inv.used_at:
+            raise ValidationError({"detail": "This invitation was already used. Thank you!"})
+        # Bound to the address it was sent to: someone else's link reviews nothing.
+        if user.email.lower() != inv.email:
+            raise PermissionDenied("This invitation was sent to another e-mail address.")
+        review = Review.objects.create(
+            case_study=inv.case_study, author=user, language=user.language if user.language in ("en", "fr") else inv.language,
+            project_label=inv.case_study.title, **data,
+        )
+        inv.used_at, inv.review = timezone.now(), review
+        inv.save(update_fields=["used_at", "review"])
+        record(request, "review.submitted", inv.case_study, rating=review.rating)
+    notify_studio_event("studio_review", "/studio/reviews", ref=inv.case_study.title, client=user.full_name, stars="★" * review.rating)
     return review

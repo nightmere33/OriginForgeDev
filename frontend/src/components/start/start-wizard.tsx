@@ -21,6 +21,8 @@ import { BriefQuestions } from "./brief-questions";
 import { briefFor, briefRows, featureLabel, say, type Brief } from "./briefs";
 import { SecurePayments } from "@/components/ui/secure-payments";
 import { DatePicker } from "@/components/ui/date-picker";
+import { EmailCode } from "@/components/auth/email-code";
+import { QueueCard, QueueNotice } from "./queue-notice";
 
 type Draft = {
   service: string;
@@ -150,7 +152,9 @@ export default function StartWizard({
   const [pending, setPending] = useState<Pending[]>([]);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ reference: string; email: string } | null>(null);
+  const [done, setDone] = useState<{ reference: string; email: string; queue: ProjectRequest["queue"] } | null>(null);
+  // Requests are sent from a confirmed address; the code step opens on demand.
+  const [askCode, setAskCode] = useState(false);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -334,8 +338,8 @@ export default function StartWizard({
       if (contact.phone !== user?.phone || contact.whatsapp !== user?.whatsapp || contact.company !== user?.company) {
         await api.patch("/auth/me/", contact).catch(() => undefined);
       }
-      await api.post(`/requests/${ref}/submit/`);
-      setDone({ reference: ref, email: user?.email ?? "" });
+      const sent = await api.post<ProjectRequest>(`/requests/${ref}/submit/`);
+      setDone({ reference: ref, email: user?.email ?? "", queue: sent.queue });
     } catch (err) {
       if (err instanceof ApiError) {
         const fieldErrors: Errors = {};
@@ -346,6 +350,11 @@ export default function StartWizard({
             fieldErrors[key as keyof Errors] = msg;
             jump = Math.min(jump, FIELD_STEP[key]);
           }
+        }
+        if (err.field("code") === "email_unverified") {
+          setAskCode(true);
+          setStep(s.steps.length - 1);
+          return;
         }
         if (!Object.keys(fieldErrors).length) fieldErrors.form = err.message;
         setErrors(fieldErrors);
@@ -373,6 +382,11 @@ export default function StartWizard({
         <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-muted">
           {fill(s.doneText, { ref: done.reference, email: done.email })}
         </p>
+        {done.queue && (
+          <div className="mx-auto mt-10 max-w-md text-left">
+            <QueueCard lang={lang} s={s} queue={done.queue} />
+          </div>
+        )}
         <Link
           href={`/${lang}/portal/requests/${done.reference}`}
           className="mt-10 inline-flex h-12 items-center bg-ember-500 px-6 font-mono text-hud font-bold uppercase tracking-[0.12em] text-on-ember hover:bg-ember-600"
@@ -385,6 +399,8 @@ export default function StartWizard({
 
   const last = step === s.steps.length - 1;
   const selected = services.find((x) => x.slug === draft.service);
+  // The live session first: it turns verified the moment the code is accepted.
+  const verified = (session ?? user).email_verified || user.is_developer;
   const brief = briefFor(draft.service);
   const factors = pricing[draft.service] ?? pricing[""] ?? [];
   const plan = plans.find((p) => p.code === draft.plan);
@@ -466,6 +482,7 @@ export default function StartWizard({
               ))}
               <ChoiceChip type="radio" name="service" label={s.serviceOther} description={s.serviceOtherHelp}
                 checked={draft.service === ""} onChange={() => pickService("")} />
+              <QueueNotice lang={lang} s={s} service={draft.service} title={selected?.title} className="sm:col-span-2" />
             </fieldset>
           )}
 
@@ -561,6 +578,7 @@ export default function StartWizard({
 
           {step === 4 && (
             <>
+              <QueueNotice lang={lang} s={s} service={draft.service} title={selected?.title} />
               <EstimateReadout lang={lang} s={s} estimate={shownEstimate} loading={estimating} />
               <dl className="divide-y divide-line border-y border-line">
                 {[
@@ -590,6 +608,19 @@ export default function StartWizard({
                 ))}
               </dl>
               <SecurePayments labels={t.trust} compact />
+              {!verified && (
+                <div className="flex flex-col gap-4 border border-ember-400/50 bg-ember-500/[0.05] p-5 md:p-6">
+                  <Hud tone="ember" dot>{t.auth.code.toSend}</Hud>
+                  {askCode ? (
+                    <EmailCode a={t.auth} email={user.email} onVerified={() => setAskCode(false)} />
+                  ) : (
+                    <Button variant="secondary" size="sm" onClick={() => {
+                      api.post("/auth/verify-email/resend/").catch(() => undefined);
+                      setAskCode(true);
+                    }}>{t.auth.code.sendMe}</Button>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -623,7 +654,7 @@ export default function StartWizard({
                 </Hud>
               )}
             </span>
-            <Button type="submit" variant={last ? "ember" : "primary"} arrow={!last} loading={busy}>
+            <Button type="submit" variant={last ? "ember" : "primary"} arrow={!last} loading={busy} disabled={last && !verified}>
               {last ? s.submit : t.common.next}
             </Button>
           </div>

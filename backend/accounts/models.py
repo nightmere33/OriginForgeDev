@@ -48,6 +48,10 @@ class User(AbstractUser):
     phone = models.CharField(max_length=40, blank=True)
     whatsapp = models.CharField(max_length=40, blank=True)
     country = models.CharField(max_length=80, blank=True)
+    # Postal address (invoices, couriers); all optional, edited in Settings.
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=80, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
     language = models.CharField(max_length=2, choices=Language.choices, default=Language.EN)
     # How prices are shown to this person (amounts in a contract keep their own currency).
     currency = models.CharField(max_length=3, choices=[(c, c) for c in ("DZD", "EUR", "USD")], default="DZD")
@@ -112,3 +116,28 @@ class SocialAccount(models.Model):
 
     def __str__(self):
         return f"{self.get_provider_display()} · {self.email or self.uid}"
+
+
+class EmailCode(models.Model):
+    """
+    A 6-digit code that confirms an e-mail address (sent at sign-up and on
+    request). Only a keyed hash is stored; it lasts 15 minutes and allows
+    5 tries, and a new one replaces the old.
+    """
+
+    TTL_MINUTES = 15
+    MAX_ATTEMPTS = 5
+    RESEND_SECONDS = 45
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_codes")
+    code_hash = models.CharField(max_length=64)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Code for {self.user} ({self.created_at:%Y-%m-%d %H:%M})"

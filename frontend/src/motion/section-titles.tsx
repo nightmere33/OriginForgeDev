@@ -118,9 +118,9 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
       const p = marks.map((_, i) => (heroMode && i === 0 ? clamp01(y / (vh * 0.45)) : i < n - 1 ? a[i + 1] : 0));
       const snap = (v: number) => (reduced ? (v >= 0.5 ? 1 : 0) : v);
       // The hero letters are ours to move once the intro is over and the page
-      // has left the very top (or the ruler map is open); at rest they are the
-      // wordmark again, untouched.
-      const handoff = heroMode && introClock.done && (y > 1 || z > 0);
+      // has left the very top; at rest they are the wordmark again, untouched.
+      // Opening the ruler map at the top never moves them (as on getartcraft.com).
+      const handoff = heroMode && introClock.done && y > 1;
       if (handoff !== handedOff) {
         if (handoff) measureHero();
         else rest();
@@ -170,8 +170,10 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
           if (!reduced) x -= (Math.sin(Math.PI * aj) * (isHero ? 0 : 1) + Math.sin(Math.PI * pj)) * ARC;
           let alpha = q * 0.5 + c + pa * 0.62 + h;
           // Zoomed-out ruler: letters leave one after another for the title's place on the map.
+          // The hero wordmark joins the map only as far as it has already left
+          // the hero for the stack, so the map never dismantles it in place.
           const mapShare = 1 - (L - 1) * STAGGER * 0.5;
-          const ov = z > 0 ? (reduced ? z : smooth(clamp01((z - j * STAGGER * 0.5) / mapShare))) : 0;
+          const ov = (z > 0 ? (reduced ? z : smooth(clamp01((z - j * STAGGER * 0.5) / mapShare))) : 0) * (isHeroRow ? p[i] : 1);
           if (ov > 0) {
             const mk = MAP / BASE;
             x += (right - total * mk + offset * mk - x) * ov;

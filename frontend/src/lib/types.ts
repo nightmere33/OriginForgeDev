@@ -165,6 +165,8 @@ export type PublicReview = {
   language: string;
   published_at: string | null;
   featured: boolean;
+  /** The portfolio project it is about (logo, page), when there is one. */
+  project: { slug: string; title: string; accent: string; logo: string | null; mark: string | null } | null;
 };
 
 export type ReviewSummary = { count: number; average: number | null; distribution: Record<"5" | "4" | "3" | "2" | "1", number> };

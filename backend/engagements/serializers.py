@@ -66,6 +66,7 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
     allowed_moves = serializers.SerializerMethodField()
     engagement_status = serializers.SerializerMethodField()
+    queue = serializers.SerializerMethodField()
 
     class Meta:
         model = ProjectRequest
@@ -73,7 +74,7 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
             "reference", "service", "service_title", "title", "objectives", "requirements", "features", "brief",
             "budget_min", "budget_max", "budget_currency", "deadline", "deadline_flexible",
             "reference_links", "language", "plan", "options", "estimate_low", "estimate_high", "estimate_currency",
-            "wants_nda", "status", "status_label", "status_note", "engagement_status", "attachments", "allowed_moves",
+            "wants_nda", "status", "status_label", "status_note", "engagement_status", "attachments", "allowed_moves", "queue",
             "created_at", "updated_at",
         )
         read_only_fields = ("reference", "status", "status_note", "estimate_low", "estimate_high", "estimate_currency",
@@ -86,6 +87,17 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
         # The files the client shared: update media and chat files live with those.
         files = [a for a in obj.attachments.all() if not a.updates.all() and not hasattr(a, "message")]
         return AttachmentSerializer(files, many=True, context=self.context).data
+
+    def get_queue(self, obj) -> dict | None:
+        """Waiting in the queue: the position and estimated start (None otherwise)."""
+        if not obj.queued_at or obj.queue_left_at or obj.status == ProjectRequest.Status.DRAFT:
+            return None
+        from .queue import spot
+
+        where = spot(obj)
+        if where.position is None:
+            return None
+        return {"position": where.position, "start": where.start, "active": where.active, "capacity": where.capacity}
 
     def get_engagement_status(self, obj):
         eng = getattr(obj, "engagement", None)

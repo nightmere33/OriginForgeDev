@@ -5,4 +5,6 @@ class EngagementsConfig(AppConfig):
     name = "engagements"
 
     def ready(self):
-        from . import capacity  # noqa: F401  (signal)
+        from . import capacity, queue  # noqa: F401  (signal)
+
+        queue.connect()

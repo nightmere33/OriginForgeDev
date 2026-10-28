@@ -386,7 +386,20 @@
     "discard": "Supprimer le brouillon",
     "discardConfirm": "Supprimer",
     "discardKeep": "Garder",
-    "serviceOtherHelp": "Jeux sous Unity et autres projets, sur devis."
+    "serviceOtherHelp": "Jeux sous Unity et autres projets, sur devis.",
+    "queue": {
+      "hours": "Je lis chaque demande moi-même et je réponds sous {min} à {max} heures.",
+      "direct": "{service} ne passe pas par la file : je le prends directement.",
+      "open": "Disponible maintenant : on peut commencer dès qu'on est d'accord sur le plan.",
+      "full": "Complet en ce moment : {active} projets en cours sur {capacity}",
+      "paused": "Les démarrages sont en pause pour peu de temps",
+      "join": "Votre demande rejoint la file en position {n}.",
+      "start": "Démarrage estimé : vers le {date}.",
+      "you": "Vous",
+      "told": "Vous serez prévenu dès que c'est votre tour, et vous suivez votre place depuis votre espace client.",
+      "inQueue": "Votre place dans la file",
+      "soon": "Démarrage bientôt."
+    }
   },
   "auth": {
     "loginTitle": [
@@ -496,6 +509,21 @@
       "password": "Votre mot de passe",
       "newPassword": "Au moins 10 caractères",
       "fullName": "Prénom et nom"
+    },
+    "code": {
+      "lead": "Je vous ai envoyé un code à 6 chiffres à {email}. Saisissez-le ici : il se valide tout seul.",
+      "label": "Code de vérification",
+      "wrong": "Ce code n'est pas le bon. Réessayez.",
+      "expired": "Ce code a expiré. Demandez-en un nouveau ci-dessous.",
+      "resend": "M'envoyer un nouveau code",
+      "resendIn": "Nouveau code dans {n} s",
+      "sent": "Un nouveau code est en route.",
+      "ok": "E-mail confirmé. Merci !",
+      "checking": "Vérification",
+      "unverified": "Votre e-mail n'est pas encore confirmé",
+      "verifyNow": "Le confirmer maintenant",
+      "toSend": "Confirmez votre e-mail pour envoyer la demande",
+      "sendMe": "M'envoyer le code"
     }
   },
   "portal": {
@@ -638,7 +666,22 @@
       "unfeature": "Retirer la mise en avant",
       "unpublish": "Dépublier",
       "reject": "Renvoyer",
-      "sendBack": "Renvoyer au client"
+      "sendBack": "Renvoyer au client",
+      "invites": {
+        "title": "Inviter à laisser un avis",
+        "lead": "Pour un projet réalisé avant la plateforme (MediGate).",
+        "email": "E-mail du client",
+        "name": "Nom du client",
+        "project": "Projet",
+        "language": "Langue de l'e-mail",
+        "send": "Envoyer l'invitation",
+        "sent": "Invitation envoyée à {email}.",
+        "states": {
+          "sent": "En attente",
+          "used": "Avis reçu",
+          "expired": "Expirée"
+        }
+      }
     },
     "dash": {
       "tabs": {
@@ -648,7 +691,9 @@
         "payments": "Paiements",
         "reviews": "Avis",
         "settings": "Réglages",
-        "kit": "Kit"
+        "kit": "Kit",
+        "queue": "File",
+        "services": "Services"
       },
       "overview": {
         "title": [
@@ -702,7 +747,8 @@
         "paused": "Demandes en pause",
         "full": "Complet",
         "allTime": "Au total : {sum}",
-        "none": "Rien pour l'instant"
+        "none": "Rien pour l'instant",
+        "queued": "{n} en attente dans la file"
       },
       "byStage": "Demandes par étape",
       "byService": "Demandes par service",
@@ -738,13 +784,13 @@
         "prices": "Prix de départ"
       },
       "help": {
-        "availability": "Mettez les demandes en pause quand vous êtes complet. Le formulaire affiche votre note et la date de retour.",
+        "availability": "Personne n'est refusé : quand vous êtes complet, les demandes rejoignent la file avec leur position et leur démarrage estimé. Mettez les démarrages en pause pendant les congés.",
         "payments": "Montrées seulement à un client connecté qui a un paiement à faire. Jamais publiques.",
         "prices": "En DZD. Euros et dollars suivent le taux du marché du jour. Laissez vide pour « sur devis »."
       },
       "fields": {
-        "is_available": "J'accepte de nouveaux projets",
-        "max_active_projects": "Projets en même temps (0 = sans limite)",
+        "is_available": "Je démarre de nouveaux projets (décochez pour mettre en pause : les demandes attendent en file)",
+        "max_active_projects": "Projets en même temps (file partagée, 0 = sans limite)",
         "available_from": "De retour le",
         "availability_en": "Note pendant la pause (anglais)",
         "availability_fr": "Note pendant la pause (français)",
@@ -763,7 +809,7 @@
         "about_fr": "À propos (français)",
         "years_experience": "Années d'expérience",
         "projects_shipped": "Projets livrés",
-        "reply_hours": "Réponse sous (heures)",
+        "reply_hours": "Première réponse en général (heures)",
         "ccp_account": "Numéro CCP",
         "ccp_key": "Clé CCP",
         "ccp_holder": "Titulaire du compte",
@@ -772,7 +818,8 @@
         "cash_note_en": "Note paiement en espèces (anglais)",
         "cash_note_fr": "Note paiement en espèces (français)",
         "usdt_bep20_address": "Adresse USDT (BEP20)",
-        "usdt_rate_override": "Taux du dollar imposé (DZD, vide = en direct)"
+        "usdt_rate_override": "Taux du dollar imposé (DZD, vide = en direct)",
+        "review_hours": "Première réponse au plus tard (heures)"
       },
       "listed": "Affiché sur le site",
       "kinds": {
@@ -824,6 +871,93 @@
           "graphique."
         ],
         "lead": "Chaque brique du site, en direct, avec le fichier où elle vit. Les nouveaux écrans se construisent avec."
+      },
+      "queuePage": {
+        "title": [
+          "La ",
+          "file d'attente."
+        ],
+        "lead": "Qui est en cours, qui est le prochain, et quand chacun devrait démarrer. Démarrez-en un maintenant ou réordonnez la file."
+      },
+      "servicesPage": {
+        "title": [
+          "Vos ",
+          "services."
+        ],
+        "lead": "Textes, prix de départ, capacité et règles de file pour chaque service. Les changements sont en ligne en moins d'une minute."
+      },
+      "queue": {
+        "position": "N°{n} dans la file",
+        "take": "Démarrer maintenant",
+        "studioLane": "Projets du studio",
+        "places": "{used} places prises sur {capacity}",
+        "noLimit": "Sans limite",
+        "full": "complet",
+        "ends": "fin {date}",
+        "starting": "Démarre ensuite",
+        "startsAround": "démarre ~{date}",
+        "startsSoon": "démarre bientôt",
+        "up": "Monter",
+        "down": "Descendre",
+        "empty": "Personne n'attend."
+      },
+      "services": {
+        "quoted": "Sur devis",
+        "direct": "Pris directement",
+        "noLimit": "Sans limite",
+        "placesShort": "{used}/{capacity} places",
+        "waiting": "{n} en attente",
+        "hidden": "Masqué",
+        "listed": "Affiché sur le site",
+        "price": "Prix de départ (DZD)",
+        "priceHelp": "Vide = sur devis. Euros et dollars suivent le taux du jour.",
+        "priceKind": "Affichage",
+        "kinds": {
+          "from": "À partir de",
+          "per_minute": "À partir de, par minute",
+          "fixed": "Fixe",
+          "monthly": "Par mois",
+          "hourly": "Par heure"
+        },
+        "capacity": "Capacité et file",
+        "modes": {
+          "shared": "Partage la limite du studio",
+          "own": "Sa propre limite",
+          "direct": "Pris directement"
+        },
+        "modesHelp": {
+          "shared": "Compte dans vos projets en même temps. Complet : les demandes attendent dans la file.",
+          "own": "Son propre nombre de projets en même temps, à part du reste.",
+          "direct": "Jamais en file, quoi qu'il arrive par ailleurs (films)."
+        },
+        "maxActive": "Projets en même temps",
+        "maxActiveHelp": "0 = sans limite.",
+        "typicalDays": "Durée habituelle (jours)",
+        "typicalDaysHelp": "Sert à estimer le démarrage des demandes en file.",
+        "words": {
+          "title": "Titre",
+          "summary": "Résumé",
+          "timeline": "Délai",
+          "deliverables": "Livrables",
+          "description": "Description"
+        },
+        "onePerLine": "Un par ligne."
+      },
+      "email": {
+        "title": "E-mail",
+        "help": "Vérifiez que les e-mails partent vraiment : comment ils sont envoyés, si le processus d'envoi répond, et un vrai test.",
+        "backend": "Envoyés par",
+        "smtp": "Serveur de messagerie",
+        "console": "Personne : seulement le journal du serveur",
+        "worker": "Processus d'envoi",
+        "workerUp": "Répond",
+        "workerDown": "Ne répond pas",
+        "inline": "Direct (sans file)",
+        "from": "Expéditeur",
+        "studio": "Vos copies vont à",
+        "test": "Envoyer un e-mail de test",
+        "sent": "Envoyé à {to}. Vérifiez cette boîte (et les spams).",
+        "failed": "Non envoyé :"
       }
     }
   },
@@ -1091,7 +1225,12 @@
     "deleteType": "Tapez {word} pour confirmer",
     "deleteWord": "SUPPRIMER",
     "deleteConfirm": "Supprimer définitivement",
-    "deleteCancel": "Garder mon compte"
+    "deleteCancel": "Garder mon compte",
+    "addressTitle": "Adresse",
+    "address": "Adresse postale",
+    "addressHelp": "Pour les factures et les envois par coursier. Facultatif.",
+    "city": "Ville",
+    "postalCode": "Code postal"
   },
   "onboarding": {
     "title": [
@@ -1160,7 +1299,23 @@
     "breakdown": "Répartition des notes",
     "verified": "Vérifié",
     "verifiedNote": "Seuls les clients avec un projet livré peuvent laisser un avis, un par projet. Rien n'est inventé, rien n'est retouché.",
-    "replyFrom": "Réponse de Younes"
+    "replyFrom": "Réponse de Younes",
+    "aboutProject": "À propos de {project}",
+    "invite": {
+      "label": "Avis",
+      "heading": [
+        "Votre ",
+        "avis."
+      ],
+      "lead": "Quelques mots sincères aident d'autres clients à se décider. Rien n'est publié sans votre accord.",
+      "title": "Comment s'est passée la création de {project} ?",
+      "note": "Votre avis s'affiche avec le logo du projet et renvoie vers sa page. Vous choisissez le nom affiché.",
+      "expired": "Cette invitation a expiré ou a déjà servi. Écrivez-moi si vous en voulez une nouvelle.",
+      "thanks": "Merci ! Votre avis m'est parvenu et sera en ligne dès que je l'aurai lu.",
+      "signIn": "Connectez-vous ou créez votre compte avec l'adresse à laquelle cette invitation a été envoyée ({email}).",
+      "otherEmail": "Cette invitation a été envoyée à {email}. Connectez-vous avec cette adresse pour écrire l'avis.",
+      "switch": "Se déconnecter et changer de compte"
+    }
   },
   "trust": {
     "title": "Paiements sécurisés",

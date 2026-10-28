@@ -15,6 +15,9 @@ export type User = {
   phone: string;
   whatsapp: string;
   country: string;
+  address: string;
+  city: string;
+  postal_code: string;
   language: "en" | "fr" | "ar";
   currency: "DZD" | "EUR" | "USD";
   email_verified: boolean;

@@ -34,8 +34,11 @@ User = get_user_model()
 
 
 def send_verification(user):
+    """The 6-digit code (typed on the site) and, as a fallback, a link."""
+    from .tokens import new_email_code
+
     link = site_url(f"/{user_lang(user)}/verify-email?token={make_verification_token(user)}")
-    notify_user("verify_email", user, link=link)
+    notify_user("verify_email", user, link=link, code=new_email_code(user))
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -130,9 +133,38 @@ class ResendVerificationView(APIView):
     throttle_scope = "password_reset"
 
     def post(self, request):
-        if request.user.email_verified_at is None:
-            send_verification(request.user)
-        return Response({"ok": True})
+        from .models import EmailCode
+
+        user = request.user
+        if user.email_verified_at is not None:
+            return Response({"ok": True, "verified": True})
+        last = EmailCode.objects.filter(user=user).first()
+        wait = EmailCode.RESEND_SECONDS - (timezone.now() - last.created_at).total_seconds() if last else 0
+        if wait > 0:
+            return Response({"detail": "Wait a moment before asking for a new code.", "retry_after": int(wait) + 1},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        send_verification(user)
+        return Response({"ok": True, "retry_after": EmailCode.RESEND_SECONDS})
+
+
+class VerifyCodeView(APIView):
+    """The 6-digit code from the sign-up e-mail confirms the address."""
+
+    throttle_scope = "login"
+
+    def post(self, request):
+        from .tokens import check_email_code
+
+        user = request.user
+        if user.email_verified_at is None:
+            result = check_email_code(user, str(request.data.get("code", "")))
+            if result != "ok":
+                detail = "That code has expired. Ask for a new one." if result == "expired" else "That code isn't right."
+                return Response({"detail": detail, "code": result}, status=status.HTTP_400_BAD_REQUEST)
+            user.email_verified_at = timezone.now()
+            user.save(update_fields=["email_verified_at"])
+            record(request, "account.email_verified", user, actor=user)
+        return Response(UserSerializer(user).data)
 
 
 @method_decorator(csrf_protect, name="dispatch")

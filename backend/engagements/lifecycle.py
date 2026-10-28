@@ -65,10 +65,13 @@ def submit_draft(request, req: ProjectRequest) -> ProjectRequest:
     missing = {f: "This field is required." for f in ("title", "objectives") if not getattr(req, f).strip()}
     if missing:
         raise ValidationError(missing)
-    if not accepting():
-        site = SiteSettings.load()
-        raise PermissionDenied(site.availability_en or "New project requests are paused for now.")
+    if not request.user.email_verified_at:
+        raise ValidationError({"email": "Confirm your e-mail first.", "code": "email_unverified"})
+    # Never refused: a full studio queues it (engagements/queue.py).
+    from .queue import join_on_submit
+
     req.status = R.SUBMITTED
+    join_on_submit(req)
     return submit_request(request, req)
 
 
@@ -511,7 +514,7 @@ def post_message(request, req: ProjectRequest, body: str, attachment=None) -> Me
 
 def tick(now=None) -> dict:
     now = now or timezone.now()
-    counts = {"proposals_expired": 0, "reminders": 0, "deposits_expired": 0, "closed": 0, "waitlist": 0}
+    counts = {"proposals_expired": 0, "reminders": 0, "deposits_expired": 0, "closed": 0, "waitlist": 0, "review_reminders": 0}
 
     for proposal in Proposal.objects.filter(status=P.SENT, expires_at__lt=now).select_related("request__client"):
         with transaction.atomic():
@@ -544,6 +547,18 @@ def tick(now=None) -> dict:
         Engagement.objects.filter(pk=eng.pk).update(status=E.CLOSED, closed_at=now)
         notify_client("project_closed", eng.client, _path(eng.request), title=eng.title)
         counts["closed"] += 1
+
+    # Unanswered for a day: a nudge to the studio (once per request).
+    for req in ProjectRequest.objects.filter(status=R.SUBMITTED, review_reminded_at__isnull=True,
+                                             created_at__lt=now - timedelta(hours=24)).select_related("client"):
+        ProjectRequest.objects.filter(pk=req.pk).update(review_reminded_at=now)
+        notify_studio_event("studio_review_due", _studio_path(req), ref=req.reference, title=req.title,
+                            client=req.client.full_name, hours=int((now - req.created_at).total_seconds() // 3600))
+        counts["review_reminders"] += 1
+
+    from .queue import advance
+
+    counts["queue_released"] = advance()
 
     if accepting():
         for entry in WaitlistEntry.objects.filter(notified_at__isnull=True):

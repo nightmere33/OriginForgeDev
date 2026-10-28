@@ -67,3 +67,29 @@ class StudioTests(TestCase):
         c.patch("/api/studio/prices/", {"slug": "web", "amount": None}, format="json")
         self.assertFalse(ServicePrice.objects.filter(service=self.web).exists())
         self.assertEqual(c.patch("/api/studio/prices/", {"slug": "nope", "amount": 1}, format="json").status_code, 400)
+
+    def test_services_edit_words_price_and_capacity(self):
+        c = self.as_user(self.dev)
+        rows = c.get("/api/studio/services/").json()
+        self.assertEqual(rows[0]["slug"], "web")
+        res = c.patch("/api/studio/services/web/", {"title_fr": "Sites", "max_active": 3, "accept_directly": True,
+                                                     "typical_days": 12, "amount": 50000, "kind": "from"}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.web.refresh_from_db()
+        self.assertEqual((self.web.title_fr, self.web.max_active, self.web.accept_directly, self.web.typical_days), ("Sites", 3, True, 12))
+        self.assertEqual(res.data["amount"], 50000)
+        self.assertTrue(res.data["queue"]["direct"])
+        log = AuditLog.objects.get(action="studio.service_changed")
+        self.assertIn("price", log.data["fields"])
+        self.assertEqual(self.as_user(self.alice).patch("/api/studio/services/web/", {"title_fr": "x"}, format="json").status_code, 403)
+
+    @override_settings(STUDIO_NOTIFY_EMAIL="", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_email_check_sends_a_test(self):
+        from django.core import mail
+
+        c = self.as_user(self.dev)
+        self.assertIn(c.get("/api/studio/email/").json()["backend"], ("smtp", "console"))
+        res = c.post("/api/studio/email/").json()
+        self.assertEqual(res["to"], self.dev.email)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Test e-mail", mail.outbox[0].subject)

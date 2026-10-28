@@ -24,6 +24,7 @@ from billing.models import Charge, Payment, PaymentProof
 from content.models import Service, ServicePrice, SiteSettings
 from engagements.capacity import status as capacity
 from engagements.models import Engagement, ProjectRequest, WaitlistEntry
+from engagements.queue import WAITING
 from reviews.models import Review
 
 STUDIO = [IsDeveloper]
@@ -79,6 +80,7 @@ def overview(request):
             "due": _per_currency(Charge.objects.filter(status=Charge.Status.DUE).values("currency").annotate(total=Sum("amount"))),
             "proofs_pending": PaymentProof.objects.filter(status=PaymentProof.Status.PENDING).count(),
         },
+        "queued": ProjectRequest.objects.filter(queued_at__isnull=False, queue_left_at__isnull=True, status__in=WAITING).count(),
         "reviews_pending": Review.objects.filter(status=Review.Status.PENDING).count(),
         "waitlist": WaitlistEntry.objects.filter(notified_at__isnull=True).count(),
         "activity": [
@@ -169,7 +171,7 @@ class StudioSettingsSerializer(serializers.ModelSerializer):
             "is_available", "max_active_projects", "available_from", "availability_en", "availability_fr",
             "email", "phone", "whatsapp", "discord_username", "github_url", "linkedin_url", "x_url",
             "instagram_url", "upwork_url", "location_en", "location_fr", "about_en", "about_fr",
-            "years_experience", "projects_shipped", "reply_hours",
+            "years_experience", "projects_shipped", "reply_hours", "review_hours",
             "ccp_account", "ccp_key", "ccp_holder", "ccp_address", "baridimob_rip", "cash_note_en", "cash_note_fr",
             "usdt_bep20_address", "usdt_rate_override",
         )
@@ -253,3 +255,152 @@ def prices(request):
                                                       defaults={"amount": data["amount"]})
         record(request, "studio.price_changed", service, **{k: v for k, v in data.items() if k != "slug"})
     return Response(_service_rows())
+
+
+@api_view(["GET"])
+@permission_classes(STUDIO)
+def queue_board(request):
+    from engagements.queue import lanes_overview
+
+    return Response(lanes_overview())
+
+
+@api_view(["POST"])
+@permission_classes(STUDIO)
+def queue_action(request, reference: str, action: str):
+    """take (start now, ahead of the queue), requeue (back to its place), up, down."""
+    from engagements import queue
+
+    req = ProjectRequest.objects.filter(reference=reference).select_related("service", "client").first()
+    if not req:
+        return Response({"detail": "Not found."}, status=404)
+    if action == "take":
+        queue.take_now(req)
+    elif action == "requeue":
+        queue.requeue(req)
+    elif action in ("up", "down"):
+        queue.move(req, -1 if action == "up" else 1)
+    else:
+        return Response({"detail": "Unknown action."}, status=400)
+    record(request, f"queue.{action}", req)
+    return Response(queue.lanes_overview())
+
+
+class StudioServiceSerializer(serializers.ModelSerializer):
+    """One service as the studio edits it: words, price, capacity."""
+
+    amount = serializers.SerializerMethodField()
+    kind = serializers.SerializerMethodField()
+    queue = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Service
+        fields = (
+            "slug", "active", "order", "icon", "title_en", "title_fr", "summary_en", "summary_fr", "description_en",
+            "description_fr", "deliverables_en", "deliverables_fr", "timeline_en", "timeline_fr",
+            "max_active", "accept_directly", "typical_days", "amount", "kind", "queue",
+        )
+        read_only_fields = ("slug",)
+
+    def _dzd(self, obj):
+        return next((p for p in obj.prices.all() if p.currency == "DZD"), None)
+
+    def get_amount(self, obj):
+        row = self._dzd(obj)
+        return row.amount if row else None
+
+    def get_kind(self, obj):
+        row = self._dzd(obj)
+        return row.kind if row else ServicePrice.Kind.FROM
+
+    def get_queue(self, obj) -> dict:
+        from engagements.queue import preview
+
+        where = preview(obj)
+        return {"direct": where.lane is None, "full": where.full, "waiting": where.ahead, "used": where.active, "capacity": where.capacity}
+
+
+@api_view(["GET"])
+@permission_classes(STUDIO)
+def services(request):
+    rows = Service.objects.prefetch_related("prices").order_by("order", "id")
+    return Response(StudioServiceSerializer(rows, many=True).data)
+
+
+@api_view(["PATCH"])
+@permission_classes(STUDIO)
+def service_detail(request, slug: str):
+    """Edit a service; `amount` (DZD, null = quoted per project) and `kind` set its price."""
+    service = Service.objects.filter(slug=slug).prefetch_related("prices").first()
+    if not service:
+        return Response({"detail": "Not found."}, status=404)
+    body = StudioServiceSerializer(service, data=request.data, partial=True)
+    body.is_valid(raise_exception=True)
+    changed = sorted(k for k, v in body.validated_data.items() if getattr(service, k) != v)
+    body.save()
+    if "amount" in request.data or "kind" in request.data:
+        price = PriceSerializer(data={"slug": slug, **{k: request.data[k] for k in ("amount", "kind") if k in request.data}})
+        price.is_valid(raise_exception=True)
+        data = price.validated_data
+        rows = ServicePrice.objects.filter(service=service, currency="DZD")
+        if "amount" in data and data["amount"] is None:
+            rows.delete()
+        else:
+            amount = data.get("amount", rows.first().amount if rows.exists() else None)
+            if amount is not None:
+                kind = data.get("kind") or (rows.first().kind if rows.exists() else ServicePrice.Kind.FROM)
+                rows.exclude(kind=kind).delete()
+                ServicePrice.objects.update_or_create(service=service, currency="DZD", kind=kind, defaults={"amount": amount})
+        changed += ["price"]
+    if changed:
+        record(request, "studio.service_changed", service, fields=changed)
+    service = Service.objects.prefetch_related("prices").get(pk=service.pk)
+    return Response(StudioServiceSerializer(service).data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes(STUDIO)
+def email_check(request):
+    """
+    GET: how e-mail leaves (SMTP or only the console) and whether the worker
+    that sends it answers. POST: send a real test e-mail now, without the
+    worker, and report what the mail server said.
+    """
+    from django.conf import settings
+    from django.core.mail import EmailMultiAlternatives
+
+    smtp = settings.EMAIL_BACKEND.endswith("smtp.EmailBackend")
+    status = {
+        "backend": "smtp" if smtp else "console", "host": getattr(settings, "EMAIL_HOST", "") if smtp else "",
+        "from": settings.DEFAULT_FROM_EMAIL, "studio": settings.STUDIO_NOTIFY_EMAIL,
+        "worker": _worker_alive(),
+    }
+    if request.method == "GET":
+        return Response(status)
+    to = settings.STUDIO_NOTIFY_EMAIL or request.user.email
+    try:
+        from notifications.html import render_html
+
+        subject = "Test e-mail from your studio dashboard"
+        body = "If you can read this, OriginForge e-mail works: it left through the mail server and reached you."
+        message = EmailMultiAlternatives(f"[{settings.SITE_NAME}] {subject}", body, settings.DEFAULT_FROM_EMAIL, [to])
+        message.attach_alternative(render_html(subject, body, "en"), "text/html")
+        message.send()
+    except Exception as exc:  # the point is to see the server's answer
+        return Response({**status, "sent": False, "to": to, "error": str(exc)[:300]})
+    record(request, "studio.email_test", None, to=to)
+    return Response({**status, "sent": smtp, "to": to, "error": "" if smtp else "No mail server set: e-mails only print to the server log."})
+
+
+def _worker_alive() -> bool | None:
+    """Does a Celery worker answer? None when tasks run inline (no broker)."""
+    from django.conf import settings
+
+    if settings.CELERY_TASK_ALWAYS_EAGER:
+        return None
+    try:
+        from config.celery import app
+
+        return bool(app.control.ping(timeout=1.0))
+    except Exception:
+        return False

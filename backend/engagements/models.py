@@ -62,6 +62,11 @@ class ProjectRequest(models.Model):
     estimate_high = models.PositiveIntegerField(null=True, blank=True)
     estimate_currency = models.CharField(max_length=3, blank=True)
     wants_nda = models.BooleanField(default=False, help_text="Keep this project out of the portfolio")
+    # The queue (engagements/queue.py): when the request joined it, and when
+    # it left it (its turn came, or the studio took it straight away).
+    queued_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    queue_left_at = models.DateTimeField(null=True, blank=True)
+    review_reminded_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
     status_note = models.TextField(blank=True, help_text="Shown to the client with the last status change")

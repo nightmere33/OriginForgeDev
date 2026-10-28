@@ -19,7 +19,9 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /**
  * The scroll instrument (DESIGN.md §5): replaces the native scrollbar for
- * fine pointers when the viewport leaves a gutter beside the 1280 rail (≥1400px).
+ * fine pointers on laptop-class screens and up (≥1024px, as on
+ * getartcraft.com). Where the viewport leaves no gutter beside the 1280 rail,
+ * content flows under it and a frosted strip keeps the ticks readable.
  *
  * Two scales on one mapping. At rest the ruler is 1:1 with the page: a tick
  * per 1% of the document, sliding past as you scroll. Hovering zooms it out
@@ -51,11 +53,11 @@ export default function ScrollRuler() {
   const zoom = useRef({ z: 0, target: 0, timer: 0, pointer: -1, k: 1, needle: 0, d0: 0, dragging: false, pressY: 0, moved: 0 });
 
   useEffect(() => {
-    // Desktop only (as on getartcraft.com): a hover-capable fine pointer with a
-    // gutter beside the rail, and never a phone or tablet browser (a tablet with
+    // Desktop only (as on getartcraft.com): a hover-capable fine pointer on a
+    // laptop-class screen, and never a phone or tablet browser (a tablet with
     // a mouse attached still reports a fine pointer).
     const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    const query = matchMedia("(pointer: fine) and (hover: hover) and (min-width: 1400px)");
+    const query = matchMedia("(pointer: fine) and (hover: hover) and (min-width: 1024px)");
     const update = () => setEnabled(!mobileUa && query.matches);
     update();
     query.addEventListener("change", update);
@@ -221,6 +223,8 @@ export default function ScrollRuler() {
       data-print-hide
       className="pointer-events-none fixed bottom-6 right-0 top-[calc(var(--nav-h)+1.75rem)] z-40 w-14"
     >
+      {/* No gutter below 1400px: content passes under the rail, frosted here so the ticks read. */}
+      <div className="ruler-frost frost absolute -inset-y-6 right-0 w-16" />
       <div
         ref={railRef}
         className="pointer-events-auto absolute inset-y-0 right-0 w-12 cursor-crosshair touch-none select-none"

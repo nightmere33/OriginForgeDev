@@ -221,6 +221,18 @@
     display: none;
   }
 }
+/* The ruler's frosted strip, only where content flows under it (no gutter
+   beside the 1280 rail). Feathered toward the content so there's no seam. */
+.ruler-frost {
+  display: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+  mask-image: linear-gradient(to right, transparent, #000 45%);
+}
+@media (max-width: 1399px) {
+  .ruler-frost {
+    display: block;
+  }
+}
 
 @layer components {
   .hud {
@@ -483,6 +495,16 @@
   ::view-transition-group(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/* The code field's caret (ui/otp-input.tsx). */
+.otp-caret {
+  animation: otp-blink 1s steps(1) infinite;
+}
+@keyframes otp-blink {
+  50% {
+    visibility: hidden;
   }
 }
 

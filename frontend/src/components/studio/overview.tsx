@@ -21,6 +21,7 @@ type Overview = {
   projects: { by_status: Counts; accepting: boolean; paused: boolean; full: boolean; active: number };
   money: { month: Counts; all_time: Counts; due: Counts; proofs_pending: number };
   reviews_pending: number;
+  queued: number;
   waitlist: number;
   activity: { at: string; action: string; label: string; actor: string; target_type: string; target_id: string }[];
 };
@@ -136,7 +137,8 @@ export function StudioOverview({ lang, t }: { lang: Locale; t: T }) {
         <Kpi label={d.kpi.newRequests} value={String(data.requests.new)} tone={data.requests.new ? "ember" : undefined}
           note={fill(d.kpi.drafts, { n: data.requests.drafts })} href={`${base}/requests`} />
         <Kpi label={d.kpi.openRequests} value={String(data.requests.open)} note={fill(d.kpi.thisWeek, { n: data.requests.week })} href={`${base}/requests`} />
-        <Kpi label={d.kpi.activeProjects} value={String(cap.active)} note={capacityNote} href={`${base}/settings`} />
+        <Kpi label={d.kpi.activeProjects} value={String(cap.active)} tone={data.queued ? "ember" : undefined}
+          note={data.queued ? fill(d.kpi.queued, { n: data.queued }) : capacityNote} href={`${base}/queue`} />
         <Kpi label={d.kpi.clients} value={String(data.clients.total)} note={fill(d.kpi.thisWeek, { n: data.clients.week })} href={`${base}/clients`} />
         <Kpi label={d.kpi.monthIn} value={month[0] ?? "0"} note={month.slice(1).join(" · ") || (allTime.join() !== month.join() ? fill(d.kpi.allTime, { sum: allTime.join(" · ") }) : undefined)} href={`${base}/payments`} />
         <Kpi label={d.kpi.due} value={due[0] ?? "0"} note={due.slice(1).join(" · ") || undefined} href={`${base}/payments`} />

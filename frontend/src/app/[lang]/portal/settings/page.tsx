@@ -19,7 +19,7 @@ export default async function Page() {
       <SectionEyebrow index="·" label={t.settings.title.join("")} />
       <SectionHeading title={<Accented parts={t.settings.title} />} lead={t.settings.lead} />
       <Suspense fallback={null}>
-        <SettingsPage lang={lang} t={{ settings: t.settings, start: t.start, portal: t.portal, common: t.common, nav: t.nav, onboarding: t.onboarding }} />
+        <SettingsPage lang={lang} t={{ settings: t.settings, start: t.start, portal: t.portal, common: t.common, nav: t.nav, onboarding: t.onboarding, auth: t.auth }} />
       </Suspense>
     </SectionShell>
   );

@@ -5,6 +5,7 @@ import tempfile
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -32,8 +33,8 @@ class RequestLifecycleTests(TestCase):
 
     def setUp(self):
         cache.clear()  # throttle counters live in the cache
-        self.alice = User.objects.create_user("alice@example.com", "s3cret-pass-1", full_name="Alice A")
-        self.bob = User.objects.create_user("bob@example.com", "s3cret-pass-2", full_name="Bob B")
+        self.alice = User.objects.create_user("alice@example.com", "s3cret-pass-1", full_name="Alice A", email_verified_at=timezone.now())
+        self.bob = User.objects.create_user("bob@example.com", "s3cret-pass-2", full_name="Bob B", email_verified_at=timezone.now())
         self.dev = User.objects.create_user(
             "younes@example.com", "s3cret-pass-3", full_name="Younes", role=User.Role.DEVELOPER,
         )
@@ -113,14 +114,13 @@ class RequestLifecycleTests(TestCase):
         self.assertEqual(self.client_for(self.bob).get(url).status_code, 404)
         self.assertEqual(APIClient().get(url).status_code, 403)
 
-    def test_paused_capacity_refuses_new_requests(self):
+    def test_paused_starts_queue_new_requests_instead_of_refusing(self):
         site = SiteSettings.load()
         site.is_available = False
-        site.availability_en = "Fully booked until December"
         site.save()
         res = self.client_for(self.alice).post("/api/requests/", {"title": "x", "objectives": "y"}, format="json")
-        self.assertEqual(res.status_code, 403)
-        self.assertIn("Fully booked", str(res.data))
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data["queue"]["position"], 1)
 
     def test_past_deadline_rejected(self):
         res = self.client_for(self.alice).post(

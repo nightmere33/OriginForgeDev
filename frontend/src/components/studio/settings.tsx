@@ -5,8 +5,9 @@ import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { api, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import { Toggle } from "@/components/ui/toggle";
+import { fill } from "@/i18n/fill";
 import { Hud } from "@/components/ui/hud";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -23,7 +24,8 @@ type FieldKey = keyof D["fields"];
 const SECTIONS: { key: keyof D["sections"]; help?: keyof D["help"]; fields: [FieldKey, Kind, ("wide" | "mono")?][] }[] = [
   {
     key: "availability", help: "availability",
-    fields: [["is_available", "bool", "wide"], ["max_active_projects", "number"], ["available_from", "date"], ["availability_en", "text"], ["availability_fr", "text"]],
+    fields: [["is_available", "bool", "wide"], ["max_active_projects", "number"], ["available_from", "date"], ["reply_hours", "number"], ["review_hours", "number"],
+      ["availability_en", "text"], ["availability_fr", "text"]],
   },
   {
     key: "contact",
@@ -32,7 +34,7 @@ const SECTIONS: { key: keyof D["sections"]; help?: keyof D["help"]; fields: [Fie
   },
   {
     key: "about",
-    fields: [["location_en", "text"], ["location_fr", "text"], ["years_experience", "number"], ["projects_shipped", "number"], ["reply_hours", "number"],
+    fields: [["location_en", "text"], ["location_fr", "text"], ["years_experience", "number"], ["projects_shipped", "number"],
       ["about_en", "long", "wide"], ["about_fr", "long", "wide"]],
   },
   {
@@ -117,65 +119,58 @@ function SettingsSection({ lang, d, section, initial, onSaved }: { lang: Locale;
   );
 }
 
-type PriceRow = { slug: string; title: string; title_fr: string; active: boolean; amount: number | null; kind: string };
+type EmailStatus = { backend: "smtp" | "console"; host: string; from: string; studio: string; worker: boolean | null; sent?: boolean; to?: string; error?: string };
 
-/** Starting prices in DZD and which services are listed. Each row saves when it changes. */
-function Prices({ lang, d }: { lang: Locale; d: D }) {
-  const [rows, setRows] = useState<PriceRow[] | null>(null);
-  // What the server holds, so leaving a field untouched sends nothing.
-  const [server, setServer] = useState<PriceRow[]>([]);
-  const [state, setState] = useState<Record<string, Save>>({});
+/**
+ * Is e-mail really leaving? How it is sent (a mail server, or only the
+ * server log), whether the worker that sends it answers, and a button that
+ * sends a real test right now and shows what the mail server said.
+ */
+function EmailCheck({ d }: { d: D }) {
+  const e = d.email;
+  const [status, setStatus] = useState<EmailStatus | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    api.get<PriceRow[]>("/studio/prices/").then((r) => {
-      setRows(r);
-      setServer(r);
-    }, () => setRows([]));
+    api.get<EmailStatus>("/studio/email/").then(setStatus, () => undefined);
   }, []);
-  const save = async (slug: string, patch: Partial<PriceRow>) => {
-    const before = server.find((r) => r.slug === slug);
-    if (before && Object.entries(patch).every(([k, v]) => before[k as keyof PriceRow] === v)) return;
-    setState((s) => ({ ...s, [slug]: "saving" }));
+  const test = async () => {
+    setBusy(true);
     try {
-      const fresh = await api.patch<PriceRow[]>("/studio/prices/", { slug, ...patch });
-      setRows(fresh);
-      setServer(fresh);
-      setState((s) => ({ ...s, [slug]: "saved" }));
-    } catch {
-      setState((s) => ({ ...s, [slug]: "error" }));
+      setStatus(await api.post<EmailStatus>("/studio/email/"));
+    } finally {
+      setBusy(false);
     }
   };
-  const edit = (slug: string, patch: Partial<PriceRow>) => setRows((list) => list?.map((r) => (r.slug === slug ? { ...r, ...patch } : r)) ?? null);
-
+  const row = (label: string, value: string, ok: boolean | null) => (
+    <div className="flex items-baseline justify-between gap-4 border-b border-line py-3 last:border-b-0">
+      <span className="hud text-faint">{label}</span>
+      <span className={cn("text-right text-sm", ok === false ? "text-err" : ok ? "text-ok" : "text-ink")}>{value}</span>
+    </div>
+  );
   return (
     <section className="grid gap-px border-t border-line bg-line lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
       <div className="flex flex-col gap-3 bg-bg px-6 py-8 md:px-10">
-        <h2 className="text-h3 tracking-[-0.02em] text-ink-strong">{d.sections.prices}</h2>
-        <p className="max-w-sm text-sm leading-relaxed text-faint">{d.help.prices}</p>
+        <h2 className="text-h3 tracking-[-0.02em] text-ink-strong">{e.title}</h2>
+        <p className="max-w-sm text-sm leading-relaxed text-faint">{e.help}</p>
       </div>
-      <div className="bg-bg">
-        {!rows ? (
-          <div className="flex flex-col gap-4 px-6 py-8 md:px-10">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
-        ) : (
-          <ul className="divide-y divide-line">
-            {rows.map((r) => (
-              <li key={r.slug} className={cn("grid gap-3 px-6 py-5 md:grid-cols-[minmax(0,1fr)_9rem_10rem] md:items-center md:px-10", !r.active && "opacity-60")}>
-                <div className="flex flex-col gap-2">
-                  <span className="text-ink">{lang === "fr" && r.title_fr ? r.title_fr : r.title}</span>
-                  <span className="flex flex-wrap items-center gap-3">
-                    <Toggle label={d.listed} checked={r.active} onChange={(e) => { edit(r.slug, { active: e.target.checked }); save(r.slug, { active: e.target.checked }); }} />
-                    <SaveState d={d} state={state[r.slug] ?? "idle"} />
-                  </span>
-                </div>
-                <Input aria-label={`${r.title} · DZD`} inputMode="numeric" className="font-mono" value={r.amount === null ? "" : String(r.amount)}
-                  onChange={(e) => edit(r.slug, { amount: e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")) })}
-                  onBlur={() => save(r.slug, { amount: r.amount })} />
-                <Select aria-describedby={undefined} value={r.kind} onChange={(e) => { edit(r.slug, { kind: e.target.value }); if (r.amount !== null) save(r.slug, { amount: r.amount, kind: e.target.value }); }}>
-                  {(["from", "per_minute", "fixed", "monthly", "hourly"] as const).map((k) => <option key={k} value={k}>{d.kinds[k]}</option>)}
-                </Select>
-              </li>
-            ))}
-          </ul>
+      <div className="flex flex-col gap-6 bg-bg px-6 py-8 md:px-10">
+        {!status ? <Skeleton className="h-28 w-full" /> : (
+          <div className="border border-line px-4">
+            {row(e.backend, status.backend === "smtp" ? `${e.smtp} · ${status.host}` : e.console, status.backend === "smtp")}
+            {row(e.worker, status.worker === null ? e.inline : status.worker ? e.workerUp : e.workerDown, status.worker)}
+            {row(e.from, status.from, null)}
+            {row(e.studio, status.studio || "·", status.studio ? null : false)}
+          </div>
         )}
+        {status?.to !== undefined && (
+          <p role="status" className={cn("flex items-start gap-2 text-sm", status.sent ? "text-ok" : "text-err")}>
+            <span aria-hidden className={cn("mt-1.5 size-1.5 shrink-0", status.sent ? "bg-ok" : "bg-err")} />
+            {status.sent ? fill(e.sent, { to: status.to }) : `${e.failed} ${status.error ?? ""}`}
+          </p>
+        )}
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm" loading={busy} onClick={test}>{e.test}</Button>
+        </div>
       </div>
     </section>
   );
@@ -202,7 +197,7 @@ export function StudioSettings({ lang, t }: { lang: Locale; t: T }) {
       {SECTIONS.map((section) => (
         <SettingsSection key={section.key} lang={lang} d={d} section={section} initial={values} onSaved={setValues} />
       ))}
-      <Prices lang={lang} d={d} />
+      <EmailCheck d={d} />
     </div>
   );
 }

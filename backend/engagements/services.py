@@ -40,11 +40,24 @@ def allowed_moves(user, req: ProjectRequest) -> set[str]:
 
 
 def submit_request(request, req: ProjectRequest) -> ProjectRequest:
+    from content.models import SiteSettings
+    from notifications.events import notify_client
+
+    from .queue import spot
+
     req.save()
-    record(request, "request.submitted", req)
-    link = site_url(f"/{req.language}/portal/requests/{req.reference}")
-    notify_user("request_received", req.client, reference=req.reference, title=req.title, link=link,
-                in_app_path=f"/portal/requests/{req.reference}")
+    record(request, "request.submitted", req, queued=bool(req.queued_at))
+    site = SiteSettings.load()
+    hours = f"{site.reply_hours}–{site.review_hours} h"
+    if req.queued_at:
+        where = spot(req, site)
+        start = where.start.isoformat() if where.start else ("dès que possible" if req.language == "fr" else "as soon as possible")
+        notify_client("request_queued", req.client, f"/portal/requests/{req.reference}", title=req.title,
+                      reference=req.reference, position=where.position or 1, start=start, hours=hours)
+    else:
+        link = site_url(f"/{req.language}/portal/requests/{req.reference}")
+        notify_user("request_received", req.client, reference=req.reference, title=req.title, link=link, hours=hours,
+                    in_app_path=f"/portal/requests/{req.reference}")
     budget = "—"
     if req.budget_min or req.budget_max:
         budget = f"{req.budget_min or '?'}–{req.budget_max or '?'} {req.budget_currency}"

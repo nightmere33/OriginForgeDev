@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
-const TABS = ["overview", "requests", "clients", "payments", "reviews", "settings", "kit"] as const;
+const TABS = ["overview", "requests", "queue", "clients", "payments", "reviews", "services", "settings", "kit"] as const;
 export type StudioTab = (typeof TABS)[number];
 type Tab = StudioTab;
 

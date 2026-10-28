@@ -71,6 +71,14 @@ EVENTS = {
         "en": ("New message about {title}", "{sender}: {preview}"),
         "fr": ("Nouveau message sur {title}", "{sender} : {preview}"),
     },
+    "request_queued": {
+        "en": ("You're #{position} in the queue for {title}", "Thanks for your request {reference}. I'm working at full capacity right now, so \"{title}\" joined the queue at #{position}. Estimated start: {start}. I'll still read it and answer within {hours}, and you'll hear from me the moment it's your turn. You can follow your place in the queue in your client space."),
+        "fr": ("Vous êtes n°{position} dans la file pour {title}", "Merci pour votre demande {reference}. Je travaille à pleine capacité en ce moment, donc « {title} » a rejoint la file d'attente en position {position}. Démarrage estimé : {start}. Je la lis quand même et je vous réponds sous {hours}, et je vous préviens dès que c'est votre tour. Suivez votre place dans la file depuis votre espace client."),
+    },
+    "queue_your_turn": {
+        "en": ("It's your turn: {title}", "A place just opened up and \"{title}\" is next. I'm starting with your project now; my next message won't be long."),
+        "fr": ("C'est votre tour : {title}", "Une place vient de se libérer et « {title} » est le suivant. Je commence avec votre projet maintenant ; mon prochain message ne tardera pas."),
+    },
     "waitlist_open": {
         "en": ("I'm taking new projects again", "You asked to be told first: requests are open again. Start yours here."),
         "fr": ("Je reprends de nouveaux projets", "Vous avez demandé à être prévenu en premier : les demandes sont rouvertes. Lancez la vôtre ici."),
@@ -84,6 +92,10 @@ EVENTS = {
     "review_invite": {
         "en": ("How was it working together?", "{title} is live. When you've had a little time with it, a few honest words and a rating would help other clients decide. It takes a minute, and nothing is published without your consent."),
         "fr": ("Comment s'est passée notre collaboration ?", "{title} est en ligne. Quand vous aurez pris un peu de recul, quelques mots sincères et une note aideraient d'autres clients à se décider. Une minute suffit, et rien n'est publié sans votre accord."),
+    },
+    "review_invite_project": {
+        "en": ("A few words about {project}?", "Thank you again for building {project} with me. Would you share a few honest words and a rating? Sign in (or create your account) with this e-mail address and your review form is waiting. Nothing is published without your consent."),
+        "fr": ("Quelques mots sur {project} ?", "Merci encore d'avoir construit {project} avec moi. Accepteriez-vous de partager quelques mots sincères et une note ? Connectez-vous (ou créez votre compte) avec cette adresse e-mail et votre formulaire d'avis vous attend. Rien n'est publié sans votre accord."),
     },
     "review_published": {
         "en": ("Your review is live", "Thank you. Your review of {title} is now on the website."),
@@ -104,6 +116,8 @@ EVENTS = {
     "studio_approved": {"en": ("Approved: {ref}", "{client} approved \"{what}\".")},
     "studio_deposit_expired": {"en": ("Deposit not received: {ref}", "The deposit window for \"{title}\" closed; the project lapsed.")},
     "studio_message": {"en": ("Message from {client} on {ref}", "{preview}")},
+    "studio_queue_next": {"en": ("Next in the queue: {ref}", "A place opened: {client}'s \"{title}\" is next. They were told it's their turn.")},
+    "studio_review_due": {"en": ("Waiting for your answer: {ref}", "{client}'s \"{title}\" was sent {hours} h ago and still has no answer. The promise is a reply within 24 to 48 h.")},
 }
 
 TEMPLATE = {

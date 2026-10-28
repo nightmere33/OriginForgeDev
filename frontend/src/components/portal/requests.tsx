@@ -25,6 +25,7 @@ import { ProposalCard } from "@/components/project/proposal-card";
 import { NextStep, Panel, type Side, type T } from "@/components/project/shared";
 import { StageTrack } from "@/components/project/stage-track";
 import { briefFor, briefRows, featureLabel, say } from "@/components/start/briefs";
+import { QueueCard } from "@/components/start/queue-notice";
 import { ClientReview, WorkPanel } from "@/components/project/work-panel";
 
 export type { ProjectRequest };
@@ -390,7 +391,8 @@ export function PortalRequest({ lang, t }: { lang: Locale; t: T }) {
 
   return (
     <>
-      <Hub lang={lang} t={t} side="client" req={req} reload={reload} user={user} />
+      <Hub lang={lang} t={t} side="client" req={req} reload={reload} user={user}
+        top={req.queue ? <div className="border-t border-line px-6 py-8 md:px-10"><QueueCard lang={lang} s={t.start} queue={req.queue} /></div> : undefined} />
       {req.allowed_moves.includes("withdrawn") && (
         <div className="flex flex-wrap items-center gap-3 border-t border-line px-6 py-6 md:px-10">
           {confirming ? (
@@ -499,6 +501,26 @@ export function StudioRequest({ lang, t }: { lang: Locale; t: T }) {
   if (req === null) return <p className="px-6 py-16 text-muted md:px-10">{t.common.notFoundText}</p>;
   return (
     <Hub lang={lang} t={t} side="studio" req={req} reload={reload} user={user}
-      top={<><ClientBar t={t} req={req} /><MoveBar t={t} req={req} reload={reload} /></>} />
+      top={<><ClientBar t={t} req={req} /><QueueBar lang={lang} t={t} req={req} reload={reload} /><MoveBar t={t} req={req} reload={reload} /></>} />
+  );
+}
+
+/** The studio's view of a queued request: its place, and starting it now. */
+function QueueBar({ lang, t, req, reload }: { lang: Locale; t: T; req: ProjectRequest; reload: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  if (!req.queue) return null;
+  const q = t.studio.dash.queue;
+  const take = async () => {
+    setBusy(true);
+    await api.post(`/studio/queue/${req.reference}/take/`).catch(() => undefined);
+    await reload();
+    setBusy(false);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-4 border-t border-line bg-ember-500/[0.05] px-6 py-4 md:px-10">
+      <Hud tone="ember" dot live>{fill(q.position, { n: req.queue.position })}</Hud>
+      {req.queue.start && <span className="text-sm text-muted">{fill(t.start.queue.start, { date: day(lang, req.queue.start) })}</span>}
+      <Button variant="secondary" size="sm" className="ml-auto" loading={busy} onClick={take}>{q.take}</Button>
+    </div>
   );
 }

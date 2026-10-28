@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { api, ApiError, type User } from "@/lib/api-client";
-import { fetchSession } from "@/lib/session";
+import { fetchSession, useSession } from "@/lib/session";
 import { Hud } from "@/components/ui/hud";
 import { GlitchLabel, tearIn } from "@/motion/glitch";
 import { AuthField, BootText, OAuthNotice, PhaseButton, ProviderButtons, rememberMethod, type Phase } from "./auth-fx";
+import { EmailCode } from "./email-code";
 
 type T = Pick<Dictionary, "auth" | "common">;
 type Errors = Record<string, string | undefined>;
@@ -117,9 +118,11 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
       rememberMethod("email");
       setPhase("done");
       await Promise.all([fetchSession(true), settle()]);
-      // New accounts start with the short welcome (language, how they found me, how to talk).
+      // New accounts confirm their e-mail with the code just sent, then the
+      // short welcome (language, how they found me, how to talk).
       const next = params.get("next");
-      router.push(`/${lang}/welcome${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+      const welcome = `/${lang}/welcome${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+      router.push(`/${lang}/verify-email?next=${encodeURIComponent(welcome)}`);
       router.refresh();
     });
   };
@@ -185,14 +188,34 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
   );
 }
 
+/**
+ * Confirming an e-mail: with the 6-digit code (after sign-up, or any time
+ * from the portal), or with the link from the same e-mail (?token=).
+ */
 export function VerifyEmail({ lang, t }: { lang: Locale; t: T }) {
   const params = useSearchParams();
   const token = params.get("token");
-  const [state, setState] = useState<"pending" | "ok" | "fail">(token ? "pending" : "fail");
+  if (!token) return <VerifyWithCode lang={lang} t={t} next={safeNext(params.get("next"), `/${lang}/portal`)} />;
+  return <VerifyWithLink lang={lang} t={t} token={token} />;
+}
+
+function VerifyWithCode({ lang, t, next }: { lang: Locale; t: T; next: string }) {
+  const user = useSession();
+  const router = useRouter();
+  useEffect(() => {
+    if (user === null) router.replace(`/${lang}/login?next=${encodeURIComponent(`/${lang}/verify-email?next=${encodeURIComponent(next)}`)}`);
+    else if (user?.email_verified) router.replace(next);
+  }, [user, lang, next, router]);
+  if (!user || user.email_verified) return <Hud tone="muted" dot live>{t.common.loading}</Hud>;
+  return <EmailCode a={t.auth} email={user.email} onVerified={() => router.push(next)} />;
+}
+
+function VerifyWithLink({ lang, t, token }: { lang: Locale; t: T; token: string }) {
+  const [state, setState] = useState<"pending" | "ok" | "fail">("pending");
   const sent = useRef(false);
 
   useEffect(() => {
-    if (!token || sent.current) return;
+    if (sent.current) return;
     sent.current = true; // strict-mode double effects must not spend the token twice
     api.post("/auth/verify-email/", { token })
       .then(() => fetchSession(true))

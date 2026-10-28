@@ -386,7 +386,20 @@
     "discard": "Discard draft",
     "discardConfirm": "Delete it",
     "discardKeep": "Keep",
-    "serviceOtherHelp": "Games in Unity and other projects, quoted on request."
+    "serviceOtherHelp": "Games in Unity and other projects, quoted on request.",
+    "queue": {
+      "hours": "I read every request myself and answer within {min} to {max} hours.",
+      "direct": "{service} doesn't wait in a queue: I take it on directly.",
+      "open": "Available now: we can start as soon as we agree on the plan.",
+      "full": "Full right now: {active} of {capacity} projects in progress",
+      "paused": "New starts are paused for a short while",
+      "join": "Your request joins the queue at #{n}.",
+      "start": "Estimated start: around {date}.",
+      "you": "You",
+      "told": "You'll be told the moment it's your turn, and you can follow your place in your client space.",
+      "inQueue": "Your place in the queue",
+      "soon": "Starting soon."
+    }
   },
   "auth": {
     "loginTitle": [
@@ -496,6 +509,21 @@
       "password": "Your password",
       "newPassword": "At least 10 characters",
       "fullName": "First and last name"
+    },
+    "code": {
+      "lead": "I sent a 6-digit code to {email}. Type it here: it confirms by itself.",
+      "label": "Verification code",
+      "wrong": "That code isn't right. Try again.",
+      "expired": "That code has expired. Ask for a new one below.",
+      "resend": "Send me a new code",
+      "resendIn": "New code in {n} s",
+      "sent": "A new code is on its way.",
+      "ok": "E-mail confirmed. Thank you!",
+      "checking": "Checking",
+      "unverified": "Your e-mail isn't confirmed yet",
+      "verifyNow": "Confirm it now",
+      "toSend": "Confirm your e-mail to send the request",
+      "sendMe": "Send me the code"
     }
   },
   "portal": {
@@ -638,7 +666,22 @@
       "unfeature": "Unfeature",
       "unpublish": "Unpublish",
       "reject": "Send back",
-      "sendBack": "Send back to the client"
+      "sendBack": "Send back to the client",
+      "invites": {
+        "title": "Invite a review",
+        "lead": "For a project done before the platform (MediGate).",
+        "email": "Client's e-mail",
+        "name": "Client's name",
+        "project": "Project",
+        "language": "Language of the e-mail",
+        "send": "Send the invitation",
+        "sent": "Invitation sent to {email}.",
+        "states": {
+          "sent": "Waiting",
+          "used": "Reviewed",
+          "expired": "Expired"
+        }
+      }
     },
     "dash": {
       "tabs": {
@@ -648,7 +691,9 @@
         "payments": "Payments",
         "reviews": "Reviews",
         "settings": "Settings",
-        "kit": "Asset pack"
+        "kit": "Asset pack",
+        "queue": "Queue",
+        "services": "Services"
       },
       "overview": {
         "title": [
@@ -702,7 +747,8 @@
         "paused": "Requests paused",
         "full": "At capacity",
         "allTime": "All time: {sum}",
-        "none": "Nothing yet"
+        "none": "Nothing yet",
+        "queued": "{n} waiting in the queue"
       },
       "byStage": "Requests by stage",
       "byService": "Requests by service",
@@ -738,13 +784,13 @@
         "prices": "Starting prices"
       },
       "help": {
-        "availability": "Pause new requests when you are full. The form shows your note and the date you are back.",
+        "availability": "Nobody is turned away: when you're full, requests join the queue with their position and estimated start. Pause starts for holidays.",
         "payments": "Shown only to a signed-in client who has something to pay. Never public.",
         "prices": "In DZD. Euros and dollars follow today's street rate. Leave empty for \"quoted per project\"."
       },
       "fields": {
-        "is_available": "Accepting new projects",
-        "max_active_projects": "Projects at once (0 = no limit)",
+        "is_available": "Starting new projects (untick to pause starts: requests still queue)",
+        "max_active_projects": "Projects at once (shared lane, 0 = no limit)",
         "available_from": "Back from",
         "availability_en": "Note while paused (English)",
         "availability_fr": "Note while paused (French)",
@@ -763,7 +809,7 @@
         "about_fr": "About (French)",
         "years_experience": "Years of experience",
         "projects_shipped": "Projects shipped",
-        "reply_hours": "Replies within (hours)",
+        "reply_hours": "First answer usually (hours)",
         "ccp_account": "CCP number",
         "ccp_key": "CCP key",
         "ccp_holder": "Account holder",
@@ -772,7 +818,8 @@
         "cash_note_en": "Cash payments note (English)",
         "cash_note_fr": "Cash payments note (French)",
         "usdt_bep20_address": "USDT address (BEP20)",
-        "usdt_rate_override": "Dollar rate override (DZD, empty = live)"
+        "usdt_rate_override": "Dollar rate override (DZD, empty = live)",
+        "review_hours": "First answer at the latest (hours)"
       },
       "listed": "Listed on the site",
       "kinds": {
@@ -824,6 +871,93 @@
           "pack."
         ],
         "lead": "Every building block of the site, live, with the file it lives in. New screens are built from these."
+      },
+      "queuePage": {
+        "title": [
+          "The ",
+          "queue."
+        ],
+        "lead": "Who is in progress, who is next, and when each one should start. Start one now or reorder the line."
+      },
+      "servicesPage": {
+        "title": [
+          "Your ",
+          "services."
+        ],
+        "lead": "Words, starting prices, capacity and queue rules for each service. Changes go live within a minute."
+      },
+      "queue": {
+        "position": "#{n} in the queue",
+        "take": "Start now",
+        "studioLane": "Studio projects",
+        "places": "{used} of {capacity} places taken",
+        "noLimit": "No limit",
+        "full": "full",
+        "ends": "ends {date}",
+        "starting": "Starting next",
+        "startsAround": "starts ~{date}",
+        "startsSoon": "starts soon",
+        "up": "Move up",
+        "down": "Move down",
+        "empty": "Nobody is waiting."
+      },
+      "services": {
+        "quoted": "Quoted per project",
+        "direct": "Taken directly",
+        "noLimit": "No limit",
+        "placesShort": "{used}/{capacity} places",
+        "waiting": "{n} waiting",
+        "hidden": "Hidden",
+        "listed": "Listed on the site",
+        "price": "Starting price (DZD)",
+        "priceHelp": "Empty = quoted per project. Euros and dollars follow the live rate.",
+        "priceKind": "How it reads",
+        "kinds": {
+          "from": "From",
+          "per_minute": "From, per minute",
+          "fixed": "Fixed",
+          "monthly": "Per month",
+          "hourly": "Per hour"
+        },
+        "capacity": "Capacity and queue",
+        "modes": {
+          "shared": "Shares the studio's limit",
+          "own": "Its own limit",
+          "direct": "Taken directly"
+        },
+        "modesHelp": {
+          "shared": "Counts against your projects-at-once setting. When full, requests queue.",
+          "own": "Its own number of projects at once, separate from the rest.",
+          "direct": "Never queues, whatever else is running (films)."
+        },
+        "maxActive": "Projects at once",
+        "maxActiveHelp": "0 = no limit.",
+        "typicalDays": "Typical length (days)",
+        "typicalDaysHelp": "Used to estimate when queued requests start.",
+        "words": {
+          "title": "Title",
+          "summary": "Summary",
+          "timeline": "Timeline",
+          "deliverables": "Deliverables",
+          "description": "Description"
+        },
+        "onePerLine": "One per line."
+      },
+      "email": {
+        "title": "E-mail",
+        "help": "Check that e-mails really leave: how they are sent, whether the worker that sends them answers, and a real test.",
+        "backend": "Sent by",
+        "smtp": "Mail server",
+        "console": "Nobody: only the server log",
+        "worker": "Worker",
+        "workerUp": "Answering",
+        "workerDown": "Not answering",
+        "inline": "Inline (no queue)",
+        "from": "From",
+        "studio": "Your copies go to",
+        "test": "Send a test e-mail",
+        "sent": "Sent to {to}. Check that inbox (and spam).",
+        "failed": "Not sent:"
       }
     }
   },
@@ -1091,7 +1225,12 @@
     "deleteType": "Type {word} to confirm",
     "deleteWord": "DELETE",
     "deleteConfirm": "Delete for good",
-    "deleteCancel": "Keep my account"
+    "deleteCancel": "Keep my account",
+    "addressTitle": "Address",
+    "address": "Street address",
+    "addressHelp": "For invoices and anything sent by courier. Optional.",
+    "city": "City",
+    "postalCode": "Postal code"
   },
   "onboarding": {
     "title": [
@@ -1160,7 +1299,23 @@
     "breakdown": "Ratings breakdown",
     "verified": "Verified",
     "verifiedNote": "Only clients with a delivered project can leave a review, one per project. Nothing is invented and nothing is edited.",
-    "replyFrom": "Reply from Younes"
+    "replyFrom": "Reply from Younes",
+    "aboutProject": "About {project}",
+    "invite": {
+      "label": "Review",
+      "heading": [
+        "Your ",
+        "review."
+      ],
+      "lead": "A few honest words help other clients decide. Nothing is published without your consent.",
+      "title": "How was building {project} together?",
+      "note": "Your review shows with the project's logo and links to its page. You choose the name it shows.",
+      "expired": "This invitation has expired or was already used. Write to me if you'd like a new one.",
+      "thanks": "Thank you! Your review is with me and goes live once I've read it.",
+      "signIn": "Sign in or create your account with the address this invitation was sent to ({email}).",
+      "otherEmail": "This invitation was sent to {email}. Sign in with that address to write the review.",
+      "switch": "Sign out and switch account"
+    }
   },
   "trust": {
     "title": "Secured payments",

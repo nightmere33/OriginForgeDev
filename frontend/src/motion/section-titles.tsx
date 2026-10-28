@@ -227,15 +227,23 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
   const frost = {
     backdropFilter: "blur(9px)",
     WebkitBackdropFilter: "blur(9px)",
-    background: "color-mix(in srgb, var(--bg) 82%, transparent)",
+    background: "color-mix(in srgb, var(--bg) 72%, transparent)",
   } as const;
+  // The pool's fade ends inside its own box: an ellipse whose radii are the box
+  // itself, from its corner, gone by 96 %, so no side of the rectangle ever
+  // shows as an edge. The letters carry their own halo (below); this only
+  // calms busy content behind the stack.
+  const pool = (corner: string) => {
+    const mask = `radial-gradient(100% 100% at 100% ${corner}, #000 32%, rgb(0 0 0 / 0.78) 50%, rgb(0 0 0 / 0.45) 66%, rgb(0 0 0 / 0.18) 80%, rgb(0 0 0 / 0.04) 90%, transparent 96%)`;
+    return { ...frost, maskImage: mask, WebkitMaskImage: mask };
+  };
+  // Each letter's own shadow: a tight edge, then a soft wide glow, in the page colour.
+  const halo = "0 0 2px var(--bg), 0 0 6px var(--bg), 0 0 16px color-mix(in srgb, var(--bg) 80%, transparent)";
 
   return (
     <div aria-hidden data-print-hide className="pointer-events-none fixed inset-0 z-[39] overflow-hidden">
-      <div ref={frostTop} className="absolute right-14 opacity-0"
-        style={{ ...frost, top: FROST_TOP, maskImage: "radial-gradient(130% 100% at 100% 0%, black 50%, transparent 100%)", WebkitMaskImage: "radial-gradient(130% 100% at 100% 0%, black 50%, transparent 100%)" }} />
-      <div ref={frostBottom} className="absolute bottom-0 right-14 w-56 opacity-0 transition-opacity duration-300"
-        style={{ ...frost, maskImage: "radial-gradient(130% 100% at 100% 100%, black 45%, transparent 100%)", WebkitMaskImage: "radial-gradient(130% 100% at 100% 100%, black 45%, transparent 100%)" }} />
+      <div ref={frostTop} className="absolute right-14 opacity-0" style={{ ...pool("0%"), top: FROST_TOP }} />
+      <div ref={frostBottom} className="absolute bottom-0 right-14 w-56 opacity-0 transition-opacity duration-300" style={pool("100%")} />
       {marks.map((m, i) => (
         <span key={m.id}>
           {[...m.label.toUpperCase()].map((ch, j) => (
@@ -247,7 +255,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
               className={`absolute left-0 top-0 origin-top-left whitespace-pre font-display uppercase leading-none tracking-[-0.02em] [font-stretch:125%] [font-weight:760] ${
                 i === 0 && m.id === "hero" ? "steel-text" : "text-ink-strong"
               }`}
-              style={{ fontSize: BASE, opacity: 0, visibility: i === 0 && m.id === "hero" ? "hidden" : undefined, textShadow: i === 0 && m.id === "hero" ? undefined : "0 0 4px var(--bg), 0 0 10px var(--bg)" }}
+              style={{ fontSize: BASE, opacity: 0, visibility: i === 0 && m.id === "hero" ? "hidden" : undefined, textShadow: i === 0 && m.id === "hero" ? undefined : halo }}
             >
               {ch}
             </span>

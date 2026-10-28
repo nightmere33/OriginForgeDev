@@ -23,6 +23,10 @@ import { SecurePayments } from "@/components/ui/secure-payments";
 import { DatePicker } from "@/components/ui/date-picker";
 import { EmailCode } from "@/components/auth/email-code";
 import { QueueCard, QueueNotice } from "./queue-notice";
+import { smooth } from "@/motion/smooth";
+import { isValidPhoneNumber } from "libphonenumber-js";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { BudgetPicker, budgetRanges, convertBudget } from "./budget-picker";
 
 type Draft = {
   service: string;
@@ -62,7 +66,7 @@ const FIELD_STEP: Record<string, number> = {
   deadline: 2, reference_links: 3,
 };
 
-type Errors = Partial<Record<keyof Draft | "form", string>>;
+type Errors = Partial<Record<keyof Draft | "form" | "phone" | "whatsapp", string>>;
 type Pending = DropFile & { file: File };
 type Service = { slug: string; title: string; summary: string };
 type Save = "idle" | "saving" | "saved" | "error";
@@ -126,7 +130,7 @@ export default function StartWizard({
   lang, t, services, plans, pricing,
 }: {
   lang: Locale;
-  t: Pick<Dictionary, "start" | "auth" | "common" | "trust">;
+  t: Pick<Dictionary, "start" | "auth" | "common" | "trust" | "phoneInput">;
   services: Service[];
   plans: CarePlan[];
   /** Calculator factors per service slug ("" = no service chosen). */
@@ -135,7 +139,8 @@ export default function StartWizard({
   const s = t.start;
   const params = useSearchParams();
   const session = useSession();
-  const { currency: displayCurrency } = useCurrency();
+  const { currency: displayCurrency, convert } = useCurrency();
+  const [budgetCustom, setBudgetCustom] = useState(false);
   const [signedIn, setSignedIn] = useState<User | null>(null);
   const user = signedIn ?? session;
 
@@ -148,6 +153,32 @@ export default function StartWizard({
   // Contact details live on the profile; edits here are saved there on submit.
   const [contactEdits, setContactEdits] = useState<Partial<Record<"phone" | "whatsapp" | "company", string>>>({});
   const [step, setStep] = useState(0);
+  const wizard = useRef<HTMLDivElement>(null);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const shownStep = useRef(step);
+  // A new step starts at its top: when the page was scrolled down through the
+  // previous one, it glides back to the wizard (at once under reduced motion),
+  // and focus moves to the new step's heading for keyboard and screen readers.
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    const el = wizard.current;
+    if (!el) return;
+    const offset = 96; // the fixed nav and a little air, as for anchors
+    stepHeading.current?.focus({ preventScroll: true });
+    // A shorter step shrinks the page and the browser clamps the scroll; one
+    // frame later the smooth scroller knows the real position, and the target
+    // is measured from it (not from the scroller's last frame).
+    const frame = requestAnimationFrame(() => {
+      const top = el.getBoundingClientRect().top;
+      if (top >= offset) return;
+      const target = Math.max(0, scrollY + top - offset);
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (smooth.lenis) smooth.lenis.scrollTo(target, { duration: 0.7, immediate: reduce, force: true });
+      else window.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [step]);
   const [files, setFiles] = useState<Attachment[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
   const [errors, setErrors] = useState<Errors>({});
@@ -283,7 +314,13 @@ export default function StartWizard({
       if (draft.budget_min && draft.budget_max && Number(draft.budget_min) > Number(draft.budget_max)) e.budget_max = "≥ " + draft.budget_min;
       if (draft.deadline && draft.deadline < today()) e.deadline = s.required;
     }
-    if (index === 3 && !isUrlList(draft.reference_links)) e.reference_links = "https://…";
+    if (index === 3) {
+      if (!isUrlList(draft.reference_links)) e.reference_links = "https://…";
+      // The phone is required (that's how a project gets moving); WhatsApp is optional but must be a number.
+      if (!contact.phone) e.phone = s.phoneRequired;
+      else if (!isValidPhoneNumber(contact.phone)) e.phone = s.phoneInvalid;
+      if (contact.whatsapp && !isValidPhoneNumber(contact.whatsapp)) e.whatsapp = s.phoneInvalid;
+    }
     return e;
   };
 
@@ -428,7 +465,7 @@ export default function StartWizard({
   };
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+    <div ref={wizard} className="grid lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
       <nav aria-label={s.title.join("")} className="border-line px-6 py-6 md:px-10 lg:border-r lg:py-10">
         <div className="flex gap-2 overflow-x-auto lg:sticky lg:top-[calc(var(--nav-h)+5rem)] lg:flex-col lg:gap-0 lg:overflow-visible">
           <ol className="contents">
@@ -469,7 +506,7 @@ export default function StartWizard({
         className="flex flex-col px-6 py-8 md:px-10 lg:py-10"
       >
         <div key={step} className="flex flex-col gap-8 [animation:step-in_var(--dur-standard)_var(--ease-out)]">
-          <h2 className="text-h3 tracking-[-0.02em] text-ink-strong">
+          <h2 ref={stepHeading} tabIndex={-1} className="text-h3 tracking-[-0.02em] text-ink-strong focus:outline-none">
             {[s.service, s.projectTitle, s.estimate, s.links, s.review][step]}
           </h2>
 
@@ -518,17 +555,26 @@ export default function StartWizard({
                 currency={draft.budget_currency} estimate={shownEstimate} loading={estimating}
                 onPlan={(code) => set("plan", code)}
                 onOption={(factor, choice) => set("options", { ...draft.options, [factor]: choice })}
-                onCurrency={(c) => set("budget_currency", c)}
+                onCurrency={(c) => {
+                  // The budget follows the currency: the same range, or the amounts converted.
+                  const moved = convertBudget(draft.budget_min, draft.budget_max, draft.budget_currency, c, convert);
+                  set("budget_currency", c);
+                  set("budget_min", moved.min);
+                  set("budget_max", moved.max);
+                }}
               />
-              <div className="grid gap-6 border-t border-line pt-8 sm:grid-cols-2">
-                <Field label={`${s.budgetOptional} · ${s.budgetMin}`} error={errors.budget_min}>
-                  {(a) => <Input id={a.id} inputMode="numeric" value={draft.budget_min} onChange={(e) => set("budget_min", e.target.value.replace(/\D/g, ""))} />}
-                </Field>
-                <Field label={`${s.budgetMax} · ${draft.budget_currency}`} error={errors.budget_max}>
-                  {(a) => <Input id={a.id} inputMode="numeric" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={draft.budget_max} onChange={(e) => set("budget_max", e.target.value.replace(/\D/g, ""))} />}
-                </Field>
+              <div className="border-t border-line pt-8">
+                <BudgetPicker lang={lang} s={s} currency={draft.budget_currency} estimate={shownEstimate}
+                  min={draft.budget_min} max={draft.budget_max} error={errors.budget_max}
+                  // A saved range that is none of the presets opens as one's own range.
+                  custom={budgetCustom || (!!(draft.budget_min || draft.budget_max)
+                    && !budgetRanges(draft.budget_currency, convert).some((r) => String(r.min ?? "") === draft.budget_min && String(r.max ?? "") === draft.budget_max))}
+                  onChange={({ min, max, custom }) => {
+                    setBudgetCustom(custom);
+                    set("budget_min", min);
+                    set("budget_max", max);
+                  }} />
               </div>
-              <p className="-mt-4 text-sm text-faint">{s.budgetHelp}</p>
               <div className="grid gap-4 sm:grid-cols-[minmax(0,20rem)_1fr] sm:items-end">
                 <Field label={s.deadline} error={errors.deadline}>
                   {(a) => <DatePicker id={a.id} lang={lang} min={today()} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={draft.deadline} onChange={(v) => set("deadline", v)} />}
@@ -568,8 +614,20 @@ export default function StartWizard({
                 <legend className="hud mb-6 text-muted">{s.contactTitle}</legend>
                 <Hud tone="ink" dot>{fill(s.signedInAs, { email: user.email })}</Hud>
                 <div className="grid gap-6 sm:grid-cols-2">
-                  <Field label={s.phone}>{(a) => <Input id={a.id} type="tel" autoComplete="tel" value={contact.phone} onChange={(e) => setContact("phone", e.target.value)} />}</Field>
-                  <Field label={s.whatsapp}>{(a) => <Input id={a.id} type="tel" value={contact.whatsapp} onChange={(e) => setContact("whatsapp", e.target.value)} />}</Field>
+                  <Field label={s.phone} error={errors.phone}>
+                    {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.phone} invalid={a.invalid} describedBy={a.describedBy}
+                      onChange={(v) => {
+                        setContact("phone", v);
+                        setErrors((e) => ({ ...e, phone: undefined }));
+                      }} />}
+                  </Field>
+                  <Field label={s.whatsapp} error={errors.whatsapp}>
+                    {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.whatsapp} invalid={a.invalid} describedBy={a.describedBy}
+                      autoComplete="off" onChange={(v) => {
+                        setContact("whatsapp", v);
+                        setErrors((e) => ({ ...e, whatsapp: undefined }));
+                      }} />}
+                  </Field>
                   <Field label={s.company} className="sm:col-span-2">{(a) => <Input id={a.id} autoComplete="organization" value={contact.company} onChange={(e) => setContact("company", e.target.value)} />}</Field>
                 </div>
               </fieldset>

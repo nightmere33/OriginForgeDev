@@ -36,16 +36,20 @@ TEMPLATES = {
     },
     "request_received": {
         "en": (
-            "We received your request {reference}",
-            "Hi {name},\n\nThanks for your project request \"{title}\" ({reference}). "
-            "I'll review it and get back to you within {hours}, usually with a few questions.\n\n"
-            "Follow it here: {link}\n\nYounes, OriginForge",
+            "Thank you, your request {reference} is in",
+            "Hi {name},\n\nThank you for trusting me with \"{title}\" ({reference}). "
+            "I read every request myself: you'll hear from me within {hours}, usually with a few questions "
+            "so the proposal fits exactly what you need.\n\n"
+            "Nothing to do meanwhile. You can follow your request, add files or send me a message here: {link}\n\n"
+            "Talk soon,\nYounes, OriginForge",
         ),
         "fr": (
-            "Nous avons reçu votre demande {reference}",
-            "Bonjour {name},\n\nMerci pour votre demande de projet « {title} » ({reference}). "
-            "Je l'étudie et je reviens vers vous sous {hours}, généralement avec quelques questions.\n\n"
-            "Suivez-la ici : {link}\n\nYounes, OriginForge",
+            "Merci, votre demande {reference} est bien reçue",
+            "Bonjour {name},\n\nMerci de me confier « {title} » ({reference}). "
+            "Je lis chaque demande moi-même : je vous réponds sous {hours}, généralement avec quelques questions "
+            "pour que la proposition corresponde exactement à votre besoin.\n\n"
+            "Rien à faire d'ici là. Vous pouvez suivre votre demande, ajouter des fichiers ou m'écrire ici : {link}\n\n"
+            "À très vite,\nYounes, OriginForge",
         ),
     },
     "request_status": {

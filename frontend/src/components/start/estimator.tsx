@@ -151,7 +151,8 @@ export function Estimator({
                       <input type="radio" name={`opt-${f.key}`} value={c.key} checked={selected === c.key}
                         onChange={() => onOption(f.key, c.key)} className="sr-only" />
                       {c.label}
-                      {fx && <span className="hud text-faint">{fx}</span>}
+                      {/* Decodes when the currency changes, like the estimate itself. */}
+                      {fx && <DecodeText digits text={fx} className="hud tabular-nums text-faint" />}
                     </label>
                   );
                 })}

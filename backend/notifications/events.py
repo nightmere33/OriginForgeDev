@@ -72,8 +72,8 @@ EVENTS = {
         "fr": ("Nouveau message sur {title}", "{sender} : {preview}"),
     },
     "request_queued": {
-        "en": ("You're #{position} in the queue for {title}", "Thanks for your request {reference}. I'm working at full capacity right now, so \"{title}\" joined the queue at #{position}. Estimated start: {start}. I'll still read it and answer within {hours}, and you'll hear from me the moment it's your turn. You can follow your place in the queue in your client space."),
-        "fr": ("Vous êtes n°{position} dans la file pour {title}", "Merci pour votre demande {reference}. Je travaille à pleine capacité en ce moment, donc « {title} » a rejoint la file d'attente en position {position}. Démarrage estimé : {start}. Je la lis quand même et je vous réponds sous {hours}, et je vous préviens dès que c'est votre tour. Suivez votre place dans la file depuis votre espace client."),
+        "en": ("Thank you, you're #{position} in the queue for {title}", "Thanks for your request {reference}. I'm working at full capacity right now, so \"{title}\" joined the queue at #{position}. Estimated start: {start}. I'll still read it and answer within {hours}, and you'll hear from me the moment it's your turn. You can follow your place in the queue in your client space."),
+        "fr": ("Merci, vous êtes n°{position} dans la file pour {title}", "Merci pour votre demande {reference}. Je travaille à pleine capacité en ce moment, donc « {title} » a rejoint la file d'attente en position {position}. Démarrage estimé : {start}. Je la lis quand même et je vous réponds sous {hours}, et je vous préviens dès que c'est votre tour. Suivez votre place dans la file depuis votre espace client."),
     },
     "queue_your_turn": {
         "en": ("It's your turn: {title}", "A place just opened up and \"{title}\" is next. I'm starting with your project now; my next message won't be long."),

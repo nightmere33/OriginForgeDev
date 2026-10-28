@@ -33,7 +33,7 @@ export default async function StartPage({ params }: PageProps<"/[lang]/start">) 
         <Suspense fallback={<div className="min-h-[32rem]" />}>
           <StartWizard
             lang={lang}
-            t={{ start: t.start, auth: t.auth, common: t.common, trust: t.trust }}
+            t={{ start: t.start, auth: t.auth, common: t.common, trust: t.trust, phoneInput: t.phoneInput }}
             services={services.map((x) => ({ slug: x.slug, title: x.title, summary: x.summary }))}
             plans={plans}
             pricing={pricing}

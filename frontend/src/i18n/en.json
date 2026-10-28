@@ -323,7 +323,7 @@
     "email": "E-mail",
     "password": "Password",
     "passwordHelp": "At least 10 characters. You'll use it to follow your project.",
-    "phone": "Phone (optional)",
+    "phone": "Phone",
     "whatsapp": "WhatsApp (optional)",
     "company": "Company (optional)",
     "review": "Check and send",
@@ -399,7 +399,14 @@
       "told": "You'll be told the moment it's your turn, and you can follow your place in your client space.",
       "inQueue": "Your place in the queue",
       "soon": "Starting soon."
-    }
+    },
+    "phoneRequired": "Add a phone number, so I can reach you about the project.",
+    "phoneInvalid": "This number looks incomplete.",
+    "budgetNotSure": "Not sure yet",
+    "budgetCustom": "My own range",
+    "budgetUnder": "Under {amount}",
+    "budgetOver": "Over {amount}",
+    "budgetPlaceholder": "e.g. {amount}"
   },
   "auth": {
     "loginTitle": [
@@ -1384,5 +1391,10 @@
     "text": "This site only uses the cookies it needs to sign you in and keep forms secure. No tracking, no ads.",
     "more": "Cookie policy",
     "ok": "Got it"
+  },
+  "phoneInput": {
+    "countrySearch": "Search a country or a code",
+    "countryNone": "No country found",
+    "country": "Country"
   }
 }

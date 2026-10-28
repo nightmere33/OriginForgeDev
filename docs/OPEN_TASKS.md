@@ -104,6 +104,24 @@ public, so pushing waits for Younes's OK. Old history still holds the pre-rebuil
   backup + offsite, logrotate, systemd units (ASGI Django, Celery worker + beat, Next,
   Redis), certbot, Cloudflare in front.
 
+## Security sweep 28 Oct
+
+- Fixed in code: rate limits keyed on the real visitor (`NUM_PROXIES = 0`; a forged
+  X-Forwarded-For used to give a fresh allowance per request), throttle counts in Redis
+  (shared by both uvicorn workers), 10 wrong passwords per account per 15 minutes, the
+  Django admin login limited too, `?next=` open redirect (backslash or tab turned
+  "/..." into another site) closed on both sides, account deletion wipes the address,
+  pages refuse framing, microphone allowed on the site (voice messages were blocked).
+- Younes, on the server (system settings, his call): SSH keys only
+  (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`, `X11Forwarding no`);
+  80/443 open to Cloudflare's ranges only (today the origin answers anyone who knows
+  the IP); `server_tokens off` in nginx.conf; HSTS to a year (above).
+- The public repo's old history still holds DevForge's `db.sqlite3` with password
+  hashes (admin, testclient, younes): any of those passwords still in use anywhere gets
+  changed. Purging the history (rewrite + force-push) only with Younes's OK.
+- Twisted (pulled in by daphne, not served: production runs uvicorn) has advisories
+  fixed in 26.10; update when it is released, or drop daphne from production.
+
 ## Later (waiting on Younes or on accounts)
 
 - Chargily keys (test then live), PayPal keys, USDT BEP20 address.

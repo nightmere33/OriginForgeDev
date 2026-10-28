@@ -1,11 +1,31 @@
 from django.conf import settings
 from django.contrib import admin
-from django.http import JsonResponse
+from django.core.cache import cache
+from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
 
 admin.site.site_header = "OriginForge"
 admin.site.site_title = "OriginForge admin"
 admin.site.index_title = "Studio data"
+
+
+def _limited(login_view):
+    """The admin's own password form, held to the site login's limit: 10 wrong tries per address in 15 minutes."""
+
+    def view(request, *args, **kwargs):
+        key = f"admin-login-fails:{request.META.get('REMOTE_ADDR', '')}"
+        if request.method == "POST" and cache.get(key, 0) >= 10:
+            return HttpResponse("Too many sign-in attempts. Try again in 15 minutes.", status=429, content_type="text/plain")
+        response = login_view(request, *args, **kwargs)
+        if request.method == "POST" and not request.user.is_authenticated:
+            cache.add(key, 0, 15 * 60)
+            cache.incr(key)
+        return response
+
+    return view
+
+
+admin.site.login = _limited(admin.site.login)
 
 
 def health(request):

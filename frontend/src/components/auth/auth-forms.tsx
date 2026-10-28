@@ -21,9 +21,21 @@ function errorsFrom(err: unknown, fallback: string): Errors {
   return Object.keys(out).length ? out : { form: err.message };
 }
 
-/** Only same-site paths are honoured as ?next= targets (no open redirect). */
+const HERE = "https://originforge.invalid";
+
+/**
+ * Only same-site paths are honoured as ?next= targets (no open redirect).
+ * Read the way the browser will read it: a backslash, or a tab inside
+ * "//evil.com", makes another site of a path that starts with "/".
+ */
 export function safeNext(value: string | null, fallback: string) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
+  if (!value?.startsWith("/")) return fallback;
+  try {
+    const url = new URL(value, HERE);
+    return url.origin === HERE ? url.pathname + url.search + url.hash : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;

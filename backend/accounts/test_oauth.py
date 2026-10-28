@@ -98,10 +98,19 @@ class OAuthTests(TestCase):
         self.assertIn("oauth=disabled", res["Location"])
 
     def test_unsafe_next_is_ignored(self):
-        state = self.start(next="//evil.example/x")["state"][0]
-        get_user_model().objects.create_user("bob@example.com", "a-long-test-password-1", full_name="Bob")
-        res, _, _ = self.callback("google", state, {"sub": "g-4", "email": "bob@example.com", "email_verified": True})
-        self.assertEqual(res["Location"], "/fr/portal")
+        # Each of these is read by browsers as another site.
+        for i, nxt in enumerate(["//evil.example/x", "/\\evil.example", "/\t/evil.example", "/\n/evil.example", "https://evil.example"]):
+            with self.subTest(nxt=nxt):
+                state = self.start(next=nxt)["state"][0]
+                get_user_model().objects.create_user(f"bob{i}@example.com", "a-long-test-password-1", full_name="Bob")
+                res, _, _ = self.callback("google", state, {"sub": f"g-4{i}", "email": f"bob{i}@example.com", "email_verified": True})
+                self.assertEqual(res["Location"], "/fr/portal")
+
+    def test_a_local_next_is_kept(self):
+        state = self.start(next="/fr/start?service=websites")["state"][0]
+        get_user_model().objects.create_user("ann@example.com", "a-long-test-password-1", full_name="Ann")
+        res, _, _ = self.callback("google", state, {"sub": "g-9", "email": "ann@example.com", "email_verified": True})
+        self.assertEqual(res["Location"], "/fr/start?service=websites")
 
     def test_a_social_only_account_can_be_deleted_without_a_password(self):
         state = self.start()["state"][0]

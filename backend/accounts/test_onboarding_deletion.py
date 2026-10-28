@@ -63,6 +63,8 @@ class DeleteAccountTests(TestCase):
 
     def test_deletion_anonymises_logs_out_and_drops_drafts(self):
         ProjectRequest.objects.create(client=self.user, title="Draft", status=ProjectRequest.Status.DRAFT)
+        self.user.address, self.user.city, self.user.postal_code = "12 rue des Oliviers", "Tizi Ouzou", "15000"
+        self.user.save()
         with self.captureOnCommitCallbacks(execute=True):
             res = self.api.post("/api/auth/delete/", {"password": PASSWORD, "confirm": "DELETE"}, format="json")
         self.assertEqual(res.status_code, 204, res.content)
@@ -71,6 +73,7 @@ class DeleteAccountTests(TestCase):
         self.assertFalse(self.user.has_usable_password())
         self.assertTrue(self.user.email.endswith("@deleted.invalid"))
         self.assertEqual(self.user.full_name, "Deleted user")
+        self.assertEqual((self.user.address, self.user.city, self.user.postal_code), ("", "", ""))
         self.assertFalse(ProjectRequest.objects.filter(client=self.user).exists())
         # Signed out: the session no longer answers as this user.
         self.assertEqual(self.api.get("/api/auth/me/").status_code, 204)

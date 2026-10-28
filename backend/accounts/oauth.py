@@ -25,6 +25,7 @@ from django.contrib.auth import get_user_model, login
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -61,7 +62,12 @@ def callback_url(provider: str) -> str:
 
 
 def _safe_next(value: str | None) -> str:
-    return value if value and value.startswith("/") and not value.startswith("//") and "\\" not in value else ""
+    """A path on this site, or nothing. Django's check also catches what browsers
+    turn into another site (a backslash read as "//evil"); no control
+    characters or spaces at all (a tab inside "//evil" is dropped by browsers)."""
+    if not value or not value.startswith("/") or any(ord(c) <= 0x20 or ord(c) == 0x7F for c in value):
+        return ""
+    return value if url_has_allowed_host_and_scheme(value, allowed_hosts=None) else ""
 
 
 def _lang(value: str | None) -> str:

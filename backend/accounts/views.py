@@ -1,8 +1,10 @@
+import hashlib
 import secrets
 
 from django.contrib.auth import authenticate, get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -31,6 +33,16 @@ from .serializers import (
 from .tokens import make_verification_token, read_verification_token
 
 User = get_user_model()
+
+# Wrong passwords per account, from wherever they come: the studio address is
+# public, so guesses spread over many addresses are limited too. Counted for
+# unknown addresses as well, so the limit says nothing about who has an account.
+LOGIN_FAILS_MAX = 10
+LOGIN_FAILS_WINDOW = 15 * 60
+
+
+def _fails_key(email: str) -> str:
+    return "login-fails:" + hashlib.sha256(email.encode()).hexdigest()[:32]
 
 
 def send_verification(user):
@@ -76,14 +88,18 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(
-            request,
-            email=serializer.validated_data["email"].lower().strip(),
-            password=serializer.validated_data["password"],
-        )
+        email = serializer.validated_data["email"].lower().strip()
+        fails = _fails_key(email)
+        if cache.get(fails, 0) >= LOGIN_FAILS_MAX:
+            return Response({"detail": "Too many attempts for this account. Try again in 15 minutes, or reset your password."},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        user = authenticate(request, email=email, password=serializer.validated_data["password"])
         if user is None:
+            cache.add(fails, 0, LOGIN_FAILS_WINDOW)
+            cache.incr(fails)
             # One message for unknown e-mail and wrong password: no account probing.
             return Response({"detail": "Incorrect e-mail or password."}, status=status.HTTP_400_BAD_REQUEST)
+        cache.delete(fails)
         login(request, user)
         record(request, "account.login", user)
         return Response(UserSerializer(user).data)
@@ -277,7 +293,7 @@ class DeleteAccountView(APIView):
             record(request, "account.deleted", user)
             user.email = f"deleted-{user.pk}-{secrets.token_hex(4)}@deleted.invalid"
             user.full_name = "Deleted user"
-            for field in ("company", "phone", "whatsapp", "country", "contact_handle", "heard_from_detail"):
+            for field in ("company", "phone", "whatsapp", "country", "address", "city", "postal_code", "contact_handle", "heard_from_detail"):
                 setattr(user, field, "")
             user.set_unusable_password()
             user.is_active = False

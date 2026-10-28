@@ -1,7 +1,8 @@
 """
 The estimate shown while a client tweaks the calculator (BUSINESS_RULES.md §2).
 
-    base     = the service's "from" price in the chosen currency
+    base     = the service's "from" price in the chosen currency (a film's
+               price per minute: its length is one of the factors)
     estimate = base × Π(choice multipliers) × (1 + plan surcharge) + Σ(add-ons)
     range    = [estimate, estimate × 1.3], rounded to clean numbers
 
@@ -9,11 +10,12 @@ It is an estimate, never a binding price: the binding price is the proposal.
 """
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from .models import CarePlan, PricingChoice, PricingFactor, Service, ServicePrice
 
 SPREAD = Decimal("1.3")
+BASE_KINDS = (ServicePrice.Kind.FROM, ServicePrice.Kind.PER_MINUTE)
 STEP = {"DZD": 1000, "EUR": 10, "USD": 10}
 
 
@@ -34,12 +36,17 @@ def factors_for(service: Service | None):
 
 def _round(value: Decimal, currency: str) -> int:
     step = STEP.get(currency, 10)
-    return int((value / step).quantize(Decimal("1")) * step)
+    # Small sums (a one-minute film) keep a finer step.
+    if currency == "DZD" and value < 50000:
+        step = 500
+    elif currency != "DZD" and value < 200:
+        step = 5
+    return int((Decimal(value) / step).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * step)
 
 
 def estimate(service: Service | None, currency: str, plan_code: str | None, picks: dict[str, str]) -> Estimate:
     """Unknown factors or choices fall back to each factor's default."""
-    base_row = ServicePrice.objects.filter(service=service, currency=currency, kind=ServicePrice.Kind.FROM).first() if service else None
+    base_row = ServicePrice.objects.filter(service=service, currency=currency, kind__in=BASE_KINDS).first() if service else None
     plan = CarePlan.objects.filter(code=plan_code, active=True).first() if plan_code else None
 
     multiplier, addons, chosen = Decimal(1), 0, {}
@@ -53,7 +60,7 @@ def estimate(service: Service | None, currency: str, plan_code: str | None, pick
             addons += pick.addon(currency)
 
     if not base_row:
-        has_dzd = service and ServicePrice.objects.filter(service=service, currency="DZD", kind=ServicePrice.Kind.FROM).exists()
+        has_dzd = service and ServicePrice.objects.filter(service=service, currency="DZD", kind__in=BASE_KINDS).exists()
         if has_dzd and currency != "DZD":
             from fx.service import convert, current
 

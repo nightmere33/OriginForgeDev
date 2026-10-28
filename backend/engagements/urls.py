@@ -14,4 +14,5 @@ router.register("tasks", api.TaskViewSet, basename="task")
 urlpatterns = router.urls + [
     path("files/attachments/<uuid:pk>/", views.download_attachment),
     path("waitlist/", api.WaitlistView.as_view()),
+    path("queue/", views.queue_preview),
 ]

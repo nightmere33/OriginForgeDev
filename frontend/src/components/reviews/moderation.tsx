@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { api, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
+import { SkeletonRows } from "@/components/ui/skeleton";
 import { useLive } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -46,10 +47,9 @@ export function ReviewModeration({ lang, t }: { lang: Locale; t: T }) {
             {f ? m.filters[f] : t.studio.all}
           </button>
         ))}
-        <Link href={`/${lang}/studio`} className="hud ml-auto text-muted hover:text-ink">← {m.back}</Link>
       </div>
       {!rows ? (
-        <p className="hud px-6 py-16 text-muted md:px-10">{t.common.loading}</p>
+        <SkeletonRows label={t.common.loading} />
       ) : rows.length === 0 ? (
         <p className="border-t border-line px-6 py-16 text-muted md:px-10">{m.empty}</p>
       ) : (

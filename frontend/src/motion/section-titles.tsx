@@ -29,7 +29,11 @@ export type TitleMark = { id: string; label: string; top: number };
  */
 const BASE = 34; // px the letters are rendered at; every state is a scale of it
 const SMALL = 11; // queued and passed titles, px
-const ROW = 15; // px between stacked titles
+const ROW = 16; // px between stacked titles
+// The wordmark's own letters carry their font box lower than an overlay title
+// of the same size (measured: 7px at 11px), so stacked they would sit on the
+// next row. They are lifted by that much, in proportion to the stack size.
+const HERO_LIFT = 0.64 * SMALL;
 const STAGGER = 0.045; // share of the transition each letter waits after the previous
 const ARC = 18; // px the letters bow out to the left mid-flight
 const FROST_TOP = 92; // the top frost starts under the sticky section eyebrow, never over it
@@ -114,9 +118,9 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
       const p = marks.map((_, i) => (heroMode && i === 0 ? clamp01(y / (vh * 0.45)) : i < n - 1 ? a[i + 1] : 0));
       const snap = (v: number) => (reduced ? (v >= 0.5 ? 1 : 0) : v);
       // The hero letters are ours to move once the intro is over and the page
-      // has left the very top (or the ruler map is open); at rest they are the
-      // wordmark again, untouched.
-      const handoff = heroMode && introClock.done && (y > 1 || z > 0);
+      // has left the very top; at rest they are the wordmark again, untouched.
+      // Opening the ruler map at the top never moves them (as on getartcraft.com).
+      const handoff = heroMode && introClock.done && y > 1;
       if (handoff !== handedOff) {
         if (handoff) measureHero();
         else rest();
@@ -155,7 +159,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
           const yCurrent = top + passedRows * ROW + 4;
           const yPassed = top + i * ROW;
           let x = q * at(small) + c * at(current) + pa * at(small);
-          let ty = q * yQueue + c * yCurrent + pa * yPassed;
+          let ty = q * yQueue + c * yCurrent + pa * (yPassed - (isHero ? HERO_LIFT : 0));
           // Scale blends with the early-settling weights.
           let k = isHero ? ps * small : (1 - as) * small + (as - ps) * current + ps * small;
           if (isHero && hero[j]) {
@@ -166,8 +170,10 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
           if (!reduced) x -= (Math.sin(Math.PI * aj) * (isHero ? 0 : 1) + Math.sin(Math.PI * pj)) * ARC;
           let alpha = q * 0.5 + c + pa * 0.62 + h;
           // Zoomed-out ruler: letters leave one after another for the title's place on the map.
+          // The hero wordmark joins the map only as far as it has already left
+          // the hero for the stack, so the map never dismantles it in place.
           const mapShare = 1 - (L - 1) * STAGGER * 0.5;
-          const ov = z > 0 ? (reduced ? z : smooth(clamp01((z - j * STAGGER * 0.5) / mapShare))) : 0;
+          const ov = (z > 0 ? (reduced ? z : smooth(clamp01((z - j * STAGGER * 0.5) / mapShare))) : 0) * (isHeroRow ? p[i] : 1);
           if (ov > 0) {
             const mk = MAP / BASE;
             x += (right - total * mk + offset * mk - x) * ov;

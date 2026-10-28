@@ -45,6 +45,9 @@ class ProjectRequest(models.Model):
     objectives = models.TextField(help_text="What the project must achieve")
     requirements = models.TextField(blank=True)
     features = models.JSONField(default=list, blank=True)
+    # The service's own questions (kind of film, pages, platforms...): answer
+    # keys and values as the request form defines them per service.
+    brief = models.JSONField(default=dict, blank=True)
     budget_min = models.PositiveIntegerField(null=True, blank=True)
     budget_max = models.PositiveIntegerField(null=True, blank=True)
     budget_currency = models.CharField(max_length=3, choices=Currency.choices, default=Currency.EUR)
@@ -59,6 +62,11 @@ class ProjectRequest(models.Model):
     estimate_high = models.PositiveIntegerField(null=True, blank=True)
     estimate_currency = models.CharField(max_length=3, blank=True)
     wants_nda = models.BooleanField(default=False, help_text="Keep this project out of the portfolio")
+    # The queue (engagements/queue.py): when the request joined it, and when
+    # it left it (its turn came, or the studio took it straight away).
+    queued_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    queue_left_at = models.DateTimeField(null=True, blank=True)
+    review_reminded_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
     status_note = models.TextField(blank=True, help_text="Shown to the client with the last status change")

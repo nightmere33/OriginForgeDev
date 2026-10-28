@@ -175,6 +175,9 @@
 @layer base {
   html {
     background: var(--steel-950);
+    /* Hidden first for browsers without clip (iOS before 16): rails and ticks
+       that reach the screen edge must never let a phone pan sideways. */
+    overflow-x: hidden;
     overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
@@ -216,6 +219,18 @@
   }
   html.has-ruler::-webkit-scrollbar {
     display: none;
+  }
+}
+/* The ruler's frosted strip, only where content flows under it (no gutter
+   beside the 1280 rail). Feathered toward the content so there's no seam. */
+.ruler-frost {
+  display: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+  mask-image: linear-gradient(to right, transparent, #000 45%);
+}
+@media (max-width: 1399px) {
+  .ruler-frost {
+    display: block;
   }
 }
 
@@ -312,15 +327,48 @@
 }
 
 /* Pre-paint intro state (set by the inline script in the root layout). The
-   failsafe animation shows everything after 4s even if JS never runs. */
+   stage stays dark until the scripts arrive, even on a slow first visit, and
+   the failsafe shows everything after 8s if they never do (intro-conductor
+   reads the same figure). */
 [data-intro] [data-intro-hide] {
   opacity: 0;
-  animation: intro-failsafe 0s 4s forwards;
+  animation: intro-failsafe 0s 8s forwards;
 }
 
 @keyframes intro-failsafe {
   to {
     opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* The wordmark's steel fill is its parent's background clipped to the
+   letters' text, and that clip ignores the letters' own opacity: they hide
+   with visibility too (hero-intro.tsx shows them as they form). */
+[data-intro] [data-wm-letter][data-intro-hide] {
+  visibility: hidden;
+}
+
+/* Once the intro runs (intro-conductor) it owns these elements; a fresh
+   failsafe (a new animation name, so it starts over) still guards a stall. */
+[data-intro="run"] [data-intro-hide] {
+  animation: intro-failsafe-run 0s 6s forwards;
+}
+
+@keyframes intro-failsafe-run {
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Phones zoom into a field set under 16px as it takes focus (and the page
+   then pans sideways): text fields never go below 16px on touch screens. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
   }
 }
 
@@ -339,7 +387,65 @@
   }
 }
 
+/* Scroll areas draw their own bar (ui/scroll-area.tsx); the native one hides. */
+.scroll-bare {
+  scrollbar-width: none;
+}
+.scroll-bare::-webkit-scrollbar {
+  display: none;
+}
+
+/* Anything else that scrolls (a long textarea, a table) gets a thin steel bar
+   on a clear track instead of the system's grey one. In the base layer, so
+   the ruler's hidden page bar (html.has-ruler) still wins. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ink) 24%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ink) 24%, transparent);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ember-400);
+  }
+}
+
+/* Loading placeholders: a dim block with one soft sheen sweeping across
+   (transform only, on its own layer). Static for reduced motion. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 7%, transparent), transparent);
+  animation: skeleton-sweep 1.4s var(--ease-out) infinite;
+}
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    opacity: 0;
+  }
   .marquee-track {
     animation: none;
   }
@@ -349,6 +455,70 @@
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* Page changes (motion/page-transition.tsx). The leaving page lifts and dims
+   fast; the next rises from a soft blur a beat later. The rest of the page
+   (nav, ruler) switches without a crossfade, so the nav never flickers, and
+   clicks pass through to the live page while it plays. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-old(.page-out) {
+  animation: page-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.page-in) {
+  animation: page-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+    filter: blur(4px);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+    filter: blur(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+/* The code field's caret (ui/otp-input.tsx). */
+.otp-caret {
+  animation: otp-blink 1s steps(1) infinite;
+}
+@keyframes otp-blink {
+  50% {
+    visibility: hidden;
+  }
+}
+
+/* Calendar months slide in from the side they come from (ui/date-picker). */
+@keyframes cal-next {
+  from {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0);
+  }
+}
+@keyframes cal-prev {
+  from {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
   }
 }
 
@@ -451,7 +621,43 @@
 .auth-scanlines {
   background: repeating-linear-gradient(0deg, transparent 0 2px, color-mix(in srgb, var(--bg) 60%, transparent) 2px 3px);
 }
+/* The live mosaic (auth-fx MosaicGlitch): drifting scanlines, flickering grain
+   and an ember scan bar. Transform/opacity/background-position only. */
+.auth-scanlines-live {
+  animation: auth-lines 1.2s linear infinite;
+}
+@keyframes auth-lines {
+  to { background-position: 0 3px; }
+}
+.auth-grain {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.14;
+  mix-blend-mode: overlay;
+  animation: auth-grain 0.8s steps(1) infinite;
+}
+@keyframes auth-grain {
+  0% { transform: translate3d(0, 0, 0); }
+  17% { transform: translate3d(-7%, 4%, 0); }
+  33% { transform: translate3d(5%, -6%, 0); }
+  50% { transform: translate3d(-3%, 7%, 0); }
+  67% { transform: translate3d(7%, 2%, 0); }
+  83% { transform: translate3d(-6%, -4%, 0); }
+}
+.auth-sweep {
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ember-400) 26%, transparent) 55%, transparent);
+  animation: auth-sweep 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes auth-sweep {
+  0% { transform: translate3d(0, -100%, 0); opacity: 0; }
+  8% { opacity: 1; }
+  55% { transform: translate3d(0, 400%, 0); opacity: 0.9; }
+  56%, 100% { transform: translate3d(0, 400%, 0); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .auth-input:focus-within::after,
-  .auth-busy { animation: none; }
+  .auth-busy,
+  .auth-scanlines-live,
+  .auth-grain,
+  .auth-sweep { animation: none; }
+  .auth-sweep { opacity: 0; }
 }

@@ -7,11 +7,14 @@
 export const BEATS = {
   mark: 0,
   letters: 0.35,
-  nav: 0.9,
-  copy: 1.2,
-  galaxy: 1.5,
-  end: 3.2,
+  nav: 0.7,
+  galaxy: 1,
+  copy: 1.05,
+  end: 2.8,
 } as const;
+
+/** How long the word takes to form out of the mark, from BEATS.letters. */
+export const WORD_DUR = 0.85;
 
 export const RETURN_SPEED = 2.2;
 export const FAST_FORWARD_SPEED = 6;
@@ -41,6 +44,29 @@ export function finishIntro() {
   introClock.t = Math.max(introClock.t, BEATS.end);
   doneListeners.forEach((fn) => fn());
   doneListeners.clear();
+}
+
+// Whether the galaxy joins the intro: the clock waits for its first frame
+// (up to a cap, intro-conductor) so the cards pour out on their beat, as on
+// getartcraft.com, instead of landing after the intro has ended.
+let galaxy: "pending" | "ready" | "none" = "pending";
+const galaxyListeners = new Set<Listener>();
+
+/** The galaxy loader's verdict: its canvas is up, or it won't run here. */
+export function settleGalaxy(state: "ready" | "none") {
+  if (galaxy !== "pending") return;
+  galaxy = state;
+  galaxyListeners.forEach((fn) => fn());
+  galaxyListeners.clear();
+}
+
+export function onGalaxySettled(fn: Listener): () => void {
+  if (galaxy !== "pending") {
+    fn();
+    return () => {};
+  }
+  galaxyListeners.add(fn);
+  return () => galaxyListeners.delete(fn);
 }
 
 /** Resolves when the clock passes `beat` (immediately if already there). */

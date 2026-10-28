@@ -78,7 +78,10 @@ export function ReviewPanel({ r, reference, user }: { r: R; reference: string; u
   );
 }
 
-function ReviewForm({ r, user, initial, engagement, onDone }: { r: R; user: User; initial: Mine | null; engagement: number; onDone: () => void }) {
+/** The review itself. `sendTo` posts it elsewhere (an invitation), without an engagement. */
+export function ReviewForm({ r, user, initial, engagement, sendTo, onDone }: {
+  r: R; user: User; initial: Mine | null; engagement?: number; sendTo?: string; onDone: () => void;
+}) {
   const [rating, setRating] = useState(initial?.rating ?? 0);
   const [body, setBody] = useState(initial?.body ?? "");
   const [name, setName] = useState(initial?.display_name ?? shortName(user.full_name));
@@ -94,12 +97,12 @@ function ReviewForm({ r, user, initial, engagement, onDone }: { r: R; user: User
     const payload = { engagement, rating, body, display_name: name, display_role: role, consent };
     try {
       if (initial) await api.patch(`/reviews/mine/${initial.id}/`, payload);
-      else await api.post("/reviews/mine/", payload);
+      else await api.post(sendTo ?? "/reviews/mine/", payload);
       onDone();
     } catch (err) {
       setBusy(false);
       setErrors(err instanceof ApiError
-        ? { body: err.field("body"), display_name: err.field("display_name"), consent: err.field("consent"), form: err.field("engagement") ?? err.field("detail") }
+        ? { body: err.field("body"), display_name: err.field("display_name"), consent: err.field("consent"), form: err.field("engagement") ?? err.field("detail") ?? err.message }
         : { form: r.error });
     }
   };

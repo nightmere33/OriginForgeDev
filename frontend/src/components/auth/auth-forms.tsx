@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { api, ApiError, type User } from "@/lib/api-client";
-import { fetchSession } from "@/lib/session";
+import { fetchSession, useSession } from "@/lib/session";
 import { Hud } from "@/components/ui/hud";
 import { GlitchLabel, tearIn } from "@/motion/glitch";
 import { AuthField, BootText, OAuthNotice, PhaseButton, ProviderButtons, rememberMethod, type Phase } from "./auth-fx";
+import { EmailCode } from "./email-code";
 
 type T = Pick<Dictionary, "auth" | "common">;
 type Errors = Record<string, string | undefined>;
@@ -20,9 +21,21 @@ function errorsFrom(err: unknown, fallback: string): Errors {
   return Object.keys(out).length ? out : { form: err.message };
 }
 
-/** Only same-site paths are honoured as ?next= targets (no open redirect). */
+const HERE = "https://originforge.invalid";
+
+/**
+ * Only same-site paths are honoured as ?next= targets (no open redirect).
+ * Read the way the browser will read it: a backslash, or a tab inside
+ * "//evil.com", makes another site of a path that starts with "/".
+ */
 export function safeNext(value: string | null, fallback: string) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : fallback;
+  if (!value?.startsWith("/")) return fallback;
+  try {
+    const url = new URL(value, HERE);
+    return url.origin === HERE ? url.pathname + url.search + url.hash : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -88,8 +101,8 @@ export function LoginForm({ lang, t }: { lang: Locale; t: T }) {
       <OAuthNotice code={params.get("oauth")} messages={a.oauth.errors} />
       <ProviderButtons lang={lang} next={params.get("next")} labels={a.oauth} />
       <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
-        <AuthField label={a.password} name="password" type="password" autoComplete="current-password" error={errors.password} reveal={reveal} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
+        <AuthField label={a.password} name="password" type="password" autoComplete="current-password" placeholder={a.placeholders.password} error={errors.password} reveal={reveal} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.login)} />
         <div className="flex flex-wrap justify-between gap-3">
@@ -117,9 +130,11 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
       rememberMethod("email");
       setPhase("done");
       await Promise.all([fetchSession(true), settle()]);
-      // New accounts start with the short welcome (language, how they found me, how to talk).
+      // New accounts confirm their e-mail with the code just sent, then the
+      // short welcome (language, how they found me, how to talk).
       const next = params.get("next");
-      router.push(`/${lang}/welcome${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+      const welcome = `/${lang}/welcome${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+      router.push(`/${lang}/verify-email?next=${encodeURIComponent(welcome)}`);
       router.refresh();
     });
   };
@@ -129,10 +144,10 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
       <OAuthNotice code={params.get("oauth")} messages={a.oauth.errors} />
       <ProviderButtons lang={lang} next={params.get("next")} labels={a.oauth} />
       <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-        <AuthField label={a.fullName} name="full_name" autoComplete="name" error={errors.full_name} />
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
+        <AuthField label={a.fullName} name="full_name" autoComplete="name" placeholder={a.placeholders.fullName} error={errors.full_name} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
         <AuthField label={a.password} name="password" type="password" autoComplete="new-password" minLength={10}
-          error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
+          placeholder={a.placeholders.newPassword} error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.register)} />
         <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.hasAccount} /></Link>
@@ -174,9 +189,9 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
     <form ref={form} onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       {uid && token ? (
         <AuthField label={a.newPassword} name="password" type="password" autoComplete="new-password" minLength={10}
-          error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
+          placeholder={a.placeholders.newPassword} error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
       ) : (
-        <AuthField label={a.email} name="email" type="email" autoComplete="email" error={errors.email} />
+        <AuthField label={a.email} name="email" type="email" autoComplete="email" placeholder={a.placeholders.email} error={errors.email} />
       )}
       <FormError message={errors.form} />
       <PhaseButton phase={phase} labels={phases(uid ? a.phases.resetConfirm : a.phases.reset)} />
@@ -185,14 +200,34 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
   );
 }
 
+/**
+ * Confirming an e-mail: with the 6-digit code (after sign-up, or any time
+ * from the portal), or with the link from the same e-mail (?token=).
+ */
 export function VerifyEmail({ lang, t }: { lang: Locale; t: T }) {
   const params = useSearchParams();
   const token = params.get("token");
-  const [state, setState] = useState<"pending" | "ok" | "fail">(token ? "pending" : "fail");
+  if (!token) return <VerifyWithCode lang={lang} t={t} next={safeNext(params.get("next"), `/${lang}/portal`)} />;
+  return <VerifyWithLink lang={lang} t={t} token={token} />;
+}
+
+function VerifyWithCode({ lang, t, next }: { lang: Locale; t: T; next: string }) {
+  const user = useSession();
+  const router = useRouter();
+  useEffect(() => {
+    if (user === null) router.replace(`/${lang}/login?next=${encodeURIComponent(`/${lang}/verify-email?next=${encodeURIComponent(next)}`)}`);
+    else if (user?.email_verified) router.replace(next);
+  }, [user, lang, next, router]);
+  if (!user || user.email_verified) return <Hud tone="muted" dot live>{t.common.loading}</Hud>;
+  return <EmailCode a={t.auth} email={user.email} onVerified={() => router.push(next)} />;
+}
+
+function VerifyWithLink({ lang, t, token }: { lang: Locale; t: T; token: string }) {
+  const [state, setState] = useState<"pending" | "ok" | "fail">("pending");
   const sent = useRef(false);
 
   useEffect(() => {
-    if (!token || sent.current) return;
+    if (sent.current) return;
     sent.current = true; // strict-mode double effects must not spend the token twice
     api.post("/auth/verify-email/", { token })
       .then(() => fetchSession(true))

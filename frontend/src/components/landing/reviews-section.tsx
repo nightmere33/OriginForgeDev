@@ -1,4 +1,5 @@
-import { BadgeCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, BadgeCheck } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { fill } from "@/i18n/fill";
 import type { PublicReview, ReviewSummary } from "@/lib/types";
@@ -79,6 +80,18 @@ export default function ReviewsSection({
                   <Hud tone="faint">{r.replyFrom}</Hud>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{rv.reply}</p>
                 </div>
+              )}
+              {rv.project && (
+                <Link href={`/${lang}/work/${rv.project.slug}`} className="group/proj -mx-2 flex items-center gap-3 px-2 py-1.5 transition-colors hover:bg-cell">
+                  {rv.project.mark ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a small logo from the media server
+                    <img src={rv.project.mark} alt="" width={28} height={28} className="size-7 shrink-0 object-contain" />
+                  ) : (
+                    <span aria-hidden className="size-2 shrink-0" style={{ background: rv.project.accent || "var(--ember-500)" }} />
+                  )}
+                  <span className="hud text-muted transition-colors group-hover/proj:text-ink">{fill(r.aboutProject, { project: rv.project.title })}</span>
+                  <ArrowUpRight aria-hidden className="ml-auto size-3.5 text-faint transition-[color,transform] duration-[var(--dur-standard)] group-hover/proj:-translate-y-0.5 group-hover/proj:translate-x-0.5 group-hover/proj:text-ember-400" />
+                </Link>
               )}
               <footer className="mt-auto flex items-center gap-3 border-t border-line pt-5">
                 <span aria-hidden className="flex size-10 shrink-0 items-center justify-center border border-line-strong font-mono text-sm text-ink">{initials(rv.display_name)}</span>

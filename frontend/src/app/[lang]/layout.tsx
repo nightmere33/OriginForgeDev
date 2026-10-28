@@ -17,6 +17,8 @@ import { THEME_FLAG } from "@/lib/theme-flag";
 import { LiveConnection } from "@/lib/live";
 import { CookieNotice } from "@/components/chrome/cookie-notice";
 import { Toaster } from "sonner";
+import { QuietBoundary } from "@/components/ui/quiet-boundary";
+import { NavProgress } from "@/components/chrome/nav-progress";
 import "../globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
@@ -36,16 +38,24 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await lang();
   if (!hasLocale(locale)) return {};
   const t = await getDictionary(locale);
+  // The link preview (Discord, WhatsApp, LinkedIn, forums, X): a 1200x630 banner
+  // per language, made from the site itself (public/og, see DESIGN.md §5).
+  const banner = { url: `/og/originforge-${locale}.jpg`, width: 1200, height: 630, alt: t.meta.ogAlt, type: "image/jpeg" };
   return {
     metadataBase: new URL(SITE_URL),
     title: { default: t.meta.title, template: "%s · OriginForge" },
     description: t.meta.description,
-    alternates: { canonical: `/${locale}`, languages: { en: "/en", fr: "/fr" } },
+    applicationName: "OriginForge",
+    authors: [{ name: "Younes Ouali", url: SITE_URL }],
+    creator: "Younes Ouali",
+    keywords: t.meta.keywords,
+    alternates: { canonical: `/${locale}`, languages: { en: "/en", fr: "/fr", "x-default": "/en" } },
     openGraph: {
-      type: "website", siteName: "OriginForge", locale: locale === "fr" ? "fr_DZ" : "en_US",
-      title: t.meta.title, description: t.meta.description,
+      type: "website", siteName: "OriginForge", locale: locale === "fr" ? "fr_FR" : "en_US",
+      alternateLocale: locale === "fr" ? ["en_US"] : ["fr_FR"],
+      url: `/${locale}`, title: t.meta.title, description: t.meta.description, images: [banner],
     },
-    twitter: { card: "summary_large_image", title: t.meta.title, description: t.meta.description },
+    twitter: { card: "summary_large_image", title: t.meta.title, description: t.meta.description, images: [banner] },
   };
 }
 
@@ -82,8 +92,9 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         >
           {t.nav.skip}
         </a>
-        <LiveConnection />
-        <CookieNotice lang={locale} labels={t.cookies} />
+        {/* Enhancements fail on their own (an old browser, a weak GPU); the page stays. */}
+        <QuietBoundary><LiveConnection /></QuietBoundary>
+        <QuietBoundary><CookieNotice lang={locale} labels={t.cookies} /></QuietBoundary>
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -98,15 +109,16 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
         />
         <CurrencyProvider rates={rates}>
         <MotionProvider>
-          <IntroConductor />
+          <QuietBoundary><IntroConductor /></QuietBoundary>
           <Suspense fallback={<NavFallback lang={locale} t={t.nav} />}>
             <SiteNav lang={locale} t={t.nav} />
           </Suspense>
+          <QuietBoundary><Suspense fallback={null}><NavProgress /></Suspense></QuietBoundary>
           <main id="main" className="relative">
             {children}
           </main>
           <SiteFooter lang={locale} t={t} />
-          <Suspense fallback={null}><ScrollRuler /></Suspense>
+          <QuietBoundary><Suspense fallback={null}><ScrollRuler /></Suspense></QuietBoundary>
         </MotionProvider>
         </CurrencyProvider>
         <DevTools />

@@ -9,15 +9,16 @@ in review. Placeholders use str.format and are filled by `service.notify`.
 TEMPLATES = {
     "verify_email": {
         "en": (
-            "Confirm your e-mail",
-            "Hi {name},\n\nWelcome to OriginForge. Confirm your e-mail address to secure your account:\n\n"
-            "{link}\n\nThe link is valid for 48 hours. If you didn't create an account, ignore this message.",
+            "Your code: {code}",
+            "Hi {name},\n\nWelcome to OriginForge. Type this code on the site to confirm your e-mail:\n\n"
+            "{code}\n\nIt works for 15 minutes. Or confirm with this link instead:\n\n{link}\n\n"
+            "If you didn't create an account, ignore this message.",
         ),
         "fr": (
-            "Confirmez votre adresse e-mail",
-            "Bonjour {name},\n\nBienvenue chez OriginForge. Confirmez votre adresse e-mail pour sécuriser "
-            "votre compte :\n\n{link}\n\nLe lien est valable 48 heures. Si vous n'avez pas créé de compte, "
-            "ignorez ce message.",
+            "Votre code : {code}",
+            "Bonjour {name},\n\nBienvenue chez OriginForge. Saisissez ce code sur le site pour confirmer "
+            "votre e-mail :\n\n{code}\n\nIl fonctionne pendant 15 minutes. Ou confirmez avec ce lien :\n\n{link}\n\n"
+            "Si vous n'avez pas créé de compte, ignorez ce message.",
         ),
     },
     "password_reset": {
@@ -37,13 +38,13 @@ TEMPLATES = {
         "en": (
             "We received your request {reference}",
             "Hi {name},\n\nThanks for your project request \"{title}\" ({reference}). "
-            "I'll review it and get back to you within 24 hours, usually with a few questions.\n\n"
+            "I'll review it and get back to you within {hours}, usually with a few questions.\n\n"
             "Follow it here: {link}\n\nYounes, OriginForge",
         ),
         "fr": (
             "Nous avons reçu votre demande {reference}",
             "Bonjour {name},\n\nMerci pour votre demande de projet « {title} » ({reference}). "
-            "Je l'étudie et je reviens vers vous sous 24 heures, généralement avec quelques questions.\n\n"
+            "Je l'étudie et je reviens vers vous sous {hours}, généralement avec quelques questions.\n\n"
             "Suivez-la ici : {link}\n\nYounes, OriginForge",
         ),
     },

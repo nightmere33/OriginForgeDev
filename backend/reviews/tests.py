@@ -4,6 +4,7 @@ import tempfile
 from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -28,9 +29,9 @@ class ReviewTests(TestCase):
         cache.clear()
         Service.objects.create(slug="web-platforms", title_en="Web platforms", summary_en="Platforms")
         call_command("seed_pricing", verbosity=0)
-        self.alice = User.objects.create_user("alice@example.com", "pass-pass-1", full_name="Alice A")
-        self.bob = User.objects.create_user("bob@example.com", "pass-pass-2", full_name="Bob B")
-        self.dev = User.objects.create_user("younes@example.com", "pass-pass-3", full_name="Younes", role="developer")
+        self.alice = User.objects.create_user("alice@example.com", "pass-pass-1", full_name="Alice A", email_verified_at=timezone.now())
+        self.bob = User.objects.create_user("bob@example.com", "pass-pass-2", full_name="Bob B", email_verified_at=timezone.now())
+        self.dev = User.objects.create_user("younes@example.com", "pass-pass-3", full_name="Younes", role="developer", email_verified_at=timezone.now())
 
     def api(self, user) -> APIClient:
         c = APIClient()
@@ -113,3 +114,32 @@ class ReviewTests(TestCase):
         secret = self.engagement(nda=True)
         self.assertFalse(CaseStudy.objects.filter(source_engagement_id=secret).exists())
         self.assertEqual(Engagement.objects.get(pk=secret).status, "live")
+
+    def test_invited_client_reviews_a_portfolio_project(self):
+        from django.core import mail
+
+        study = CaseStudy.objects.create(slug="medigate", title="MediGate", published=True, tagline_en="Revision", summary_en="s")
+        dev = self.api(self.dev)
+        with self.captureOnCommitCallbacks(execute=True):
+            res = dev.post("/api/reviews/studio/invites/", {"email": "Bob@Example.com", "full_name": "Bob B", "case_study": "medigate"}, format="json")
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(mail.outbox[-1].to, ["bob@example.com"])
+        token = mail.outbox[-1].body.split("/reviews/invite/")[1].split()[0]
+
+        info = APIClient().get(f"/api/reviews/invites/{token}/").json()
+        self.assertEqual((info["project"]["title"], info["matches"], info["used"]), ("MediGate", False, False))
+        self.assertNotIn("bob@example.com", str(info))  # only a hint of the address
+
+        body = {"rating": 5, "body": "Clear, fast and careful work on our platform.", "display_name": "Bob B", "consent": True}
+        self.assertEqual(self.api(self.alice).post(f"/api/reviews/invites/{token}/", body, format="json").status_code, 403)
+        res = self.api(self.bob).post(f"/api/reviews/invites/{token}/", body, format="json")
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(self.api(self.bob).post(f"/api/reviews/invites/{token}/", body, format="json").status_code, 400)
+
+        review = Review.objects.get(case_study=study)
+        self.assertEqual((review.status, review.project_label, review.engagement), ("pending", "MediGate", None))
+        self.assertEqual(APIClient().get("/api/reviews/").json()["items"], [])
+        dev.post(f"/api/reviews/studio/{review.pk}/moderate/", {"decision": "approve"}, format="json")
+        item = APIClient().get("/api/reviews/").json()["items"][0]
+        self.assertEqual(item["project"]["slug"], "medigate")
+        self.assertEqual(dev.get("/api/reviews/studio/invites/").json()["invites"][0]["state"], "used")

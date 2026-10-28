@@ -30,8 +30,8 @@ class SiteSettings(models.Model):
     # Capacity switch: unticked = new project requests are paused (the request
     # form shows the note below instead; messages and contact stay open).
     is_available = models.BooleanField(
-        "accepting new projects", default=True,
-        help_text="Untick when you are at capacity (e.g. 2 projects running).",
+        "starting new projects", default=True,
+        help_text="Untick to pause starts (holidays): requests still come in and wait in the queue.",
     )
     usdt_bep20_address = models.CharField(
         "USDT address (BEP20)", max_length=64, blank=True,
@@ -42,9 +42,9 @@ class SiteSettings(models.Model):
         help_text="Leave empty to follow Binance P2P live. Sets USDT and USD; EUR keeps its ratio.",
     )
     max_active_projects = models.PositiveSmallIntegerField(
-        default=2, help_text="Requests pause by themselves at this many projects in development or review. 0 = no limit.",
+        default=2, help_text="Projects at once for services that share the studio's limit; beyond it requests queue. 0 = no limit.",
     )
-    available_from = models.DateField(null=True, blank=True, help_text="Shown while paused: when you can start again")
+    available_from = models.DateField(null=True, blank=True, help_text="While starts are paused: when you can start again")
     availability_en, availability_fr, availability_ar = tr(models.CharField, max_length=120, blank=True)
     location_en, location_fr, location_ar = tr(models.CharField, max_length=120, blank=True)
     about_en, about_fr, about_ar = tr(models.TextField, blank=True)
@@ -73,6 +73,9 @@ class SiteSettings(models.Model):
     years_experience = models.PositiveSmallIntegerField(default=4)
     projects_shipped = models.PositiveSmallIntegerField(default=20)
     reply_hours = models.PositiveSmallIntegerField(default=24, help_text="Shown as 'Replies within N h'")
+    review_hours = models.PositiveSmallIntegerField(
+        default=48, help_text="The longest a new request waits for a first answer (shown as 'within 24 to 48 h').",
+    )
 
     # Manual payment instructions. Never part of the public API: they are
     # shown to a signed-in client who has something to pay (see billing).
@@ -109,6 +112,18 @@ class Service(models.Model):
     description_en, description_fr, description_ar = tr(models.TextField, blank=True)
     deliverables_en, deliverables_fr, deliverables_ar = tr(models.TextField, blank=True)
     timeline_en, timeline_fr, timeline_ar = tr(models.CharField, max_length=60, blank=True)
+    # Capacity (engagements/queue.py): how many of these run at once, and
+    # whether requests ever wait in a queue.
+    max_active = models.PositiveSmallIntegerField(
+        "projects at once", null=True, blank=True,
+        help_text="Empty = shares the studio's limit (Site settings). 0 = no limit.",
+    )
+    accept_directly = models.BooleanField(
+        default=False, help_text="Requests never wait in the queue (e.g. films).",
+    )
+    typical_days = models.PositiveSmallIntegerField(
+        default=21, help_text="A typical project's length, for queue start estimates.",
+    )
 
     class Meta:
         ordering = ["order", "id"]
@@ -119,10 +134,10 @@ class Service(models.Model):
 
 class ServicePrice(models.Model):
     """
-    One price line of a service. A service can carry several — typically one
-    in DZD for Algerian clients and one in EUR or USD for international ones —
-    and each says how to read it (from / fixed / per month / per hour).
-    No rows means "quoted per project".
+    One price line of a service. A service can carry several (typically one
+    in DZD; a line in EUR or USD overrides the live conversion for that
+    currency), and each says how to read it (from / fixed / per month / per
+    hour / from, per minute). No rows means "quoted per project".
     """
 
     class Kind(models.TextChoices):
@@ -130,6 +145,8 @@ class ServicePrice(models.Model):
         FIXED = "fixed", "Fixed"
         MONTHLY = "monthly", "Per month"
         HOURLY = "hourly", "Per hour"
+        # Films: the price of a minute of finished film (the calculator scales it).
+        PER_MINUTE = "per_minute", "From, per minute"
 
     service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="prices")
     currency = models.CharField(max_length=3, choices=Currency.choices)

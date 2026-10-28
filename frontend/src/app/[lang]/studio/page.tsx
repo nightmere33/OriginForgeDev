@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { getDictionary, hasLocale } from "@/i18n/dictionaries";
 import { Accented } from "@/components/ui/hud";
 import { SectionEyebrow, SectionHeading, SectionShell } from "@/components/ui/section-shell";
-import { StudioInbox } from "@/components/portal/requests";
+import { StudioTabs } from "@/components/studio/studio-tabs";
+import { StudioOverview } from "@/components/studio/overview";
 
 export const metadata: Metadata = { robots: { index: false } };
 
@@ -14,12 +15,14 @@ export default async function Page() {
   const lang = await rootLang();
   if (!hasLocale(lang)) notFound();
   const t = await getDictionary(lang);
+  const d = t.studio.dash;
   return (
-    <SectionShell id="studio" ruler={t.studio.title.join("")}>
-      <SectionEyebrow index="·" label={t.studio.title.join("")} />
-      <SectionHeading title={<Accented parts={t.studio.title} />} lead={t.studio.lead} />
+    <SectionShell id="studio" ruler={d.tabs.overview}>
+      <SectionEyebrow index="·" label={d.tabs.overview} />
+      <SectionHeading title={<Accented parts={d.overview.title} />} lead={d.overview.lead} />
+      <StudioTabs lang={lang} labels={d.tabs} active="overview" />
       <Suspense fallback={null}>
-        <StudioInbox lang={lang} t={{ portal: t.portal, studio: t.studio, start: t.start, auth: t.auth, common: t.common, project: t.project, trust: t.trust }} />
+        <StudioOverview lang={lang} t={{ studio: t.studio, portal: t.portal, project: t.project, common: t.common, start: t.start }} />
       </Suspense>
     </SectionShell>
   );

@@ -89,7 +89,9 @@ export default function RevealManager() {
         gsap.set(items.flatMap(targets), revealFrom());
 
         if (group.hasAttribute("data-reveal-intro")) {
-          cleanups.push(atBeat(BEATS.copy, () => gsap.to(items.flatMap(targets), revealTo({ stagger: 0.08 })), gsap.ticker));
+          // Opacity stays set: the copy lands before the intro ends, and the
+          // pre-paint rule would hide it again until then.
+          cleanups.push(atBeat(BEATS.copy, () => gsap.to(items.flatMap(targets), revealTo({ stagger: 0.08, clearProps: "transform,filter" })), gsap.ticker));
           return;
         }
         // One trigger per item: a tall grid revealed by a single trigger

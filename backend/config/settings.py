@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "channels",
     "live",
     "reviews",
+    "studio",
 ]
 
 MIDDLEWARE = [
@@ -155,6 +156,11 @@ REST_FRAMEWORK = {
     + (("rest_framework.renderers.BrowsableAPIRenderer",) if DEBUG else ()),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
+    # Throttles count by REMOTE_ADDR, never by X-Forwarded-For: a visitor
+    # writes that header, and a new value per request would be a fresh
+    # allowance. uvicorn (--proxy-headers, trusting only nginx) has already
+    # set REMOTE_ADDR to the real visitor that nginx took from Cloudflare.
+    "NUM_PROXIES": 0,
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -227,6 +233,10 @@ if os.environ.get("REDIS_URL"):
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [os.environ["REDIS_URL"]]}}}
 else:
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+# Throttle counts and sign-in attempt limits are shared by every worker (in
+# each process's memory, every uvicorn worker would grant its own allowance).
+if os.environ.get("REDIS_URL"):
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": os.environ["REDIS_URL"], "KEY_PREFIX": "of"}}
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_IGNORE_RESULT = True
 # No broker on a laptop: run tasks inline so nothing needs Redis to work.

@@ -40,9 +40,9 @@ class LifecycleTests(TestCase):
         cache.clear()  # throttle counters live in the cache
         Service.objects.create(slug="web-platforms", title_en="Web platforms", summary_en="Platforms")
         call_command("seed_pricing", verbosity=0)
-        self.alice = User.objects.create_user("alice@example.com", "pass-pass-1", full_name="Alice A")
-        self.bob = User.objects.create_user("bob@example.com", "pass-pass-2", full_name="Bob B")
-        self.dev = User.objects.create_user("younes@example.com", "pass-pass-3", full_name="Younes", role="developer")
+        self.alice = User.objects.create_user("alice@example.com", "pass-pass-1", full_name="Alice A", email_verified_at=timezone.now())
+        self.bob = User.objects.create_user("bob@example.com", "pass-pass-2", full_name="Bob B", email_verified_at=timezone.now())
+        self.dev = User.objects.create_user("younes@example.com", "pass-pass-3", full_name="Younes", role="developer", email_verified_at=timezone.now())
 
     def api(self, user) -> APIClient:
         c = APIClient()
@@ -203,30 +203,77 @@ class LifecycleTests(TestCase):
         self.ok(dev.post(f"/api/charges/{eng['charges'][0]['id']}/cash/"))
         return eng["id"]
 
-    def test_requests_pause_at_the_project_cap_and_waitlist_hears_first(self):
+    def test_at_the_project_cap_requests_queue_and_are_released_in_order(self):
         from django.core import mail
 
         from content.models import SiteSettings
+        from engagements.models import Engagement
 
         site = SiteSettings.load()
         site.max_active_projects = 1
         site.save()
-        self.started_project()
+        eng_id = self.started_project()
         public = self.ok(APIClient().get("/api/content/site/"))
         self.assertEqual((public["is_available"], public["at_capacity"]), (False, True))
-        res = self.api(self.alice).post("/api/requests/", {"title": "Second", "objectives": "More", "service": "web-platforms"}, format="json")
-        self.assertEqual(res.status_code, 403)
-        self.ok(APIClient().post("/api/waitlist/", {"email": "next@example.com", "language": "fr"}, format="json"), 201)
-        self.assertEqual(tick()["waitlist"], 0)  # still full
+        preview = self.ok(APIClient().get("/api/queue/?service=web-platforms"))
+        self.assertEqual((preview["queued"], preview["position"]), (True, 1))
+        self.assertIsNotNone(preview["start"])  # after the running project's timeline
 
-        site.max_active_projects = 2
-        site.save()
+        # Never refused: two requests join the queue, first come first served.
         mail.outbox.clear()
         with self.captureOnCommitCallbacks(execute=True):
-            self.assertEqual(tick()["waitlist"], 1)
-        self.assertEqual(mail.outbox[-1].to, ["next@example.com"])
-        self.assertIn("/fr/start", mail.outbox[-1].body)
-        self.assertEqual(tick()["waitlist"], 0)  # told once
+            first = self.ok(self.api(self.bob).post("/api/requests/", {"title": "Second", "objectives": "More", "service": "web-platforms"}, format="json"), 201)
+        second = self.ok(self.api(self.alice).post("/api/requests/", {"title": "Third", "objectives": "Even more", "service": "web-platforms"}, format="json"), 201)
+        self.assertEqual((first["queue"]["position"], second["queue"]["position"]), (1, 2))
+        self.assertIn("#1", mail.outbox[0].subject)  # the first e-mail says where they stand
+
+        # The studio sees the board, and can reorder it.
+        board = self.ok(self.api(self.dev).get("/api/studio/queue/"))
+        self.assertEqual([r["reference"] for r in board[0]["queue"]], [first["reference"], second["reference"]])
+        self.ok(self.api(self.dev).post(f"/api/studio/queue/{second['reference']}/up/"))
+        self.assertEqual(self.ok(self.api(self.alice).get(f"/api/requests/{second['reference']}/"))["queue"]["position"], 1)
+        self.ok(self.api(self.dev).post(f"/api/studio/queue/{second['reference']}/down/"))
+
+        # The running project ships: its place goes to the head of the queue.
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            eng = Engagement.objects.get(pk=eng_id)
+            eng.status = Engagement.Status.LIVE
+            eng.save()
+        self.assertIsNone(self.ok(self.api(self.bob).get(f"/api/requests/{first['reference']}/"))["queue"])
+        self.assertEqual(self.ok(self.api(self.alice).get(f"/api/requests/{second['reference']}/"))["queue"]["position"], 1)
+        self.assertTrue(any("your turn" in m.subject.lower() and m.to == ["bob@example.com"] for m in mail.outbox))
+        # The released request holds the place: nobody else is let through.
+        self.assertEqual(tick()["queue_released"], 0)
+
+    def test_direct_services_never_queue_and_the_studio_can_take_one_now(self):
+        from content.models import Service, SiteSettings
+
+        Service.objects.create(slug="product-films", title_en="Films", summary_en="Films", accept_directly=True)
+        site = SiteSettings.load()
+        site.is_available = False  # starts paused: everything else queues
+        site.save()
+        film = self.ok(self.api(self.alice).post("/api/requests/", {"title": "Ad", "objectives": "Launch", "service": "product-films"}, format="json"), 201)
+        self.assertIsNone(film["queue"])
+        self.assertTrue(self.ok(APIClient().get("/api/queue/?service=product-films"))["direct"])
+
+        web = self.ok(self.api(self.bob).post("/api/requests/", {"title": "Site", "objectives": "Sell", "service": "web-platforms"}, format="json"), 201)
+        self.assertEqual(web["queue"]["position"], 1)
+        self.ok(self.api(self.dev).post(f"/api/studio/queue/{web['reference']}/take/"))
+        self.assertIsNone(self.ok(self.api(self.bob).get(f"/api/requests/{web['reference']}/"))["queue"])
+        self.ok(self.api(self.dev).post(f"/api/studio/queue/{web['reference']}/requeue/"))
+        self.assertEqual(self.ok(self.api(self.bob).get(f"/api/requests/{web['reference']}/"))["queue"]["position"], 1)
+        self.assertEqual(self.api(self.bob).post(f"/api/studio/queue/{web['reference']}/take/").status_code, 403)
+
+    def test_unanswered_requests_remind_the_studio_once(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        ref = self.submitted_request()
+        ProjectRequest.objects.filter(reference=ref).update(created_at=timezone.now() - timedelta(hours=30))
+        self.assertEqual(tick()["review_reminders"], 1)
+        self.assertEqual(tick()["review_reminders"], 0)
 
     def test_revision_rounds_are_capped_by_the_plan(self):
         alice, dev = self.api(self.alice), self.api(self.dev)

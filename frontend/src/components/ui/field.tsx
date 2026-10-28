@@ -1,9 +1,12 @@
 "use client";
 
-import { Children, isValidElement, useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
+import { Children, isValidElement, useEffect, useId, useImperativeHandle, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { Check, ChevronDown, FileText, UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { DecodeText, SPLIT, tearIn, useDecode, useDismiss } from "@/motion/glitch";
+import { FLOAT, useFloat } from "./float";
+import { QuietBoundary } from "./quiet-boundary";
+import { TEXT_TYPES, TYPED_FIELD, TypedMirror, useTypingFx } from "./typed-text";
 
 /** DESIGN.md §5 Field set: one wrapper owns label, help, error and their ids. */
 export function Field({
@@ -46,12 +49,33 @@ const control =
   "focus:border-ember-400 focus:shadow-[inset_0_0_0_1px_var(--ember-400)] focus:outline-none " +
   "aria-[invalid=true]:border-err disabled:cursor-not-allowed disabled:opacity-50";
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input className={cn(control, "h-12", className)} {...props} />;
+/**
+ * Text fields. What is typed decodes in (ui/typed-text.tsx): the wrapper is
+ * always there, so the field never remounts when the effect switches on.
+ */
+export function Input({ className, ref, type, ...props }: ComponentProps<"input">) {
+  const fx = useTypingFx() && TEXT_TYPES.has(type ?? "text");
+  const own = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => own.current as HTMLInputElement, []);
+  return (
+    <span className="relative block">
+      <input ref={own} type={type} className={cn(control, "h-12", fx && TYPED_FIELD, className)} {...props} />
+      {fx && <QuietBoundary><TypedMirror field={own} masked={type === "password"} value={props.value} /></QuietBoundary>}
+    </span>
+  );
 }
 
-export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return <textarea className={cn(control, "min-h-32 resize-y py-3 leading-relaxed", className)} {...props} />;
+/** `bare`: no frame of its own (a composer that lives inside another frame). */
+export function Textarea({ className, ref, bare, ...props }: ComponentProps<"textarea"> & { bare?: boolean }) {
+  const fx = useTypingFx();
+  const own = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => own.current as HTMLTextAreaElement, []);
+  return (
+    <span className="relative block">
+      <textarea ref={own} className={cn(!bare && control, !bare && "min-h-32 resize-y py-3 leading-relaxed", fx && TYPED_FIELD, className)} {...props} />
+      {fx && <QuietBoundary><TypedMirror field={own} masked={false} multiline value={props.value} /></QuietBoundary>}
+    </span>
+  );
 }
 
 type Opt = { value: string; label: string; disabled: boolean };
@@ -119,13 +143,13 @@ export function Select({ id, name, value, defaultValue, onChange, disabled, clas
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: "", at: 0 });
   const listId = useId();
   useDismiss(open, root, setOpen);
+  const panel = useFloat<HTMLUListElement>(open, button, { match: true, max: 288 });
   useEffect(() => {
     if (open) tearIn(panel.current);
-  }, [open]);
+  }, [open, panel]);
   useEffect(() => {
     if (open) document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
   }, [open, active, listId]);
@@ -205,8 +229,8 @@ export function Select({ id, name, value, defaultValue, onChange, disabled, clas
         <ChevronDown aria-hidden className={cn("size-3.5 shrink-0 text-muted transition-transform duration-[var(--dur-micro)]", open && "rotate-180")} />
       </button>
       {open && (
-        <ul ref={panel} id={listId} role="listbox" aria-labelledby={id} tabIndex={-1} data-lenis-prevent
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto overscroll-contain border border-line bg-raised py-1 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]">
+        <ul ref={panel} id={listId} role="listbox" aria-labelledby={id} tabIndex={-1} popover="manual" data-lenis-prevent
+          className={cn(FLOAT, "overflow-y-auto overscroll-contain border border-line bg-raised py-1 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.8)]")}>
           {options.map((o, i) => (
             <SelectOption key={o.value} id={`${listId}-${i}`} opt={o} selected={i === selected} active={i === active}
               onPick={() => pick(i)} onHover={() => !o.disabled && setActive(i)} />

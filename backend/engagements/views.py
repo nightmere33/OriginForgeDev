@@ -2,8 +2,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework import mixins, permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -11,10 +11,9 @@ from rest_framework.response import Response
 from accounts.permissions import IsDeveloper
 from audit.service import record
 from common.files import serve_private, validate_upload
-from content.models import SiteSettings
 from content.pricing import estimate
 
-from . import capacity, lifecycle, services
+from . import lifecycle, queue, services
 from .api import request_messages
 from .lifecycle_serializers import ProposalCreateSerializer, ProposalSerializer
 from .models import Attachment, ProjectRequest
@@ -74,9 +73,10 @@ class ProjectRequestViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixi
             missing = {f: "This field is required." for f in ("title", "objectives") if not getattr(req, f).strip()}
             if missing:
                 raise ValidationError(missing)
-            if not capacity.accepting():
-                site = SiteSettings.load()
-                raise PermissionDenied(site.availability_en or "New project requests are paused for now.")
+            if not self.request.user.email_verified_at and not self.request.user.is_developer:
+                raise ValidationError({"email": "Confirm your e-mail first.", "code": "email_unverified"})
+            # Never refused: a full studio queues it (engagements/queue.py).
+            queue.join_on_submit(req)
             services.submit_request(self.request, req)
         serializer.instance = req
 
@@ -166,3 +166,20 @@ def download_attachment(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
     record(request, "attachment.downloaded", attachment.request, attachment=str(attachment.id))
     return serve_private(attachment.file, attachment.original_name)
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def queue_preview(request):
+    """For the request form: would a request for this service wait, and how long?"""
+    from content.models import Service, SiteSettings
+
+    slug = request.query_params.get("service") or ""
+    service = Service.objects.filter(slug=slug, active=True).first() if slug else None
+    where = queue.preview(service)
+    site = SiteSettings.load()
+    return Response({
+        "direct": where.lane is None, "queued": where.full, "position": where.position, "start": where.start,
+        "active": where.active, "capacity": where.capacity, "reply_hours": site.reply_hours, "review_hours": site.review_hours,
+        "paused": not site.is_available, "available_from": site.available_from,
+    })

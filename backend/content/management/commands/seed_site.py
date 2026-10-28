@@ -86,17 +86,24 @@ SERVICES = [
         "timeline_en": "4–12 weeks", "timeline_fr": "4 à 12 semaines",
     },
     {
-        # Replaced "Payments & integrations": payment work is priced inside each
-        # project (calculator option), games are a service of their own.
-        "slug": "game-dev", "icon": "gamepad-2", "order": 4,
-        "title_en": "Game development", "title_fr": "Développement de jeux",
-        "summary_en": "2D and 3D games in Unity for PC, Android and the web, from the first prototype to a playable release.",
-        "summary_fr": "Des jeux 2D et 3D sous Unity pour PC, Android et le web, du premier prototype à une version jouable.",
-        "description_en": "Gameplay first: a playable prototype in the first weeks, then levels, interface, sound and polish, with a build to test at every milestone.",
-        "description_fr": "Le gameplay d'abord : un prototype jouable dès les premières semaines, puis niveaux, interface, son et finitions, avec une version à tester à chaque étape.",
-        "deliverables_en": "Game design brief\nPlayable prototype\nGameplay & levels\nUI, menus & sound\nPC, Android & WebGL builds",
-        "deliverables_fr": "Brief de game design\nPrototype jouable\nGameplay & niveaux\nInterface, menus & son\nVersions PC, Android & WebGL",
-        "timeline_en": "3–12 weeks", "timeline_fr": "3 à 12 semaines",
+        # Took game development's place on 27 Oct: games are on request now.
+        "slug": "windows-software", "icon": "app-window", "order": 4,
+        "title_en": "Windows software", "title_fr": "Logiciels Windows",
+        "summary_en": "Desktop programs in C# for Windows: stock, sales, point of sale and the tools your team uses every day.",
+        "summary_fr": "Des logiciels de bureau en C# pour Windows : stock, ventes, caisse et les outils que votre équipe utilise chaque jour.",
+        "description_en": "Fast native apps that keep working without internet, share one database across the office or sync to a server, print receipts and reports, and install in one click.",
+        "description_fr": "Des applications natives rapides qui fonctionnent sans internet, partagent une base de données au bureau ou se synchronisent avec un serveur, impriment tickets et rapports, et s'installent en un clic.",
+        "deliverables_en": "Workflow & screens
+C# / .NET desktop app
+Local or shared database
+Reports, printing & exports
+Installer & updates",
+        "deliverables_fr": "Parcours & écrans
+Application C# / .NET
+Base de données locale ou partagée
+Rapports, impression & exports
+Installateur & mises à jour",
+        "timeline_en": "3–10 weeks", "timeline_fr": "3 à 10 semaines",
     },
     {
         "slug": "automation", "icon": "bot", "order": 5,
@@ -122,7 +129,9 @@ SERVICES = [
     },
 ]
 
-RETIRED_SERVICES = ["payments"]
+# Retired from the site. Games are taken on request ("Something else" in the
+# request form), not listed.
+RETIRED_SERVICES = ["payments", "game-dev"]
 
 CASE_STUDIES = [
     {

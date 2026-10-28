@@ -173,6 +173,16 @@ export async function markNotificationsRead(ids?: number[]) {
   if (res) setStore({ ...store, unread: res.unread });
 }
 
+/** Clear the bell: these notifications (or all of them) are deleted for good. */
+export async function clearNotifications(ids?: number[]) {
+  const gone = new Set(ids ?? store.items.map((n) => n.id));
+  const before = store;
+  setStore({ ...store, items: store.items.filter((n) => !gone.has(n.id)), unread: store.items.filter((n) => !n.read && !gone.has(n.id)).length });
+  const res = await api.post<{ unread: number }>("/live/notifications/clear/", ids ? { ids } : {}).catch(() => null);
+  if (res) setStore({ ...store, unread: res.unread });
+  else setStore(before); // not cleared on the server: put them back
+}
+
 /** The notification list, kept current by the socket. */
 export function useNotifications(onNew?: (n: AppNotification) => void) {
   const user = useSession();

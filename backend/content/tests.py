@@ -32,6 +32,38 @@ class ServicePriceTests(TestCase):
         self.assertEqual(APIClient().get("/api/content/services/").data[0]["prices"], [])
 
 
+@override_settings(NEXT_REVALIDATE_URL="")
+class FilmPricingTests(TestCase):
+    """Films: a price per minute of a clean edit, scaled by length and production."""
+
+    def setUp(self):
+        from django.core.management import call_command
+
+        from .management.commands.seed_pricing import STARTING
+
+        # The services the factors attach to (a factor with none applies to all).
+        for slug in STARTING:
+            Service.objects.get_or_create(slug=slug, defaults={"title_en": slug, "summary_en": slug})
+        call_command("seed_pricing", stdout=io.StringIO())
+
+    def estimate(self, **choices):
+        body = {"service": "product-films", "currency": "DZD", "plan": "starter", "choices": choices}
+        return APIClient().post("/api/content/estimate/", body, format="json").json()
+
+    def test_one_minute_clean_edit_is_the_listed_price(self):
+        price = ServicePrice.objects.get(service__slug="product-films")
+        self.assertEqual((price.kind, price.amount), ("per_minute", 3500))
+        self.assertEqual((self.estimate()["low"], self.estimate()["high"]), (3500, 4500))
+
+    def test_length_and_production_scale_it(self):
+        data = self.estimate(**{"film-length": "3", "film-style": "3d"})
+        self.assertEqual(data["low"], 44000)  # 3 500 x 2.5 x 5 = 43 750, to the nearest 500 up
+
+    def test_films_are_not_asked_about_payments_or_admin(self):
+        self.assertNotIn("payments", self.estimate()["choices"])
+        self.assertNotIn("admin", self.estimate()["choices"])
+
+
 @override_settings(MEDIA_ROOT=TMP_MEDIA, NEXT_REVALIDATE_URL="")
 class MediaProcessingTests(TestCase):
     @classmethod

@@ -11,9 +11,10 @@ import { fetchSession, useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
+import { EmailCode } from "@/components/auth/email-code";
 
-type T = Pick<Dictionary, "settings" | "start" | "portal" | "common" | "nav" | "onboarding">;
-type Profile = Pick<User, "full_name" | "phone" | "whatsapp" | "company" | "country" | "language" | "contact_channel" | "contact_handle">;
+type T = Pick<Dictionary, "settings" | "start" | "portal" | "common" | "nav" | "onboarding" | "auth">;
+type Profile = Pick<User, "full_name" | "phone" | "whatsapp" | "company" | "country" | "address" | "city" | "postal_code" | "language" | "contact_channel" | "contact_handle">;
 const CHANNELS = ["site", "whatsapp", "instagram", "discord", "email", "phone"] as const;
 
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
@@ -29,6 +30,7 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
   const s = t.settings;
   const [form, setForm] = useState<Profile>({
     full_name: user.full_name, phone: user.phone, whatsapp: user.whatsapp, company: user.company, country: user.country, language: user.language,
+    address: user.address ?? "", city: user.city ?? "", postal_code: user.postal_code ?? "",
     contact_channel: user.contact_channel || "site", contact_handle: user.contact_handle,
   });
   const [state, setState] = useState<"" | "busy" | "saved">("");
@@ -53,6 +55,7 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
     <form noValidate onSubmit={(e) => { e.preventDefault(); save(); }} className="contents">
       <Band title={s.profile}>
         <Field label={s.email}>{(a) => <Input id={a.id} value={user.email} readOnly disabled />}</Field>
+        {!user.email_verified && <VerifyNow t={t} user={user} />}
         <Field label={t.start.fullName} error={errors.full_name}>
           {(a) => <Input id={a.id} autoComplete="name" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
         </Field>
@@ -61,6 +64,15 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
           <Field label={t.start.whatsapp}>{(a) => <Input id={a.id} type="tel" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />}</Field>
           <Field label={t.start.company}>{(a) => <Input id={a.id} autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} />}</Field>
           <Field label={s.country}>{(a) => <Input id={a.id} autoComplete="country-name" value={form.country} onChange={(e) => set("country", e.target.value)} />}</Field>
+        </div>
+      </Band>
+      <Band title={s.addressTitle}>
+        <Field label={s.address} help={s.addressHelp}>
+          {(a) => <Input id={a.id} aria-describedby={a.describedBy} autoComplete="street-address" value={form.address} maxLength={255} onChange={(e) => set("address", e.target.value)} />}
+        </Field>
+        <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_10rem]">
+          <Field label={s.city}>{(a) => <Input id={a.id} autoComplete="address-level2" value={form.city} maxLength={80} onChange={(e) => set("city", e.target.value)} />}</Field>
+          <Field label={s.postalCode}>{(a) => <Input id={a.id} autoComplete="postal-code" inputMode="numeric" value={form.postal_code} maxLength={20} onChange={(e) => set("postal_code", e.target.value)} />}</Field>
         </div>
       </Band>
       <Preferences t={t} language={form.language} onLanguage={(v) => set("language", v)} />
@@ -84,6 +96,27 @@ function ProfileForm({ t, user }: { t: T; user: User }) {
         <Button type="submit" variant="ember" loading={state === "busy"}>{s.save}</Button>
       </div>
     </form>
+  );
+}
+
+/** An unconfirmed address: confirm it right here with the e-mailed code. */
+function VerifyNow({ t, user }: { t: T; user: User }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const start = async () => {
+    setBusy(true);
+    // A code may already be on its way (sign-up): asking too soon just waits.
+    await api.post("/auth/verify-email/resend/").catch(() => undefined);
+    setBusy(false);
+    setOpen(true);
+  };
+  return (
+    <div className="flex flex-col gap-4 border border-ember-400/40 bg-ember-500/[0.05] p-5">
+      <Hud tone="ember" dot>{t.auth.code.unverified}</Hud>
+      {open ? <EmailCode a={t.auth} email={user.email} onVerified={() => setOpen(false)} /> : (
+        <Button variant="secondary" size="sm" loading={busy} onClick={start}>{t.auth.code.verifyNow}</Button>
+      )}
+    </div>
   );
 }
 

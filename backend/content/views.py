@@ -19,6 +19,36 @@ PUBLIC = [permissions.AllowAny]
 
 # Gallery items a project without picked galaxy clips contributes to the galaxy.
 GALAXY_FALLBACK = 3
+# Distinct items the galaxy cycles through, as getartcraft.com does (35 clips
+# for its 64 cards): more only repeats sooner-forgotten faces and costs decodes.
+GALAXY_LIMIT = 35
+
+
+def balanced(items, limit: int = GALAXY_LIMIT):
+    """
+    At most `limit` items, shared fairly: one per project per round until the
+    limit, so small projects keep everything and big ones share the rest.
+    Inside a project, mostly clips: two videos, then a photo.
+    """
+    queues: dict[int, list] = {}
+    for m in items:
+        queues.setdefault(m.case_study_id, []).append(m)
+    for key, ms in queues.items():
+        videos = [m for m in ms if m.kind == CaseStudyMedia.Kind.VIDEO]
+        photos = [m for m in ms if m.kind != CaseStudyMedia.Kind.VIDEO]
+        mixed = []
+        while videos or photos:
+            mixed += videos[:2]
+            del videos[:2]
+            if photos:
+                mixed.append(photos.pop(0))
+        queues[key] = mixed
+    out = []
+    while len(out) < limit and any(queues.values()):
+        for ms in queues.values():
+            if ms and len(out) < limit:
+                out.append(ms.pop(0))
+    return out
 
 @api_view(["GET"])
 @permission_classes(PUBLIC)
@@ -77,7 +107,7 @@ def galaxy(request):
         if per_study.get(m.case_study_id, 0) < GALAXY_FALLBACK:
             per_study[m.case_study_id] = per_study.get(m.case_study_id, 0) + 1
             picked.append(m)
-    return Response(GalaxyItemSerializer(picked, many=True, context={"request": request}).data)
+    return Response(GalaxyItemSerializer(balanced(picked), many=True, context={"request": request}).data)
 
 
 @api_view(["GET"])

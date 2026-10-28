@@ -13,7 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id", "email", "full_name", "role", "is_developer", "company", "phone",
-            "whatsapp", "country", "language", "currency", "email_verified",
+            "whatsapp", "country", "address", "city", "postal_code", "language", "currency", "email_verified",
             "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "onboarded", "has_password",
         )
         read_only_fields = ("id", "email", "role", "is_developer", "email_verified", "onboarded")

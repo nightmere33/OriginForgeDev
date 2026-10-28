@@ -251,6 +251,18 @@ A horizontal HUD index bar (`01 SERVICE — 02 GOALS — …`): the current step
 ### ForgeGalaxy (`landing/forge-galaxy.tsx`)
 See Section 6. It has a static poster-mosaic fallback.
 
+### Asset pack (`/studio/kit`, `studio/kit.tsx`)
+Every reusable piece below, live, with the file it lives in. New screens are built from these instead of one-offs.
+- **DatePicker** (`ui/date-picker.tsx`): the site's date field (never the browser's). A field button with the date written out, a popover that tears in, a Monday-first month grid (selected = ember fill, today = ember dot, before `min` = struck through). Keys follow the WAI-ARIA date picker dialog. The title opens two WheelPickers for month and year; months slide in from the side they come from (`cal-next` / `cal-prev`, 280ms). Posts `YYYY-MM-DD`.
+- **WheelPicker** (`ui/wheel-picker.tsx`): a scroll-snap column with a drum effect (rows rotateX and fade with their distance from the middle) and an ember band for the pick. Native scrolling spins it; arrows and Page Up/Down step it.
+- **ScrollArea** (`ui/scroll-area.tsx`): any panel that scrolls. The viewport stays a native scroll container; its bar is hidden (`.scroll-bare`) and redrawn as a hairline rail with a 2px steel thumb that widens under the pointer and turns ember while dragged; a click on the rail glides there. Shows while scrolling or hovered. Everything else that scrolls gets a thin steel bar from `globals.css`.
+- **Toggle** (`ui/toggle.tsx`): a checkbox with `role="switch"`, drawn as a square track whose knob slides 16px and lights ember.
+- **Skeleton / SkeletonRows** (`ui/skeleton.tsx`): placeholders in the shape of what is loading (list rows, a project hub, the dashboard panel), with one sheen sweeping across (static for reduced motion). Text such as "Loading" is never shown alone.
+- **StudioTabs** (`studio/studio-tabs.tsx`): section tabs whose ember bar glides from the tab you leave to the one you open.
+
+### Studio dashboard (`/studio/*`, `studio/*.tsx`, API `backend/studio/`)
+Overview (KPI cells that decode in, hairline bars that draw out, recent activity), Requests (the inbox), Clients (search, contact links), Payments (receipts to check, due, received), Reviews, Settings (availability, contact, payment details, starting prices; each block saves on its own) and the asset pack. Developer only; settings changes are logged by field name, never by value.
+
 ## 6. Motion & Interaction
 
 | Token | Value | Usage |
@@ -299,6 +311,10 @@ Any wheel, key, pointer or touch input fast-forwards the intro.
 - Every interactive element has hover, active and focus-visible states.
 - Reduced motion turns off Lenis, reveals (content is visible), the galaxy, the marquee, the scrubs and the intro.
 - Nothing is hidden in SSR HTML: reveals hide content only after JS runs for motion-OK visitors.
+
+### Page changes (`motion/page-transition.tsx`, `chrome/nav-progress.tsx`)
+- Every navigation is one view transition (React `<ViewTransition>`, keyed by the path): the page you leave lifts 10px, dims and blurs over 200ms; the next rises 18px from an 8px blur over 520ms, 90ms later. The rest of the document (nav, ruler) switches without a crossfade, so the nav never flickers. In-page updates and Suspense reveals do not animate. Reduced motion: instant.
+- A 2px ember line under the top edge shows only when a page takes longer than 120ms: it leaps to 30% on click, crawls toward 92% while the server answers, then fills and fades.
 
 ## 7. Depth & Surface
 

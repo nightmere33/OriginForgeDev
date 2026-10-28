@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { Hud } from "@/components/ui/hud";
 import { SectionShell } from "@/components/ui/section-shell";
 import { GlitchLabel } from "@/motion/glitch";
-import { BootText, TearGroup } from "./auth-fx";
+import { BootText, MosaicGlitch, TearGroup } from "./auth-fx";
 
 export type AuthMode = "login" | "register" | "reset" | "verify" | "welcome";
 type Shell = Dictionary["auth"]["shell"];
@@ -44,7 +44,7 @@ export default async function AuthShell({
             </div>
             {stills.length >= 3 && (
               <figure aria-hidden className="hidden max-w-xl lg:block">
-                <div className="relative border border-line">
+                <MosaicGlitch className="border border-line">
                   {/* Always a full grid: 6 = 3×2, 5 = the first spans two, 4 = 2×2, 3 = one row. */}
                   <TearGroup start={120} step={70} className={cn("grid auto-rows-[7.75rem] gap-px bg-line", stills.length === 4 ? "grid-cols-2" : "grid-cols-3")}>
                     {stills.slice(0, 6).map((s, i) => (
@@ -55,9 +55,8 @@ export default async function AuthShell({
                       </div>
                     ))}
                   </TearGroup>
-                  <div className="auth-scanlines pointer-events-none absolute inset-0" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg/70 via-transparent to-transparent" />
-                </div>
+                </MosaicGlitch>
                 <figcaption className="hud mt-3 flex justify-between text-faint">
                   <span>{shell.work}</span>
                   <span>{String(stills.length).padStart(2, "0")} / {shell.projects}</span>

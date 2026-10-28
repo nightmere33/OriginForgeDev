@@ -8,4 +8,6 @@ urlpatterns = [
     path("mine/<int:pk>/", views.MyReviewView.as_view()),
     path("studio/", views.StudioReviewsView.as_view()),
     path("studio/<int:pk>/moderate/", views.ModerateReviewView.as_view()),
+    path("studio/invites/", views.StudioInvitesView.as_view()),
+    path("invites/<str:token>/", views.InviteView.as_view()),
 ]

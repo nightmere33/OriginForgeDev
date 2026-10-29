@@ -140,7 +140,10 @@ def send_offer(request, req_id: int, data: dict) -> Proposal:
         )
         req.status = R.PROPOSAL_SENT
         req.save(update_fields=["status", "updated_at"])
+        card = Message.objects.create(request=req, sender=request.user, kind=Message.Kind.PROPOSAL, proposal=proposal,
+                                      body=proposal.note[:300], data={"event": "sent"})
         record(request, "proposal.sent", req, version=proposal.version, price=proposal.price, currency=proposal.currency)
+    _announce(card)
     notify_client("proposal_sent", req.client, _path(req), title=req.title, price=money(proposal.price, proposal.currency))
     return proposal
 
@@ -196,7 +199,12 @@ def respond(request, proposal_id: int, action: str, price: int | None = None, no
             proposal = counter
         else:
             raise ValidationError({"action": "Unknown action."})
+        # Every answer is a card in the conversation too, so the thread tells the whole negotiation.
+        event = {"accept": "accepted", "decline": "declined", "counter": "countered"}[action]
+        card = Message.objects.create(request=req, sender=user, kind=Message.Kind.PROPOSAL, proposal=proposal,
+                                      body=note.strip()[:300], data={"event": event})
 
+    _announce(card)
     client = req.client
     price_text = money(proposal.price, proposal.currency)
     if action == "accept":
@@ -667,7 +675,7 @@ def _announce(message: Message):
     message_posted(message)
 
 
-def post_message(request, req: ProjectRequest, body: str, attachment=None, reply_to: int | None = None) -> Message:
+def post_message(request, req: ProjectRequest, body: str, attachment=None, reply_to: int | None = None, share: str = "") -> Message:
     user = request.user
     if not user.is_developer:
         _require_client(user, req)
@@ -675,6 +683,14 @@ def post_message(request, req: ProjectRequest, body: str, attachment=None, reply
         raise ValidationError({"body": "Send the request first."})
     if chat_state(req)[0] == "closed":
         raise ValidationError({"body": "This conversation is closed. Maintenance can be extended to reopen it."})
+    from support.service import SHARES
+
+    if share and share not in SHARES:
+        raise ValidationError({"share": "Unknown command."})
+    if share:
+        message = Message.objects.create(request=req, sender=user, kind=Message.Kind.SHARE, data={"share": share})
+        _announce(message)
+        return message
     if not body.strip() and attachment is None:
         raise ValidationError({"body": "Write a message or attach a file."})
     quoted = None
@@ -854,6 +870,10 @@ def tick(now=None) -> dict:
     from .queue import advance
 
     counts["queue_released"] = advance()
+
+    from support.service import tick as support_tick
+
+    counts["support"] = support_tick(now)
 
     if accepting():
         for entry in WaitlistEntry.objects.filter(notified_at__isnull=True):

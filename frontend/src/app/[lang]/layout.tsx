@@ -125,7 +125,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           <QuietBoundary><Suspense fallback={null}><ScrollRuler /></Suspense></QuietBoundary>
           <QuietBoundary>
             <Suspense fallback={null}>
-              <ChatDock lang={locale} t={{ portal: t.portal, studio: t.studio, start: t.start, auth: t.auth, common: t.common, project: t.project, trust: t.trust }} />
+              <ChatDock lang={locale} t={{ portal: t.portal, studio: t.studio, start: t.start, auth: t.auth, common: t.common, project: t.project, trust: t.trust, support: t.support, assistant: t.assistant }} />
             </Suspense>
           </QuietBoundary>
         </MotionProvider>

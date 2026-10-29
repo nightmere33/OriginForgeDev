@@ -43,6 +43,22 @@ EVENTS = {
         "en": ("An extra revision round for {title}", "I added a revision round to \"{title}\". You have {left} left."),
         "fr": ("Un tour de modifications en plus pour {title}", "J'ai ajouté un tour de modifications à « {title} ». Il vous en reste {left}."),
     },
+    "ticket_started": {
+        "en": ("Younes wrote to you: {subject}", "{preview}"),
+        "fr": ("Younes vous a écrit : {subject}", "{preview}"),
+    },
+    "ticket_reply": {
+        "en": ("Younes replied: {subject}", "{preview}"),
+        "fr": ("Younes a répondu : {subject}", "{preview}"),
+    },
+    "ticket_solved": {
+        "en": ("Solved: {subject}", "I marked your ticket as solved. If anything is still wrong, just reply and it reopens. A quick rating helps me improve."),
+        "fr": ("Résolu : {subject}", "J'ai marqué votre ticket comme résolu. Si quelque chose ne va toujours pas, répondez simplement et il se rouvre. Une note rapide m'aide à m'améliorer."),
+    },
+    "ticket_pending_reminder": {
+        "en": ("Still need help with {subject}?", "I replied a few days ago. Answer when you can; otherwise the ticket closes by itself in four days."),
+        "fr": ("Toujours besoin d'aide pour {subject} ?", "Je vous ai répondu il y a quelques jours. Répondez quand vous pouvez ; sinon le ticket se ferme de lui-même dans quatre jours."),
+    },
     "maintenance_reminder": {
         "en": ("{days} days of maintenance left for {title}", "Maintenance for \"{title}\" runs until {until}. Report anything that needs fixing before then, or ask to extend it, in the conversation."),
         "fr": ("Plus que {days} jours de maintenance pour {title}", "La maintenance de « {title} » court jusqu'au {until}. Signalez ce qui doit être corrigé d'ici là, ou demandez à la prolonger, dans la conversation."),
@@ -140,6 +156,9 @@ EVENTS = {
     },
     "studio_changes": {"en": ("Changes requested on {ref}", "{client}: {note}")},
     "studio_offer_answer": {"en": ("Offer {answer}: {ref}", "{client} {answer} \"{label}\" ({amount}).")},
+    "studio_ticket": {"en": ("New ticket ({tier}): {subject}", "{client}: {preview} · reply within {hours} h")},
+    "studio_ticket_reply": {"en": ("Reply from {client} ({tier}): {subject}", "{preview}")},
+    "studio_ticket_overdue": {"en": ("Overdue ({tier}): {subject}", "{client} has waited past the {hours} h reply target.")},
     "studio_care_ending": {"en": ("Maintenance ending: {ref}", "{client}'s \"{title}\" has {days} days of maintenance left.")},
     "studio_care_ended": {"en": ("Maintenance ended: {ref}", "{client}'s \"{title}\" is out of maintenance; the conversation closes on {closes} unless you extend it.")},
     "studio_issue": {"en": ("Problem reported on {ref}", "{client} reported a problem on the live project: {note}")},

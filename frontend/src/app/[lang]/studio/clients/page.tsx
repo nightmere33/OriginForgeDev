@@ -22,7 +22,7 @@ export default async function Page() {
       <SectionHeading title={<Accented parts={d.clientsPage.title} />} lead={d.clientsPage.lead} />
       <StudioTabs lang={lang} labels={d.tabs} active="clients" />
       <Suspense fallback={null}>
-        <StudioClients lang={lang} t={{ studio: t.studio, common: t.common }} />
+        <StudioClients lang={lang} t={{ studio: t.studio, common: t.common, support: t.support, portal: t.portal, project: t.project }} />
       </Suspense>
     </SectionShell>
   );

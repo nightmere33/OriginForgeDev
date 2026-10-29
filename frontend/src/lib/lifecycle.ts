@@ -218,15 +218,28 @@ export type Reaction = { emoji: string; count: number; mine: boolean };
 
 export type Message = {
   id: number;
-  /** `charge`, `update`, `issue` and `care` are cards for something that happened elsewhere. */
-  kind: "text" | "charge" | "update" | "issue" | "care";
+  /**
+   * Cards for something that happened elsewhere: `charge`, `update`, `issue`, `care`, `proposal`;
+   * `share` is a slash command's card; tickets add `transcript` (the assistant chat) and `event` (a status note).
+   */
+  kind: "text" | "charge" | "update" | "issue" | "care" | "proposal" | "share" | "transcript" | "event";
   from_studio: boolean;
   sender_name: string;
   /** The sender's profile picture, or "". */
   sender_avatar: string;
   body: string;
-  /** A card's facts (care: event, days, until, closes), worded here in the page's language. */
-  data: { event?: "started" | "reminder" | "ended" | "extended" | "closed"; days?: number; until?: string; closes?: string };
+  /** A card's facts, worded here in the page's language. */
+  data: {
+    event?: "started" | "reminder" | "ended" | "extended" | "closed" | "sent" | "countered" | "accepted" | "declined";
+    days?: number; until?: string; closes?: string;
+    share?: "howto" | "showreel" | "start" | "plans" | "pay" | "work";
+    status?: "open" | "pending" | "solved" | "closed"; auto?: boolean;
+    messages?: { role: "user" | "assistant"; text: string }[];
+  };
+  /** The version a proposal card is about, as it stands now. */
+  proposal?: { id: number; version: number; kind: "offer" | "counter"; status: string; price: number; currency: Currency; plan_name: string; timeline_days: number; negotiable: boolean; expires_at: string } | null;
+  /** Tickets: Younes's own note, never shown to the client. */
+  internal?: boolean;
   attachment: Attachment | null;
   reply_to: { id: number; from_studio: boolean; sender_name: string; body: string; kind: string } | null;
   charge: Pick<Charge, "id" | "kind" | "label" | "description" | "optional" | "extends_days" | "amount" | "currency" | "status" | "due_at" | "paid_at"> | null;

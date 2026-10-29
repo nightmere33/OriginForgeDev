@@ -18,6 +18,8 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from accounts.permissions import IsDeveloper
+from accounts.serializers import avatar_url
+from common.files import serve_private
 from audit.models import AuditLog
 from audit.service import record
 from billing.models import Charge, Payment, PaymentProof
@@ -94,18 +96,30 @@ def overview(request):
 class ClientRowSerializer(serializers.ModelSerializer):
     requests = serializers.IntegerField()
     projects = serializers.IntegerField()
+    open_tickets = serializers.IntegerField()
     heard_from_label = serializers.CharField(source="get_heard_from_display")
     contact_channel_label = serializers.CharField(source="get_contact_channel_display")
     verified = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    standing = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "full_name", "email", "company", "phone", "whatsapp", "country", "language", "currency",
+        fields = ("id", "full_name", "email", "handle", "company", "phone", "whatsapp", "country", "language", "currency",
                   "date_joined", "last_login", "verified", "heard_from_label", "heard_from_detail",
-                  "contact_channel_label", "contact_handle", "requests", "projects")
+                  "contact_channel_label", "contact_handle", "requests", "projects", "open_tickets", "avatar_url", "standing")
 
     def get_verified(self, obj) -> bool:
         return obj.email_verified_at is not None
+
+    def get_avatar_url(self, obj) -> str:
+        return avatar_url(obj)
+
+    def get_standing(self, obj) -> dict:
+        from support.tiers import standing
+
+        s = standing(obj)
+        return {"tier": s.tier, "label": s.label, "hours": s.hours}
 
 
 PAGE = 50
@@ -117,10 +131,22 @@ def clients(request):
     qs = User.objects.filter(role=User.Role.CLIENT, is_staff=False, is_active=True).annotate(
         requests=Count("project_requests", filter=~Q(project_requests__status=ProjectRequest.Status.DRAFT), distinct=True),
         projects=Count("engagements", distinct=True),
+        open_tickets=Count("tickets", filter=Q(tickets__status__in=("open", "pending")), distinct=True),
     ).order_by("-date_joined")
     q = request.query_params.get("q", "").strip()
     if q:
-        qs = qs.filter(Q(full_name__icontains=q) | Q(email__icontains=q) | Q(company__icontains=q) | Q(phone__icontains=q))
+        qs = qs.filter(Q(full_name__icontains=q) | Q(email__icontains=q) | Q(company__icontains=q) | Q(phone__icontains=q)
+                       | Q(handle__icontains=q))
+    # Who they are to the studio: with a project, a request only, or nothing sent yet.
+    show = request.query_params.get("show", "")
+    if show == "clients":
+        qs = qs.filter(projects__gt=0)
+    elif show == "requests":
+        qs = qs.filter(requests__gt=0, projects=0)
+    elif show == "newcomers":
+        qs = qs.filter(requests=0)
+    elif show == "tickets":
+        qs = qs.filter(open_tickets__gt=0)
     try:
         page = max(1, int(request.query_params.get("page", 1)))
     except ValueError:
@@ -129,6 +155,62 @@ def clients(request):
     rows = qs[(page - 1) * PAGE: page * PAGE]
     return Response({"count": total, "page": page, "pages": max(1, -(-total // PAGE)),
                      "results": ClientRowSerializer(rows, many=True).data})
+
+
+@api_view(["GET"])
+@permission_classes(STUDIO)
+def client_detail(request, user_id: int):
+    """One person: who they are, their requests and projects, and their tickets."""
+    from support.models import Ticket
+
+    user = User.objects.filter(pk=user_id, role=User.Role.CLIENT).first()
+    if user is None:
+        return Response(status=404)
+    row = ClientRowSerializer(User.objects.filter(pk=user.pk).annotate(
+        requests=Count("project_requests", filter=~Q(project_requests__status=ProjectRequest.Status.DRAFT), distinct=True),
+        projects=Count("engagements", distinct=True),
+        open_tickets=Count("tickets", filter=Q(tickets__status__in=("open", "pending")), distinct=True),
+    ).get()).data
+    reqs = ProjectRequest.objects.filter(client=user).exclude(status=ProjectRequest.Status.DRAFT).select_related("engagement").order_by("-created_at")
+    row["requests_list"] = [{
+        "reference": r.reference, "title": r.title, "status": r.status, "created_at": r.created_at,
+        "engagement_status": getattr(getattr(r, "engagement", None), "status", ""),
+    } for r in reqs]
+    row["tickets_list"] = [{"reference": t.reference, "subject": t.subject, "status": t.status, "updated_at": t.updated_at}
+                           for t in Ticket.objects.filter(user=user).order_by("-updated_at")[:20]]
+    row["instagram"], row["messenger"], row["address"], row["city"] = user.instagram, user.messenger, user.address, user.city
+    return Response(row)
+
+
+@api_view(["GET"])
+@permission_classes(STUDIO)
+def media(request):
+    """The films to publish: the full-quality originals, then the site's own web cuts."""
+    from content.models import SiteFilm
+
+    from .models import LibraryFilm
+
+    originals = [{
+        "id": f.pk, "title": f.title, "language": f.language, "kind": f.kind, "name": f.original_name, "size": f.size,
+        "width": f.width, "height": f.height, "duration": f.duration, "caption": f.caption,
+        "download": f"/api/studio/media/{f.pk}/download/",
+    } for f in LibraryFilm.objects.all()]
+    web = [{
+        "kind": f.kind, "language": f.language, "title": f.get_kind_display(), "width": f.width, "height": f.height,
+        "duration": f.duration, "url": f.file.url, "size": f.file.size if f.file and f.file.storage.exists(f.file.name) else 0,
+    } for f in SiteFilm.objects.all()]
+    return Response({"originals": originals, "web": web})
+
+
+@api_view(["GET"])
+@permission_classes(STUDIO)
+def media_download(request, film_id: int):
+    from .models import LibraryFilm
+
+    film = LibraryFilm.objects.filter(pk=film_id).first()
+    if film is None:
+        return Response(status=404)
+    return serve_private(film.file, film.original_name)
 
 
 def _charge_row(charge: Charge) -> dict:

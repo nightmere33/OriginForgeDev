@@ -347,6 +347,8 @@ class Message(models.Model):
         UPDATE = "update", "Progress update"
         ISSUE = "issue", "Problem reported"
         CARE = "care", "Maintenance notice"
+        PROPOSAL = "proposal", "Proposal sent or answered"
+        SHARE = "share", "Shared card (a slash command)"
 
     request = models.ForeignKey(ProjectRequest, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -356,6 +358,7 @@ class Message(models.Model):
     reply_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     charge = models.ForeignKey("billing.Charge", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     update = models.ForeignKey(ProgressUpdate, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    proposal = models.ForeignKey("Proposal", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     # A card's facts, worded on each side in its own language (care: event, days, until, closes).
     data = models.JSONField(default=dict, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)

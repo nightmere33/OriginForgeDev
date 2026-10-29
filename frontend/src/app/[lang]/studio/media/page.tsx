@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { lang as rootLang } from "next/root-params";
+import { notFound } from "next/navigation";
+import { getDictionary, hasLocale } from "@/i18n/dictionaries";
+import { Accented } from "@/components/ui/hud";
+import { SectionEyebrow, SectionHeading, SectionShell } from "@/components/ui/section-shell";
+import { StudioTabs } from "@/components/studio/studio-tabs";
+import { StudioMedia } from "@/components/studio/media-library";
+
+export const metadata: Metadata = { robots: { index: false } };
+
+// Per-user data: the frame is static, the content loads on the client.
+export default async function Page() {
+  const lang = await rootLang();
+  if (!hasLocale(lang)) notFound();
+  const t = await getDictionary(lang);
+  const d = t.studio.dash;
+  return (
+    <SectionShell id="studio-media" ruler={d.tabs.media}>
+      <SectionEyebrow index="·" label={d.tabs.media} />
+      <SectionHeading title={<Accented parts={d.mediaPage.title} />} lead={d.mediaPage.lead} />
+      <StudioTabs lang={lang} labels={d.tabs} active="media" />
+      <Suspense fallback={null}>
+        <StudioMedia lang={lang} t={{ studio: t.studio, common: t.common }} />
+      </Suspense>
+    </SectionShell>
+  );
+}

@@ -758,13 +758,15 @@
       "tabs": {
         "overview": "Overview",
         "requests": "Requests",
-        "clients": "Clients",
+        "clients": "People",
         "payments": "Payments",
         "reviews": "Reviews",
         "settings": "Settings",
         "kit": "Asset pack",
         "queue": "Queue",
-        "services": "Services"
+        "services": "Services",
+        "support": "Support",
+        "media": "Media"
       },
       "overview": {
         "title": [
@@ -1037,6 +1039,57 @@
         "test": "Send a test e-mail",
         "sent": "Sent to {to}. Check that inbox (and spam).",
         "failed": "Not sent:"
+      },
+      "supportPage": {
+        "title": [
+          "Support ",
+          "inbox."
+        ],
+        "lead": "Tickets by priority and reply time: plans first, overdue at the top."
+      },
+      "mediaPage": {
+        "title": [
+          "Media ",
+          "library."
+        ],
+        "lead": "The films in full quality, with their captions, to download on your phone and publish."
+      },
+      "people": {
+        "show": {
+          "all": "Everyone",
+          "clients": "With a project",
+          "requests": "Request sent",
+          "newcomers": "Newcomers",
+          "tickets": "Open tickets"
+        },
+        "start": "Start a conversation",
+        "startSubject": "Subject",
+        "startMessage": "Message",
+        "startSend": "Send",
+        "requests": "Requests and projects",
+        "tickets": "Tickets",
+        "openTickets": "{n} open tickets",
+        "none": "Nothing yet."
+      },
+      "media": {
+        "originals": "Originals, full quality",
+        "web": "Web cuts, as on the site",
+        "download": "Download",
+        "copy": "Copy the caption",
+        "copied": "Copied",
+        "none": "No originals yet."
+      },
+      "inbox": {
+        "filters": {
+          "active": "Active",
+          "open": "To answer",
+          "pending": "Waiting on client",
+          "solved": "Solved",
+          "closed": "Closed"
+        },
+        "counts": "{open} to answer · {overdue} overdue",
+        "search": "Search tickets, clients",
+        "empty": "No tickets here."
       }
     },
     "allowCash": "Allow cash by hand",
@@ -1381,6 +1434,60 @@
         "ended": "Maintenance has ended. This conversation closes on {closes} unless it is extended.",
         "extended": "Maintenance extended until {until}.",
         "closed": "This conversation is closed."
+      },
+      "spaces": {
+        "assistant": "Assistant",
+        "projects": "Projects",
+        "support": "Support"
+      },
+      "commands": {
+        "title": "Commands",
+        "how-start": "Send the how-to film",
+        "showreel": "Send the studio film",
+        "start": "Link to start a project",
+        "plans": "The care plans",
+        "pay": "The payment methods",
+        "work": "The portfolio"
+      },
+      "share": {
+        "howto": "How to start a project",
+        "howtoLead": "Five steps, a live estimate, a proposal within 24 hours.",
+        "showreel": "The OriginForge film",
+        "showreelLead": "The studio in one film.",
+        "start": "Start a project",
+        "startLead": "Five short steps with a live estimate.",
+        "plans": "Care plans",
+        "plansLead": "Starter, Pro and Ultimate: maintenance, revisions and reply times after delivery.",
+        "pay": "How to pay",
+        "payLead": "Card (CIB, Edahabia) on Chargily, CCP, BaridiMob, PayPal or USDT. Every payment gets an invoice.",
+        "work": "The work",
+        "workLead": "Platforms, apps, automation and films, each one shipped.",
+        "open": "Open",
+        "watch": "Watch"
+      },
+      "proposal": {
+        "offer": "Proposal",
+        "counter": "Counter-offer",
+        "version": "Version {n}",
+        "days": "{n} days",
+        "plan": "{plan} plan",
+        "open": "Open the proposal",
+        "events": {
+          "sent": "Sent",
+          "countered": "Counter-offer",
+          "accepted": "Accepted",
+          "declined": "Declined"
+        }
+      },
+      "internal": "Internal note",
+      "internalToggle": "Internal note (only you see it)",
+      "transcript": "Conversation with the assistant",
+      "events": {
+        "open": "Reopened",
+        "pending": "Waiting for an answer",
+        "solved": "Marked as solved",
+        "closed": "Closed",
+        "autoSolved": "Solved by itself after a week without reply"
       }
     },
     "review": {
@@ -1702,5 +1809,63 @@
     "countryNone": "No country found",
     "country": "Country",
     "countryPick": "Choose your country"
+  },
+  "support": {
+    "newTicket": "New ticket",
+    "subject": "Subject",
+    "category": "About",
+    "categories": {
+      "question": "A question",
+      "problem": "Something isn't working",
+      "billing": "Payments and invoices",
+      "project": "A project",
+      "other": "Something else"
+    },
+    "message": "Message",
+    "project": "Project (optional)",
+    "none": "None",
+    "send": "Send to Younes",
+    "standing": "{label} · replies within {hours} h",
+    "newcomerUpsell": "Free support: replies within 3 days. Clients with a project or a care plan are answered first.",
+    "seePlans": "See the plans",
+    "empty": "No tickets yet. Ask the assistant, or open a ticket and Younes replies here.",
+    "statuses": {
+      "open": "Waiting for Younes",
+      "pending": "Waiting for you",
+      "solved": "Solved",
+      "closed": "Closed"
+    },
+    "studioStatuses": {
+      "open": "To answer",
+      "pending": "Waiting on client",
+      "solved": "Solved",
+      "closed": "Closed"
+    },
+    "solve": "Mark as solved",
+    "reopen": "Reopen",
+    "close": "Close",
+    "rate": "How was the help?",
+    "rated": "Thanks for the rating.",
+    "due": "Reply due {time}",
+    "overdue": "Overdue",
+    "signIn": "Sign in to talk to Younes",
+    "back": "Back"
+  },
+  "assistant": {
+    "title": "Assistant",
+    "hello": "Hi! I'm the OriginForge assistant. Ask about services, prices, payments, plans or how a project works.",
+    "placeholder": "Ask a question",
+    "suggestions": [
+      "How do I start a project?",
+      "How much does a website cost?",
+      "Which payment methods can I use?",
+      "What is in the Pro plan?"
+    ],
+    "talk": "Talk to Younes",
+    "thinking": "Thinking",
+    "sources": "Read more",
+    "error": "The assistant can't answer right now. You can still talk to Younes.",
+    "note": "Answers come from the site's own information.",
+    "clear": "Start over"
   }
 }

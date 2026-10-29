@@ -187,9 +187,10 @@ class SummaryTests(LifecycleBase):
         ref = Engagement.objects.get(pk=eng).request.reference
         self.ok(dev.post(f"/api/requests/{ref}/messages/", {"body": "Kick-off notes attached", "file": png()}), 201)
         s = self.ok(alice.get("/api/requests/"))["results"][0]["summary"]
-        self.assertEqual((s["percent"], s["paid"], s["total"], s["unread"], s["waiting"]), (40, 80000, 200000, 1, ""))
+        # Unread for Alice: the proposal card and the kick-off message; for Younes: her acceptance card.
+        self.assertEqual((s["percent"], s["paid"], s["total"], s["unread"], s["waiting"]), (40, 80000, 200000, 2, ""))
         self.assertTrue(s["plan"])
-        self.assertEqual(self.ok(dev.get("/api/requests/"))["results"][0]["summary"]["unread"], 0)  # his own message
+        self.assertEqual(self.ok(dev.get("/api/requests/"))["results"][0]["summary"]["unread"], 1)
         self.ok(dev.post(f"/api/engagements/{eng}/extras/", {"label": "Hosting", "amount": 9000, "currency": "DZD", "optional": True}, format="json"), 201)
         self.assertEqual(self.ok(alice.get("/api/requests/"))["results"][0]["summary"]["waiting"], "offer")
         files = self.ok(alice.get(f"/api/requests/{ref}/"))["files"]

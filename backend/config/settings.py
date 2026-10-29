@@ -84,6 +84,8 @@ INSTALLED_APPS = [
     "live",
     "reviews",
     "studio",
+    "support",
+    "assistant",
 ]
 
 MIDDLEWARE = [
@@ -187,6 +189,8 @@ REST_FRAMEWORK = {
         "message": "120/hour",
         "upload": "60/hour",
         "avatar": "20/hour",
+        "ticket": "10/hour",
+        "assistant": "40/hour",
     },
 }
 
@@ -214,6 +218,13 @@ PRIVATE_MEDIA_ROOT = Path(os.environ.get("PRIVATE_MEDIA_ROOT", BASE_DIR / "priva
 # In production nginx serves private files from an `internal` location once
 # Django has said yes (X-Accel-Redirect). Empty in development: Django streams.
 PRIVATE_MEDIA_ACCEL_PREFIX = os.environ.get("PRIVATE_MEDIA_ACCEL_PREFIX", "")
+
+# The assistant (assistant.engine): Cloudflare Workers AI writes its answers when
+# both are set (free daily allowance); otherwise it answers from the notes.
+CF_AI_ACCOUNT_ID = os.environ.get("CF_AI_ACCOUNT_ID", "")
+CF_AI_TOKEN = os.environ.get("CF_AI_TOKEN", "")
+ASSISTANT_MODEL = os.environ.get("ASSISTANT_MODEL", "@cf/meta/llama-3.1-8b-instruct")
+ASSISTANT_DAILY_LIMIT = int(os.environ.get("ASSISTANT_DAILY_LIMIT", "300"))
 
 # Profile pictures scoring this or more on the explicit-content check are refused (accounts.avatar).
 AVATAR_NSFW_THRESHOLD = float(os.environ.get("AVATAR_NSFW_THRESHOLD", "0.5"))

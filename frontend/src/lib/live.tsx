@@ -7,6 +7,7 @@
  *   request       a request or its project moved (offer, contract, payment, progress)
  *   message       a new message in a project conversation (or a reaction)
  *   read          someone opened a conversation: unread badges drop, "Seen" shows
+ *   ticket        a support ticket opened, answered, moved or read
  *   notifications the bell changed elsewhere (messages read): reload it
  *   resync        (local) the socket came back after a drop: refetch what you show
  *
@@ -24,6 +25,7 @@ export type LiveEvent =
   | { type: "request"; id: number; reference: string; action: string }
   | { type: "message"; request: number; reference: string; id: number; sender: number }
   | { type: "read"; request: number; reference: string; reader: number }
+  | { type: "ticket"; reference: string; action: "opened" | "message" | "status" | "read" | "rated" }
   | { type: "notifications" };
 
 export type AppNotification = {
@@ -136,7 +138,7 @@ export function useLiveRefresh(refetch: () => unknown, reference?: string, { mes
     const hit =
       e.type === "resync" ||
       (e.type === "request" && (!reference || e.reference === reference)) ||
-      (messages && (e.type === "message" || e.type === "read") && (!reference || e.reference === reference));
+      (messages && (e.type === "message" || e.type === "read" || e.type === "ticket") && (!reference || e.reference === reference));
     if (!hit) return;
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => refetch(), 150);

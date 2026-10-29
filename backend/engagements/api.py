@@ -187,14 +187,15 @@ def request_messages(viewset, request, req: ProjectRequest):
             if seen or cleared:
                 messages_read(req, request.user.pk, notifications=bool(cleared))
         msgs = req.messages.select_related(
-            "sender", "attachment__uploaded_by", "reply_to__sender", "reply_to__attachment", "charge",
+            "sender", "attachment__uploaded_by", "reply_to__sender", "reply_to__attachment", "charge", "proposal",
         ).prefetch_related("reactions", "update__attachments__uploaded_by")
         return Response(MessageSerializer(msgs, many=True, context={"request": request}).data)
     upload = request.FILES.get("file")
     attachment = store_upload(request, req, upload, request.data.get("voice") in ("1", "true"), request.data.get("duration")) if upload else None
     reply_to = request.data.get("reply_to")
     message = lifecycle.post_message(request, req, request.data.get("body", ""), attachment,
-                                     reply_to=int(reply_to) if str(reply_to or "").isdigit() else None)
+                                     reply_to=int(reply_to) if str(reply_to or "").isdigit() else None,
+                                     share=(request.data.get("share") or "").strip())
     return Response(MessageSerializer(message, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 

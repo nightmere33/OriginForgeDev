@@ -273,12 +273,21 @@ class MessageSerializer(serializers.ModelSerializer):
     reply_to = serializers.SerializerMethodField()
     charge = ChargeCardSerializer(read_only=True)
     update = UpdateSerializer(read_only=True)
+    proposal = serializers.SerializerMethodField()
     reactions = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = ("id", "kind", "from_studio", "sender_name", "sender_avatar", "body", "data", "attachment", "reply_to", "charge", "update",
-                  "reactions", "read_at", "created_at")
+                  "proposal", "reactions", "read_at", "created_at")
+
+    def get_proposal(self, obj) -> dict | None:
+        """The version a proposal card is about, as it stands now (its status moves on)."""
+        p = obj.proposal
+        if p is None:
+            return None
+        return {"id": p.id, "version": p.version, "kind": p.kind, "status": p.status, "price": p.price, "currency": p.currency,
+                "plan_name": p.plan_name, "timeline_days": p.timeline_days, "negotiable": p.negotiable, "expires_at": p.expires_at}
 
     def get_from_studio(self, obj) -> bool:
         return obj.sender.is_developer

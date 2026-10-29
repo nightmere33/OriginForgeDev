@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUpRight, CornerUpLeft, LifeBuoy, Lock, Mic, Paperclip, Receipt, Send, ShieldCheck, SmilePlus, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowUpRight, Bot, CircleCheck, CornerUpLeft, FileText, LifeBuoy, Lock, Mic, NotebookPen, Paperclip, Receipt, Send, ShieldCheck, SmilePlus, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { fill } from "@/i18n/fill";
 import { useLiveRefresh } from "@/lib/live";
 import { api } from "@/lib/api-client";
@@ -14,6 +14,8 @@ import { Hud } from "@/components/ui/hud";
 import { StatusPill } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
 import { ImageViewer } from "@/components/chat/image-viewer";
+import { ShareCard } from "@/components/chat/share-card";
+import { COMMANDS, type Share } from "@/lib/support";
 import { playReceived, playSent, useSound } from "@/components/chat/sounds";
 import { VoicePlayer } from "@/components/chat/voice-player";
 import { clock, useVoice } from "@/components/chat/voice-recorder";
@@ -77,9 +79,29 @@ function AttachmentView({ a, mine, t, onImage }: { a: Attachment; mine: boolean;
   );
 }
 
-/** A card for something that happened elsewhere: an extra cost or offer, a progress update, a problem report. */
-function Card({ lang, t, side, m, open, onImage }: Pick<PanelProps, "lang" | "t" | "side"> & { m: Message; open: (tab: ProjectTab) => ReactNode; onImage: (v: Viewer) => void }) {
+/** A card for something that happened elsewhere: an extra cost or offer, a progress update, a problem report, a proposal, a shared link or film. */
+function Card({ lang, t, side, m, open, onImage }: Pick<PanelProps, "lang" | "t" | "side"> & { m: Message; open: (tab: ProjectTab, label?: string) => ReactNode; onImage: (v: Viewer) => void }) {
   const c = t.project.chat.cards;
+  if (m.kind === "share" && m.data?.share) return <ShareCard lang={lang} t={t} share={m.data.share} />;
+  if (m.kind === "proposal" && m.proposal) {
+    const p = m.proposal;
+    const s = t.project.chat.proposal;
+    const event = m.data?.event as keyof typeof s.events | undefined;
+    return (
+      <div className="flex flex-col gap-3 border border-line bg-cell px-4 py-4">
+        <span className="flex items-center justify-between gap-3">
+          <Hud tone="ember" as="span"><FileText aria-hidden className="size-3" />{p.kind === "counter" ? s.counter : s.offer} · {fill(s.version, { n: p.version })}</Hud>
+          {event && s.events[event] && <span className="hud text-faint">{s.events[event]}</span>}
+        </span>
+        <span className="flex flex-wrap items-baseline justify-between gap-3">
+          <span className="text-ink-strong">{fill(s.plan, { plan: p.plan_name })} · {fill(s.days, { n: p.timeline_days })}</span>
+          <span className="font-mono tabular-nums text-ink">{money(lang, p.price, p.currency)}</span>
+        </span>
+        {m.body && <Linked text={m.body} className="text-sm text-muted" />}
+        {open("overview", s.open)}
+      </div>
+    );
+  }
   if (m.kind === "charge" && m.charge) {
     const ch = m.charge;
     const statuses = side === "client" ? t.project.extras.statuses : t.project.extras.studioStatuses;
@@ -175,7 +197,9 @@ function ReactionPicker({ t, onPick, onClose, align }: { t: PanelProps["t"]; onP
   );
 }
 
-export function Conversation({ lang, t, side, reference, enabled, variant = "panel", onOpenTab, state = "open", closesAt, paused = false }: Omit<PanelProps, "reload"> & {
+export function Conversation({
+  lang, t, side, reference, enabled, variant = "panel", onOpenTab, state = "open", closesAt, paused = false, endpoint, reactions = true, notes = false,
+}: Omit<PanelProps, "reload"> & {
   reference: string; enabled: boolean;
   /** `dock`: fills the floating window (its own header lives outside). */
   variant?: "panel" | "dock";
@@ -186,6 +210,11 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   closesAt?: string | null;
   /** A minimised window: it keeps up to date without marking anything seen. */
   paused?: boolean;
+  /** Another thread with the same message shape (a support ticket); a project's own conversation by default. */
+  endpoint?: string;
+  reactions?: boolean;
+  /** The studio can leave internal notes (tickets). */
+  notes?: boolean;
 }) {
   const c = t.project.chat;
   const [messages, setMessages] = useState<Message[] | null>(null);
@@ -199,6 +228,9 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [sound, setSound] = useSound();
+  const [note, setNote] = useState(false);
+  const [slashAt, setSlashAt] = useState(0);
+  const url = endpoint ?? `/requests/${reference}/messages/`;
   const list = useRef<HTMLOListElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const lastSeen = useRef<number | null>(null);
@@ -212,14 +244,14 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
 
   const load = useCallback(
     // Seen only when actually seen: a thread in a hidden tab or a minimised window reads without marking (peek).
-    () => api.get<Message[]>(`/requests/${reference}/messages/${document.visibilityState === "visible" && !hidden.current ? "" : "?peek=1"}`).then((next) => {
+    () => api.get<Message[]>(`${url}${document.visibilityState === "visible" && !hidden.current ? "" : "?peek=1"}`).then((next) => {
       const prev = lastSeen.current;
       // A tone for what the other side just sent (never on the first load).
       if (prev !== null && next.some((m) => m.id > prev && !mine(m))) playReceived();
       lastSeen.current = next.length ? next[next.length - 1].id : 0;
       setMessages(next);
     }, () => undefined),
-    [reference, mine],
+    [url, mine],
   );
 
   useLiveRefresh(load, reference, { messages: true });
@@ -264,12 +296,13 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
     setBusy(true);
     setError(undefined);
     const form = new FormData();
-    form.append("body", attachment && extra.voice ? "" : body);
+    form.append("body", (attachment && extra.voice) || extra.share ? "" : body);
+    if (note) form.append("internal", "1");
     if (attachment) form.append("file", attachment);
     if (replyTo) form.append("reply_to", String(replyTo.id));
     Object.entries(extra).forEach(([k, v]) => form.append(k, v));
     try {
-      const msg = await api.post<Message>(`/requests/${reference}/messages/`, form);
+      const msg = await api.post<Message>(url, form);
       stick.current = true;
       lastSeen.current = Math.max(lastSeen.current ?? 0, msg.id);
       // The live refresh may have brought it already.
@@ -280,8 +313,9 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
         setBody("");
         setFile(null);
       }
+      setNote(false);
     } catch (err) {
-      setError(errorText(t, err, "file", "body", "reply_to"));
+      setError(errorText(t, err, "file", "body", "reply_to", "share"));
     } finally {
       setBusy(false);
     }
@@ -329,15 +363,25 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   const dock = variant === "dock";
   const lastMine = [...(messages ?? [])].reverse().find(mine);
   const base = side === "client" ? `/${lang}/portal/requests` : `/${lang}/studio/requests`;
-  const openTab = (tab: ProjectTab) => onOpenTab ? (
-    <button type="button" onClick={() => onOpenTab(tab)} className="hud flex w-fit items-center gap-1.5 text-ember-400 hover:underline">
-      {tab === "payments" ? c.cards.toPayments : c.cards.toProgress}<ArrowUpRight aria-hidden className="size-3" />
-    </button>
-  ) : (
-    <Link href={`${base}/${reference}?tab=${tab}`} className="hud flex w-fit items-center gap-1.5 text-ember-400 hover:underline">
-      {tab === "payments" ? c.cards.toPayments : c.cards.toProgress}<ArrowUpRight aria-hidden className="size-3" />
-    </Link>
-  );
+  const openTab = (tab: ProjectTab, label?: string) => {
+    const text = label ?? (tab === "payments" ? c.cards.toPayments : c.cards.toProgress);
+    return onOpenTab ? (
+      <button type="button" onClick={() => onOpenTab(tab)} className="hud flex w-fit items-center gap-1.5 text-ember-400 hover:underline">
+        {text}<ArrowUpRight aria-hidden className="size-3" />
+      </button>
+    ) : (
+      <Link href={`${base}/${reference}${tab === "overview" ? "" : `?tab=${tab}`}`} className="hud flex w-fit items-center gap-1.5 text-ember-400 hover:underline">
+        {text}<ArrowUpRight aria-hidden className="size-3" />
+      </Link>
+    );
+  };
+  // A command typed alone ("/how", "/pay"): the menu offers what matches.
+  const slash = body.startsWith("/") && !/\s/.test(body) ? COMMANDS.filter((x) => x.cmd.startsWith(body.slice(1).toLowerCase())) : [];
+  const pick = Math.min(slashAt, Math.max(0, slash.length - 1));
+  const share = (what: Share) => {
+    setSlashAt(0);
+    send(null, { share: what });
+  };
   const quoteText = (q: NonNullable<Message["reply_to"]>) =>
     q.body || (q.kind === "voice" ? c.quotedVoice : q.kind === "file" ? c.quotedFile : c.quotedCard);
   const nameOf = (m: { from_studio: boolean; sender_name: string }) => ((side === "studio") === m.from_studio ? c.you : m.from_studio ? "Younes" : m.sender_name);
@@ -356,6 +400,35 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
           <span aria-hidden className="h-px flex-1 bg-line" />
         </li>,
       );
+    }
+    if (m.kind === "event") {
+      const ev = c.events;
+      const text = m.data?.auto ? ev.autoSolved : ev[(m.data?.status ?? "open") as keyof typeof ev];
+      rows.push(
+        <li key={m.id} data-msg={m.id} className="my-2 flex justify-center">
+          <span className="hud flex items-center gap-2 text-faint"><CircleCheck aria-hidden className="size-3.5" />{text}</span>
+        </li>,
+      );
+      return;
+    }
+    if (m.kind === "transcript") {
+      rows.push(
+        <li key={m.id} data-msg={m.id} className="my-3">
+          <details className="border border-line bg-cell px-3.5 py-2.5 text-sm">
+            <summary className="hud flex cursor-pointer list-none items-center gap-2 text-faint [&::-webkit-details-marker]:hidden">
+              <Bot aria-hidden className="size-3.5 text-ember-400" />{c.transcript}
+            </summary>
+            <ol className="mt-3 flex flex-col gap-2">
+              {(m.data?.messages ?? []).map((x, i) => (
+                <li key={i} className={cn("[overflow-wrap:anywhere]", x.role === "user" ? "text-ink" : "text-muted")}>
+                  <span className="hud mr-2 text-faint">{x.role === "user" ? m.sender_name : t.project.chat.spaces.assistant}</span>{x.text}
+                </li>
+              ))}
+            </ol>
+          </details>
+        </li>,
+      );
+      return;
     }
     if (m.kind === "care") {
       // Notices sit in the middle of the thread, like the day rules.
@@ -378,12 +451,13 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
       <li key={m.id} data-msg={m.id}
         className={cn("group/msg relative flex flex-col", own ? "items-end" : "items-start", first ? "mt-3" : "mt-0.5", card && "mt-4")}>
         {first && !own && <span className="hud mb-1 pl-10 pr-1 text-faint">{nameOf(m)}</span>}
+        {m.internal && <span className="hud mb-1 flex items-center gap-1.5 px-1 text-ember-400"><NotebookPen aria-hidden className="size-3" />{c.internal}</span>}
         <div className={cn("relative flex items-end gap-2", dock ? "max-w-[94%]" : "max-w-[86%] sm:max-w-[78%]", own ? "flex-row-reverse" : "flex-row")}>
           {/* The other side's face closes each of their groups, as in a messenger. */}
           {!own && (last ? <Avatar name={m.sender_name} src={m.sender_avatar} studio={m.from_studio} className="size-8 self-end" />
             : <span aria-hidden className="w-8 shrink-0" />)}
           <div
-            onDoubleClick={() => react(m, REACTIONS[0])}
+            onDoubleClick={reactions ? () => react(m, REACTIONS[0]) : undefined}
             onClick={(e) => {
               // Touch: a tap shows the actions; links, buttons and the player keep their own clicks.
               if ((e.target as HTMLElement).closest("a,button,[role=slider]")) return;
@@ -393,7 +467,8 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               "relative min-w-0 transition-[box-shadow,background-color] duration-500",
               card ? "w-[min(22rem,80vw)]" : cn(
                 "border px-3.5 py-2.5",
-                own ? "border-ember-700/70 bg-ember-500/[0.13] text-ink" : "border-line bg-cell text-ink",
+                m.internal ? "border-dashed border-ember-700/70 bg-transparent text-ink"
+                  : own ? "border-ember-700/70 bg-ember-500/[0.13] text-ink" : "border-line bg-cell text-ink",
                 // One soft shape per group: the corners on the sender's side tighten where bubbles touch.
                 "rounded-[1.15rem]",
                 own ? cn(!first && "rounded-tr-md", !last && "rounded-br-md") : cn(!first && "rounded-tl-md", !last && "rounded-bl-md"),
@@ -435,10 +510,12 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
             dock ? cn("absolute -top-4 z-10 border border-line bg-raised shadow-[0_10px_24px_-14px_rgb(0_0_0/0.8)]", own ? "left-0" : "right-0") : "pb-1",
             showActions ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:hidden",
             showActions && "[@media(hover:none)]:flex")}>
-            <button type="button" onClick={() => setPicker((p) => (p === m.id ? null : m.id))} aria-label={c.react} aria-expanded={picker === m.id}
-              className="flex size-8 items-center justify-center text-faint hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ember-400">
-              <SmilePlus aria-hidden className="size-4" />
-            </button>
+            {reactions && (
+              <button type="button" onClick={() => setPicker((p) => (p === m.id ? null : m.id))} aria-label={c.react} aria-expanded={picker === m.id}
+                className="flex size-8 items-center justify-center text-faint hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ember-400">
+                <SmilePlus aria-hidden className="size-4" />
+              </button>
+            )}
             <button type="button" onClick={() => startReply(m)} aria-label={c.reply}
               className="flex size-8 items-center justify-center text-faint hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ember-400">
               <CornerUpLeft aria-hidden className="size-4" />
@@ -497,10 +574,24 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (body.trim() || file) send(file);
+            if (slash.length && !file) share(slash[pick].share);
+            else if (body.trim() || file) send(file);
           }}
-          className={cn("flex flex-col border-line bg-cell", dock ? "border-t" : "border border-t-0")}
+          className={cn("relative flex flex-col border-line bg-cell", dock ? "border-t" : "border border-t-0", note && "bg-ember-500/[0.05]")}
         >
+          {slash.length > 0 && (
+            <ul role="listbox" aria-label={c.commands.title}
+              className="absolute inset-x-2 bottom-full z-20 mb-2 border border-line-strong bg-raised py-1 shadow-[0_18px_40px_-20px_rgb(0_0_0/0.8)] [animation:step-in_var(--dur-micro)_var(--ease-out)]">
+              {slash.map((x, i) => (
+                <li key={x.cmd} role="option" aria-selected={i === pick} onPointerDown={(e) => e.preventDefault()} onClick={() => share(x.share)}
+                  onPointerMove={() => setSlashAt(i)}
+                  className={cn("flex cursor-pointer items-baseline gap-3 px-3.5 py-2 text-sm", i === pick ? "bg-cell text-ink" : "text-muted")}>
+                  <span className="font-mono text-ember-400">/{x.cmd}</span>
+                  <span className="min-w-0 truncate">{c.commands[x.cmd as keyof typeof c.commands]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           {replyTo && (
             <div className="flex items-start gap-3 border-b border-line px-4 py-2.5 [animation:step-in_var(--dur-micro)_var(--ease-out)]">
               <CornerUpLeft aria-hidden className="mt-0.5 size-3.5 shrink-0 text-ember-400" />
@@ -533,6 +624,20 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onKeyDown={(e) => {
+                if (slash.length && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+                  e.preventDefault();
+                  setSlashAt((i) => (i + (e.key === "ArrowDown" ? 1 : slash.length - 1)) % slash.length);
+                  return;
+                }
+                if (slash.length && (e.key === "Tab" || e.key === "Enter")) {
+                  e.preventDefault();
+                  share(slash[pick].share);
+                  return;
+                }
+                if (slash.length && e.key === "Escape") {
+                  setBody("");
+                  return;
+                }
                 // Enter sends where there is a keyboard; Shift+Enter (or any Enter on a phone) is a new line.
                 if (e.key === "Enter" && !e.shiftKey && (e.metaKey || e.ctrlKey || matchMedia("(pointer: fine)").matches)) {
                   e.preventDefault();
@@ -541,11 +646,18 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               }}
               name="message"
               rows={1}
-              aria-label={c.placeholder}
-              placeholder={c.placeholder}
+              aria-label={note ? c.internalToggle : c.placeholder}
+              placeholder={note ? c.internalToggle : c.placeholder}
               className="block max-h-44 min-h-10 w-full resize-none bg-transparent px-2 py-2 leading-[1.625rem] text-ink placeholder:text-faint focus:outline-none"
             />
             </div>
+            {notes && side === "studio" && (
+              <button type="button" onClick={() => setNote((n) => !n)} title={c.internalToggle} aria-pressed={note}
+                className={cn("flex size-10 shrink-0 items-center justify-center hover:text-ink", note ? "text-ember-400" : "text-faint")}>
+                <NotebookPen aria-hidden className="size-4" />
+                <span className="sr-only">{c.internalToggle}</span>
+              </button>
+            )}
             <button type="button" onClick={() => setSound(!sound)} title={sound ? c.soundOn : c.soundOff} aria-pressed={sound}
               className="hidden size-10 shrink-0 items-center justify-center text-faint hover:text-ink sm:flex">
               {sound ? <Volume2 aria-hidden className="size-4" /> : <VolumeX aria-hidden className="size-4" />}

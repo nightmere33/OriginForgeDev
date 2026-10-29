@@ -758,13 +758,15 @@
       "tabs": {
         "overview": "Vue d'ensemble",
         "requests": "Demandes",
-        "clients": "Clients",
+        "clients": "Personnes",
         "payments": "Paiements",
         "reviews": "Avis",
         "settings": "Réglages",
         "kit": "Kit",
         "queue": "File",
-        "services": "Services"
+        "services": "Services",
+        "support": "Support",
+        "media": "Médias"
       },
       "overview": {
         "title": [
@@ -1037,6 +1039,57 @@
         "test": "Envoyer un e-mail de test",
         "sent": "Envoyé à {to}. Vérifiez cette boîte (et les spams).",
         "failed": "Non envoyé :"
+      },
+      "supportPage": {
+        "title": [
+          "Boîte de ",
+          "support."
+        ],
+        "lead": "Les tickets par priorité et délai : formules d'abord, retards en haut."
+      },
+      "mediaPage": {
+        "title": [
+          "Médiathèque",
+          "."
+        ],
+        "lead": "Les films en pleine qualité, avec leurs légendes, à télécharger sur votre téléphone et publier."
+      },
+      "people": {
+        "show": {
+          "all": "Tout le monde",
+          "clients": "Avec un projet",
+          "requests": "Demande envoyée",
+          "newcomers": "Nouveaux",
+          "tickets": "Tickets ouverts"
+        },
+        "start": "Lancer une conversation",
+        "startSubject": "Sujet",
+        "startMessage": "Message",
+        "startSend": "Envoyer",
+        "requests": "Demandes et projets",
+        "tickets": "Tickets",
+        "openTickets": "{n} tickets ouverts",
+        "none": "Rien pour l'instant."
+      },
+      "media": {
+        "originals": "Originaux, pleine qualité",
+        "web": "Versions web, comme sur le site",
+        "download": "Télécharger",
+        "copy": "Copier la légende",
+        "copied": "Copié",
+        "none": "Aucun original pour l'instant."
+      },
+      "inbox": {
+        "filters": {
+          "active": "Actifs",
+          "open": "À répondre",
+          "pending": "En attente du client",
+          "solved": "Résolus",
+          "closed": "Fermés"
+        },
+        "counts": "{open} à répondre · {overdue} en retard",
+        "search": "Chercher un ticket, un client",
+        "empty": "Aucun ticket ici."
       }
     },
     "allowCash": "Autoriser les espèces, en main propre",
@@ -1381,6 +1434,60 @@
         "ended": "La maintenance est terminée. Cette conversation se ferme le {closes}, sauf si elle est prolongée.",
         "extended": "Maintenance prolongée jusqu'au {until}.",
         "closed": "Cette conversation est fermée."
+      },
+      "spaces": {
+        "assistant": "Assistant",
+        "projects": "Projets",
+        "support": "Support"
+      },
+      "commands": {
+        "title": "Commandes",
+        "how-start": "Envoyer le film « comment commencer »",
+        "showreel": "Envoyer le film du studio",
+        "start": "Lien pour lancer un projet",
+        "plans": "Les formules de suivi",
+        "pay": "Les moyens de paiement",
+        "work": "Le portfolio"
+      },
+      "share": {
+        "howto": "Comment lancer un projet",
+        "howtoLead": "Cinq étapes, une estimation en direct, une proposition sous 24 heures.",
+        "showreel": "Le film OriginForge",
+        "showreelLead": "Le studio en un film.",
+        "start": "Lancer un projet",
+        "startLead": "Cinq étapes courtes avec une estimation en direct.",
+        "plans": "Formules de suivi",
+        "plansLead": "Starter, Pro et Ultimate : maintenance, révisions et délais de réponse après la livraison.",
+        "pay": "Comment payer",
+        "payLead": "Carte (CIB, Edahabia) sur Chargily, CCP, BaridiMob, PayPal ou USDT. Chaque paiement a sa facture.",
+        "work": "Les réalisations",
+        "workLead": "Plateformes, applications, automatisations et films, tous livrés.",
+        "open": "Ouvrir",
+        "watch": "Regarder"
+      },
+      "proposal": {
+        "offer": "Proposition",
+        "counter": "Contre-proposition",
+        "version": "Version {n}",
+        "days": "{n} jours",
+        "plan": "Formule {plan}",
+        "open": "Ouvrir la proposition",
+        "events": {
+          "sent": "Envoyée",
+          "countered": "Contre-proposition",
+          "accepted": "Acceptée",
+          "declined": "Refusée"
+        }
+      },
+      "internal": "Note interne",
+      "internalToggle": "Note interne (vous seul la voyez)",
+      "transcript": "Conversation avec l'assistant",
+      "events": {
+        "open": "Rouvert",
+        "pending": "En attente d'une réponse",
+        "solved": "Marqué comme résolu",
+        "closed": "Fermé",
+        "autoSolved": "Résolu de lui-même après une semaine sans réponse"
       }
     },
     "review": {
@@ -1702,5 +1809,63 @@
     "countryNone": "Aucun pays trouvé",
     "country": "Pays",
     "countryPick": "Choisissez votre pays"
+  },
+  "support": {
+    "newTicket": "Nouveau ticket",
+    "subject": "Sujet",
+    "category": "À propos de",
+    "categories": {
+      "question": "Une question",
+      "problem": "Quelque chose ne marche pas",
+      "billing": "Paiements et factures",
+      "project": "Un projet",
+      "other": "Autre chose"
+    },
+    "message": "Message",
+    "project": "Projet (facultatif)",
+    "none": "Aucun",
+    "send": "Envoyer à Younes",
+    "standing": "{label} · réponse sous {hours} h",
+    "newcomerUpsell": "Support gratuit : réponse sous 3 jours. Les clients avec un projet ou une formule de suivi sont servis en premier.",
+    "seePlans": "Voir les formules",
+    "empty": "Aucun ticket pour l'instant. Demandez à l'assistant, ou ouvrez un ticket et Younes vous répond ici.",
+    "statuses": {
+      "open": "En attente de Younes",
+      "pending": "En attente de vous",
+      "solved": "Résolu",
+      "closed": "Fermé"
+    },
+    "studioStatuses": {
+      "open": "À répondre",
+      "pending": "En attente du client",
+      "solved": "Résolu",
+      "closed": "Fermé"
+    },
+    "solve": "Marquer comme résolu",
+    "reopen": "Rouvrir",
+    "close": "Fermer",
+    "rate": "Comment s'est passée l'aide ?",
+    "rated": "Merci pour la note.",
+    "due": "Réponse attendue {time}",
+    "overdue": "En retard",
+    "signIn": "Connectez-vous pour parler à Younes",
+    "back": "Retour"
+  },
+  "assistant": {
+    "title": "Assistant",
+    "hello": "Bonjour ! Je suis l'assistant OriginForge. Posez vos questions sur les services, les prix, les paiements, les formules ou le déroulé d'un projet.",
+    "placeholder": "Posez une question",
+    "suggestions": [
+      "Comment lancer un projet ?",
+      "Combien coûte un site web ?",
+      "Quels moyens de paiement ?",
+      "Que comprend la formule Pro ?"
+    ],
+    "talk": "Parler à Younes",
+    "thinking": "Réflexion",
+    "sources": "En savoir plus",
+    "error": "L'assistant ne peut pas répondre pour l'instant. Vous pouvez toujours parler à Younes.",
+    "note": "Les réponses viennent des informations du site.",
+    "clear": "Recommencer"
   }
 }

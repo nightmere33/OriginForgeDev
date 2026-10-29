@@ -26,7 +26,16 @@ from django.utils.http import content_disposition_header
 @deconstructible
 class PrivateStorage(FileSystemStorage):
     def __init__(self):
-        super().__init__(location=settings.PRIVATE_MEDIA_ROOT, base_url=None)
+        super().__init__(base_url=None)
+
+    # Read at each use, so a test's override_settings(PRIVATE_MEDIA_ROOT=…) is honoured.
+    @property
+    def base_location(self):
+        return str(settings.PRIVATE_MEDIA_ROOT)
+
+    @property
+    def location(self):
+        return os.path.abspath(self.base_location)
 
     def url(self, name):  # pragma: no cover - guard rail
         raise RuntimeError("Private files have no URL; serve them through an authorized view.")

@@ -42,6 +42,8 @@ urlpatterns = [
     path("api/live/", include("live.urls")),
     path("api/reviews/", include("reviews.urls")),
     path("api/studio/", include("studio.urls")),
+    path("api/support/", include("support.urls")),
+    path("api/assistant/", include("assistant.urls")),
     path("api/", include("engagements.urls")),
     path("api/", include("billing.urls")),
     # Provider notices (nginx routes /webhooks/ here): Chargily and PayPal.

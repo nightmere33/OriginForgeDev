@@ -51,7 +51,7 @@ class FilmPricingTests(TestCase):
         return APIClient().post("/api/content/estimate/", body, format="json").json()
 
     def test_one_minute_clean_edit_is_the_listed_price(self):
-        price = ServicePrice.objects.get(service__slug="product-films")
+        price = ServicePrice.objects.get(service__slug="product-films", currency="DZD")
         self.assertEqual((price.kind, price.amount), ("per_minute", 3500))
         self.assertEqual((self.estimate()["low"], self.estimate()["high"]), (3500, 4500))
 
@@ -62,6 +62,36 @@ class FilmPricingTests(TestCase):
     def test_films_are_not_asked_about_payments_or_admin(self):
         self.assertNotIn("payments", self.estimate()["choices"])
         self.assertNotIn("admin", self.estimate()["choices"])
+
+
+@override_settings(NEXT_REVALIDATE_URL="")
+class CurrencyPriceListTests(TestCase):
+    """Each currency has its own list: dinars for Algeria, standard rates abroad. Nothing is converted."""
+
+    def setUp(self):
+        from django.core.management import call_command
+
+        from .management.commands.seed_pricing import STARTING
+
+        for slug in STARTING:
+            Service.objects.get_or_create(slug=slug, defaults={"title_en": slug, "summary_en": slug})
+        call_command("seed_pricing", stdout=io.StringIO())
+
+    def estimate(self, currency, **choices):
+        body = {"service": "websites", "currency": currency, "plan": "starter", "choices": choices}
+        return APIClient().post("/api/content/estimate/", body, format="json").json()
+
+    def test_every_currency_reads_its_own_prices_and_add_ons(self):
+        self.assertEqual([self.estimate(c)["low"] for c in ("DZD", "EUR", "USD")], [45000, 900, 990])
+        # The self-editing add-on is its own amount in each currency.
+        with_editor = [self.estimate(c, **{"site-editor": "editor"})["low"] for c in ("DZD", "EUR", "USD")]
+        self.assertEqual(with_editor, [60000, 1300, 1430])
+        self.assertFalse(self.estimate("EUR")["converted"])
+
+    def test_no_price_in_a_currency_means_quoted_not_converted(self):
+        ServicePrice.objects.filter(service__slug="websites", currency="USD").delete()
+        data = self.estimate("USD")
+        self.assertEqual((data["low"], data["high"], data["converted"]), (None, None, False))
 
 
 @override_settings(MEDIA_ROOT=TMP_MEDIA, NEXT_REVALIDATE_URL="")

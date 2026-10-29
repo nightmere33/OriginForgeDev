@@ -2,7 +2,10 @@
 The estimate shown while a client tweaks the calculator (BUSINESS_RULES.md §2).
 
     base     = the service's "from" price in the chosen currency (a film's
-               price per minute: its length is one of the factors)
+               price per minute: its length is one of the factors). Each
+               currency has its own list (dinars for Algeria, standard euro
+               and dollar rates abroad): nothing is converted. No price in
+               that currency: no estimate, the project is quoted.
     estimate = base × Π(choice multipliers) × (1 + plan surcharge) + Σ(add-ons)
     range    = [estimate, estimate × 1.3], rounded to clean numbers
 
@@ -26,7 +29,7 @@ class Estimate:
     high: int | None
     choices: dict[str, str]
     plan: str | None
-    converted: bool = False  # no price set in this currency: DZD at the live street rate
+    converted: bool = False  # kept for the API shape; estimates are never converted now
 
 
 def factors_for(service: Service | None):
@@ -60,13 +63,6 @@ def estimate(service: Service | None, currency: str, plan_code: str | None, pick
             addons += pick.addon(currency)
 
     if not base_row:
-        has_dzd = service and ServicePrice.objects.filter(service=service, currency="DZD", kind__in=BASE_KINDS).exists()
-        if has_dzd and currency != "DZD":
-            from fx.service import convert, current
-
-            dzd, rates = estimate(service, "DZD", plan_code, picks), current()
-            low, high = (_round(convert(v, "DZD", currency, rates), currency) for v in (dzd.low, dzd.high))
-            return Estimate(currency, low, high, chosen, plan.code if plan else None, converted=True)
         return Estimate(currency, None, None, chosen, plan.code if plan else None)
     total = Decimal(base_row.amount) * multiplier
     if plan:

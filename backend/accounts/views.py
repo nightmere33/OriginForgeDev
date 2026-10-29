@@ -292,7 +292,9 @@ class PasswordChangeView(APIView):
         serializer = PasswordChangeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = request.user
-        if not user.check_password(serializer.validated_data["current_password"]):
+        # Google / Facebook accounts set their first password without one to check.
+        first = not user.has_usable_password()
+        if not first and not user.check_password(serializer.validated_data["current_password"]):
             return Response({"current_password": ["Incorrect password."]}, status=status.HTTP_400_BAD_REQUEST)
         try:
             validate_password(serializer.validated_data["new_password"], user)
@@ -301,7 +303,7 @@ class PasswordChangeView(APIView):
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         update_session_auth_hash(request, user)
-        record(request, "account.password_changed", user)
+        record(request, "account.password_set" if first else "account.password_changed", user)
         return Response({"ok": True})
 
 
@@ -355,7 +357,7 @@ class DeleteAccountView(APIView):
             record(request, "account.deleted", user)
             user.email = f"deleted-{user.pk}-{secrets.token_hex(4)}@deleted.invalid"
             user.full_name = "Deleted user"
-            for field in ("company", "phone", "whatsapp", "instagram", "messenger", "country", "address", "city", "postal_code",
+            for field in ("company", "phone", "whatsapp", "instagram", "messenger", "country", "country_code", "handle", "address", "city", "postal_code",
                           "contact_handle", "heard_from_detail"):
                 setattr(user, field, "")
             user.set_unusable_password()

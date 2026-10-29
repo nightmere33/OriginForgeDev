@@ -224,6 +224,13 @@ def _service_rows():
     return rows
 
 
+class ServicePricesSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=0, max_value=100_000_000, allow_null=True, required=False)
+    amount_eur = serializers.IntegerField(min_value=0, max_value=10_000_000, allow_null=True, required=False)
+    amount_usd = serializers.IntegerField(min_value=0, max_value=10_000_000, allow_null=True, required=False)
+    kind = serializers.ChoiceField(choices=ServicePrice.Kind.choices, required=False)
+
+
 class PriceSerializer(serializers.Serializer):
     slug = serializers.SlugField()
     amount = serializers.IntegerField(min_value=0, max_value=100_000_000, allow_null=True, required=False)
@@ -291,6 +298,8 @@ class StudioServiceSerializer(serializers.ModelSerializer):
     """One service as the studio edits it: words, price, capacity."""
 
     amount = serializers.SerializerMethodField()
+    amount_eur = serializers.SerializerMethodField()
+    amount_usd = serializers.SerializerMethodField()
     kind = serializers.SerializerMethodField()
     queue = serializers.SerializerMethodField()
 
@@ -299,19 +308,27 @@ class StudioServiceSerializer(serializers.ModelSerializer):
         fields = (
             "slug", "active", "order", "icon", "title_en", "title_fr", "summary_en", "summary_fr", "description_en",
             "description_fr", "deliverables_en", "deliverables_fr", "timeline_en", "timeline_fr",
-            "max_active", "accept_directly", "typical_days", "amount", "kind", "queue",
+            "max_active", "accept_directly", "typical_days", "amount", "amount_eur", "amount_usd", "kind", "queue",
         )
         read_only_fields = ("slug",)
 
-    def _dzd(self, obj):
-        return next((p for p in obj.prices.all() if p.currency == "DZD"), None)
+    def _row(self, obj, currency="DZD"):
+        return next((p for p in obj.prices.all() if p.currency == currency), None)
 
     def get_amount(self, obj):
-        row = self._dzd(obj)
+        row = self._row(obj)
+        return row.amount if row else None
+
+    def get_amount_eur(self, obj):
+        row = self._row(obj, "EUR")
+        return row.amount if row else None
+
+    def get_amount_usd(self, obj):
+        row = self._row(obj, "USD")
         return row.amount if row else None
 
     def get_kind(self, obj):
-        row = self._dzd(obj)
+        row = self._row(obj) or self._row(obj, "EUR") or self._row(obj, "USD")
         return row.kind if row else ServicePrice.Kind.FROM
 
     def get_queue(self, obj) -> dict:
@@ -328,10 +345,37 @@ def services(request):
     return Response(StudioServiceSerializer(rows, many=True).data)
 
 
+PRICE_FIELDS = (("DZD", "amount"), ("EUR", "amount_eur"), ("USD", "amount_usd"))
+
+
+def _set_prices(service, data: dict) -> bool:
+    """
+    One price per currency, each set by hand (no conversion): `amount` (DZD),
+    `amount_eur`, `amount_usd`; null = quoted per project in that currency.
+    `kind` (from, per minute...) applies to all of them.
+    """
+    rows = {p.currency: p for p in ServicePrice.objects.filter(service=service)}
+    kind = data.get("kind") or next((r.kind for r in rows.values()), ServicePrice.Kind.FROM)
+    touched = False
+    for currency, key in PRICE_FIELDS:
+        row = rows.get(currency)
+        if key in data:
+            touched = True
+            if data[key] is None:
+                ServicePrice.objects.filter(service=service, currency=currency).delete()
+                continue
+            ServicePrice.objects.filter(service=service, currency=currency).exclude(kind=kind).delete()
+            ServicePrice.objects.update_or_create(service=service, currency=currency, kind=kind, defaults={"amount": data[key]})
+        elif "kind" in data and row and row.kind != kind:
+            touched = True
+            ServicePrice.objects.filter(pk=row.pk).update(kind=kind)
+    return touched
+
+
 @api_view(["PATCH"])
 @permission_classes(STUDIO)
 def service_detail(request, slug: str):
-    """Edit a service; `amount` (DZD, null = quoted per project) and `kind` set its price."""
+    """Edit a service; `amount` (DZD), `amount_eur`, `amount_usd` (null = quoted) and `kind` set its prices."""
     service = Service.objects.filter(slug=slug).prefetch_related("prices").first()
     if not service:
         return Response({"detail": "Not found."}, status=404)
@@ -339,20 +383,12 @@ def service_detail(request, slug: str):
     body.is_valid(raise_exception=True)
     changed = sorted(k for k, v in body.validated_data.items() if getattr(service, k) != v)
     body.save()
-    if "amount" in request.data or "kind" in request.data:
-        price = PriceSerializer(data={"slug": slug, **{k: request.data[k] for k in ("amount", "kind") if k in request.data}})
+    keys = [k for _, k in PRICE_FIELDS] + ["kind"]
+    if any(k in request.data for k in keys):
+        price = ServicePricesSerializer(data={k: request.data[k] for k in keys if k in request.data})
         price.is_valid(raise_exception=True)
-        data = price.validated_data
-        rows = ServicePrice.objects.filter(service=service, currency="DZD")
-        if "amount" in data and data["amount"] is None:
-            rows.delete()
-        else:
-            amount = data.get("amount", rows.first().amount if rows.exists() else None)
-            if amount is not None:
-                kind = data.get("kind") or (rows.first().kind if rows.exists() else ServicePrice.Kind.FROM)
-                rows.exclude(kind=kind).delete()
-                ServicePrice.objects.update_or_create(service=service, currency="DZD", kind=kind, defaults={"amount": amount})
-        changed += ["price"]
+        if _set_prices(service, price.validated_data):
+            changed += ["price"]
     if changed:
         record(request, "studio.service_changed", service, fields=changed)
     service = Service.objects.prefetch_related("prices").get(pk=service.pk)

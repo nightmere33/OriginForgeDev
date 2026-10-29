@@ -9,10 +9,14 @@ import { fetchSession, useSession } from "@/lib/session";
 import { DecodeText, tearIn } from "@/motion/glitch";
 import { Button } from "@/components/ui/button";
 import { ChoiceChip, Field, Input } from "@/components/ui/field";
+import { CountrySelect, currencyFor, englishName } from "@/components/ui/country-select";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { safeNext } from "./auth-forms";
 
-type T = Pick<Dictionary, "onboarding" | "common">;
-type Answers = Pick<User, "language" | "heard_from" | "heard_from_detail" | "contact_channel" | "contact_handle" | "whatsapp">;
+type T = Pick<Dictionary, "onboarding" | "common" | "phoneInput">;
+type Answers = Pick<User, "full_name" | "handle" | "country_code" | "country" | "phone" | "language" | "heard_from" | "heard_from_detail"
+  | "contact_channel" | "contact_handle" | "whatsapp">;
 
 const HEARD = ["instagram", "facebook", "tiktok", "linkedin", "youtube", "google", "github", "friend", "client", "other"] as const;
 const CHANNELS = ["site", "whatsapp", "instagram", "discord", "email", "phone"] as const;
@@ -21,8 +25,10 @@ const HANDLE_FOR = new Set(["instagram", "discord"]);
 const NUMBER_FOR = new Set(["whatsapp", "phone"]);
 
 /**
- * The welcome after sign-up: how the site should speak to them, how they
- * found me, and where they'd rather talk. Three short steps, skippable.
+ * The welcome after sign-up (or a first Google / Facebook sign-in): who they
+ * are (name, username, country, phone), how the site should speak to them and
+ * which prices to show (the country suggests the currency), how they found
+ * me, and where they'd rather talk. Four short steps, skippable.
  */
 export function Onboarding({ lang, t }: { lang: Locale; t: T }) {
   const user = useSession();
@@ -38,11 +44,13 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
   const o = t.onboarding;
   const router = useRouter();
   const params = useSearchParams();
-  const { currency } = useCurrency();
+  const { currency, setCurrency } = useCurrency();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof Answers | "form", string>>>({});
   const [a, setA] = useState<Answers>({
+    full_name: user.full_name, handle: user.handle ?? "", country_code: user.country_code ?? "", country: user.country ?? "",
+    phone: user.phone ?? "",
     language: user.language === "fr" ? "fr" : lang,
     heard_from: user.heard_from, heard_from_detail: user.heard_from_detail,
     contact_channel: user.contact_channel || "site", contact_handle: user.contact_handle, whatsapp: user.whatsapp,
@@ -71,18 +79,34 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
     } catch (err) {
       setBusy(false);
       if (err instanceof ApiError) {
-        const fields = { contact_handle: err.field("contact_handle"), whatsapp: err.field("whatsapp") };
-        setErrors({ ...fields, form: fields.contact_handle || fields.whatsapp ? undefined : err.message });
-        if (fields.contact_handle || fields.whatsapp) setStep(2);
+        const you = { full_name: err.field("full_name"), handle: err.field("handle"), country_code: err.field("country_code"), phone: err.field("phone") };
+        const reach = { contact_handle: err.field("contact_handle"), whatsapp: err.field("whatsapp") };
+        const any = Object.values({ ...you, ...reach }).some(Boolean);
+        setErrors({ ...you, ...reach, form: any ? undefined : err.message });
+        if (Object.values(you).some(Boolean)) setStep(0);
+        else if (reach.contact_handle || reach.whatsapp) setStep(3);
       } else setErrors({ form: t.common.error });
     }
   };
 
   const last = step === o.steps.length - 1;
+  // The first step's own checks: a name, and a phone that is a real number when given.
+  const checkYou = () => {
+    const e: typeof errors = {};
+    if (!a.full_name.trim()) e.full_name = o.you.name;
+    if (a.phone && !isValidPhoneNumber(a.phone)) e.phone = o.you.phoneHelp;
+    setErrors(e);
+    return !Object.keys(e).length;
+  };
   const total = String(o.steps.length).padStart(2, "0");
 
   return (
-    <form noValidate onSubmit={(e) => { e.preventDefault(); if (last) finish(); else setStep(step + 1); }} className="flex flex-col gap-8">
+    <form noValidate onSubmit={(e) => {
+      e.preventDefault();
+      if (step === 0 && !checkYou()) return;
+      if (last) finish();
+      else setStep(step + 1);
+    }} className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between">
           <span className="hud text-ember-400"><DecodeText text={`${String(step + 1).padStart(2, "0")} / ${total}`} /></span>
@@ -97,6 +121,39 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
 
       <div ref={pane} className="flex flex-col gap-6">
         {step === 0 && (
+          <>
+            <Field label={o.you.name} error={errors.full_name}>
+              {(f) => <Input id={f.id} autoComplete="name" aria-invalid={f.invalid} aria-describedby={f.describedBy} value={a.full_name} maxLength={150} onChange={(e) => set("full_name", e.target.value)} />}
+            </Field>
+            <Field label={o.you.handle} help={o.you.handleHelp} error={errors.handle}>
+              {(f) => (
+                <div className="relative">
+                  <span aria-hidden className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-faint">@</span>
+                  <Input id={f.id} autoComplete="username" autoCapitalize="off" autoCorrect="off" spellCheck={false} maxLength={30}
+                    aria-invalid={f.invalid} aria-describedby={f.describedBy} value={a.handle}
+                    onChange={(e) => set("handle", e.target.value.replace(/^@+/, "").toLowerCase())} className="pl-8" />
+                </div>
+              )}
+            </Field>
+            <Field label={o.you.country} help={o.you.countryHelp} error={errors.country_code}>
+              {(f) => (
+                <CountrySelect id={f.id} lang={lang} labels={t.phoneInput} value={a.country_code} invalid={f.invalid} describedBy={f.describedBy}
+                  onChange={(code) => {
+                    setA((v) => ({ ...v, country_code: code, country: englishName(code) }));
+                    setErrors({});
+                    // Prices follow the country: dinars in Algeria, euros or dollars abroad (changeable next step).
+                    setCurrency(currencyFor(code));
+                  }} />
+              )}
+            </Field>
+            <Field label={o.you.phone} help={o.you.phoneHelp} error={errors.phone}>
+              {(f) => <PhoneInput id={f.id} lang={lang} labels={t.phoneInput} value={a.phone} invalid={f.invalid} describedBy={f.describedBy}
+                defaultCountry={(a.country_code || "DZ") as never} onChange={(v) => set("phone", v)} />}
+            </Field>
+          </>
+        )}
+
+        {step === 1 && (
           <>
             <fieldset className="flex flex-col gap-3">
               <legend className="hud mb-3 text-muted">{o.language}</legend>
@@ -114,10 +171,10 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
           </>
         )}
 
-        {step === 1 && (
+        {step === 2 && (
           <>
             <fieldset>
-              <legend className="sr-only">{o.steps[1]}</legend>
+              <legend className="sr-only">{o.steps[2]}</legend>
               <div className="grid grid-cols-2 gap-3">
                 {HEARD.map((h) => (
                   <ChoiceChip key={h} type="radio" name="heard_from" label={o.heard[h]} checked={a.heard_from === h} onChange={() => set("heard_from", h)} />
@@ -132,10 +189,10 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
           </>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <>
             <fieldset>
-              <legend className="sr-only">{o.steps[2]}</legend>
+              <legend className="sr-only">{o.steps[3]}</legend>
               <div className="grid gap-3 sm:grid-cols-2">
                 {CHANNELS.map((c) => (
                   <ChoiceChip key={c} type="radio" name="contact_channel" label={o.channels[c]} description={o.channelHelp[c]} checked={a.contact_channel === c} onChange={() => set("contact_channel", c)} />

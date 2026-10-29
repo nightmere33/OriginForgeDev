@@ -54,9 +54,10 @@ const EMPTY: Draft = {
   budget_max: "", budget_currency: "DZD", deadline: "", deadline_flexible: true, reference_links: "", wants_nda: false,
 };
 
-// Before sign-in nothing is typed any more, but a draft from the old one-device
-// flow may still be in storage: it seeds the first server draft once.
-const LEGACY_KEY = "of:start-draft";
+// The brief comes first: a visitor who isn't signed in fills it on this device
+// (kept here, with the contact details), and the account is made when they
+// send it. Once signed in, it seeds a new server draft, then this copy goes.
+const GUEST_KEY = "of:start-draft";
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.doc,.docx,.odt,.rtf,.txt,.md,.csv,.xls,.xlsx,.ods,.ppt,.pptx,.odp,.zip,.mp4,.mov,.mp3,.m4a";
 const MAX_FILE = 25 * 1024 * 1024;
 const MAX_FILES = 10;
@@ -68,7 +69,26 @@ const FIELD_STEP: Record<string, number> = {
 };
 
 type Errors = Partial<Record<keyof Draft | "form" | "phone" | "whatsapp", string>>;
-type Pending = DropFile & { file: File };
+/** `held`: chosen before the account existed; uploaded right after sign-in. */
+type Pending = DropFile & { file: File; held?: boolean };
+type Contact = Partial<Record<"phone" | "whatsapp" | "instagram" | "messenger" | "company", string>>;
+type GuestCopy = Partial<Draft> & { contact?: Contact; waSame?: boolean | null };
+
+function readGuest(): GuestCopy {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_KEY) || "{}") as GuestCopy;
+  } catch {
+    return {};
+  }
+}
+
+function forgetGuest() {
+  try {
+    localStorage.removeItem(GUEST_KEY);
+  } catch {
+    // Storage blocked: nothing was kept.
+  }
+}
 type Service = { slug: string; title: string; summary: string };
 type Save = "idle" | "saving" | "saved" | "error";
 
@@ -140,10 +160,13 @@ export default function StartWizard({
   const s = t.start;
   const params = useSearchParams();
   const session = useSession();
-  const { currency: displayCurrency, convert } = useCurrency();
+  const { currency: displayCurrency } = useCurrency();
   const [budgetCustom, setBudgetCustom] = useState(false);
   const [signedIn, setSignedIn] = useState<User | null>(null);
   const user = signedIn ?? session;
+  // Signed out: the brief is filled first; the account comes when it is sent.
+  const guest = user === null;
+  const [gate, setGate] = useState(false);
 
   const defaultPlan = plans.find((p) => p.highlighted)?.code ?? plans[0]?.code ?? "";
   const [draft, setDraft] = useState<Draft>({ ...EMPTY, plan: defaultPlan });
@@ -152,7 +175,7 @@ export default function StartWizard({
   const [resumed, setResumed] = useState(false);
   const [save, setSave] = useState<Save>("idle");
   // Contact details live on the profile; edits here are saved there on submit.
-  const [contactEdits, setContactEdits] = useState<Partial<Record<"phone" | "whatsapp" | "instagram" | "messenger" | "company", string>>>({});
+  const [contactEdits, setContactEdits] = useState<Contact>({});
   const [waSameEdit, setWaSame] = useState<boolean | null>(null);
   const [step, setStep] = useState(0);
   const wizard = useRef<HTMLDivElement>(null);
@@ -195,10 +218,65 @@ export default function StartWizard({
   const creating = useRef<Promise<string> | null>(null);
   const dirty = useRef(false);
 
-  // ── Resume the newest server draft (any device), else start fresh ──
+  // ── Signed out: this device's copy of the brief, else a fresh one ──
+  useEffect(() => {
+    if (user !== null) return;
+    let alive = true;
+    // Read from the device's storage like any other source: once, then shown.
+    Promise.resolve(readGuest()).then((kept) => {
+      if (!alive) return;
+      const game = params.get("service") === "game";
+      const preset = game ? "" : params.get("service");
+      const service = preset && services.some((x) => x.slug === preset) ? preset : kept.service ?? "";
+      const { contact, waSame: keptWa, ...fields } = kept;
+      setDraft((d) => ({
+        ...d, budget_currency: displayCurrency, ...fields, service, plan: fields.plan || d.plan,
+        brief: game ? { kind: "game" } : fields.brief ?? ({} as Answers),
+      }));
+      if (contact) setContactEdits(contact);
+      if (keptWa !== undefined) setWaSame(keptWa);
+      setResumed(meaningful({ ...EMPTY, ...fields }));
+      setLoaded(true);
+    });
+    return () => {
+      alive = false;
+    };
+    // Once, when the page knows nobody is signed in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user === null]);
+
+  // ── Signed out: keep the brief on this device as it is typed ──
+  useEffect(() => {
+    if (!guest || !loaded || !dirty.current) return;
+    try {
+      localStorage.setItem(GUEST_KEY, JSON.stringify({ ...draft, contact: contactEdits, waSame: waSameEdit }));
+    } catch {
+      // Storage blocked: the brief lasts for this page.
+    }
+  }, [guest, loaded, draft, contactEdits, waSameEdit]);
+
+  // ── Signed in: the brief typed before signing in, else the newest server draft (any device) ──
   useEffect(() => {
     if (!user) return;
     let alive = true;
+    const kept = readGuest();
+    if (meaningful({ ...EMPTY, ...kept })) {
+      // Just signed in (here, or back from Google / Facebook): the brief becomes a new draft.
+      Promise.resolve(kept).then(({ contact, waSame: keptWa, ...fields }) => {
+        if (!alive) return;
+        setDraft((d) => ({ ...d, ...fields, plan: fields.plan || d.plan }));
+        if (contact) setContactEdits(contact);
+        if (keptWa !== undefined) setWaSame(keptWa);
+        forgetGuest();
+        dirty.current = true;
+        setReference(null);
+        if (params.get("send")) setStep(s.steps.length - 1);
+        setLoaded(true);
+      });
+      return () => {
+        alive = false;
+      };
+    }
     api.get<{ results: ProjectRequest[] }>("/requests/?status=draft").then((r) => {
       if (!alive) return;
       const wanted = params.get("draft");
@@ -218,20 +296,9 @@ export default function StartWizard({
         setResumed(true);
         setStep(d.title && d.objectives ? 2 : d.service ? 1 : 0);
       } else {
-        let legacy: Partial<Draft> = {};
-        try {
-          legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || "{}");
-          localStorage.removeItem(LEGACY_KEY);
-        } catch {
-          // Storage blocked: nothing to carry over.
-        }
-        const service = preset && services.some((x) => x.slug === preset) ? preset : legacy.service ?? "";
+        const service = preset && services.some((x) => x.slug === preset) ? preset : "";
         // A new draft starts in the currency the visitor reads prices in.
-        setDraft((d) => ({
-          ...d, budget_currency: displayCurrency, ...legacy, service, plan: legacy.plan || d.plan,
-          brief: game ? { kind: "game" } : legacy.brief ?? {},
-        }));
-        if (meaningful({ ...EMPTY, ...legacy })) dirty.current = true;
+        setDraft((d) => ({ ...d, budget_currency: displayCurrency, service, brief: game ? { kind: "game" } : ({} as Answers) }));
       }
       setLoaded(true);
     }, () => alive && setLoaded(true));
@@ -257,7 +324,7 @@ export default function StartWizard({
 
   // ── Autosave: debounced, quiet, never blocks typing ──
   useEffect(() => {
-    if (!loaded || !dirty.current || !meaningful(draft) || done) return;
+    if (!user || !loaded || !dirty.current || !meaningful(draft) || done) return;
     const timer = setTimeout(async () => {
       setSave("saving");
       try {
@@ -269,7 +336,7 @@ export default function StartWizard({
       }
     }, AUTOSAVE_MS);
     return () => clearTimeout(timer);
-  }, [draft, loaded, ensureDraft, lang, done]);
+  }, [user, draft, loaded, ensureDraft, lang, done]);
 
   // ── Live estimate (the server owns the maths) ──
   useEffect(() => {
@@ -337,14 +404,19 @@ export default function StartWizard({
     if (Object.keys(e).length === 0) setStep((n) => Math.min(n + 1, s.steps.length - 1));
   };
 
-  // Files go straight into the draft, so they resume with it too.
+  // Files go straight into the draft, so they resume with it too. Signed out,
+  // they wait on this page and go up the moment the account exists.
   const addFiles = async (added: File[]) => {
     const room = Math.max(0, MAX_FILES - files.length - pending.length);
-    const batch = added.slice(0, room).map((file) => ({
+    const batch: Pending[] = added.slice(0, room).map((file) => ({
       key: `${file.name}-${file.size}-${file.lastModified}`, name: file.name, size: file.size, file,
-      error: file.size > MAX_FILE ? "> 25 MB" : undefined,
+      error: file.size > MAX_FILE ? "> 25 MB" : undefined, held: guest,
     }));
     setPending((p) => [...p, ...batch]);
+    if (!guest) await uploadAll(batch);
+  };
+
+  const uploadAll = async (batch: Pending[]) => {
     let ref: string;
     try {
       dirty.current = true;
@@ -367,6 +439,19 @@ export default function StartWizard({
     }
   };
 
+  // Signed in now: the files chosen before go up into the new draft.
+  const uploadingHeld = useRef(false);
+  useEffect(() => {
+    if (!user || !loaded || uploadingHeld.current || !pending.some((p) => p.held)) return;
+    uploadingHeld.current = true;
+    const held = pending.filter((p) => p.held && !p.error).map((p) => ({ ...p, held: false }));
+    setPending((list) => list.map((p) => (p.held ? { ...p, held: false } : p)));
+    uploadAll(held).finally(() => {
+      uploadingHeld.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loaded]);
+
   const removeFile = async (id: string) => {
     if (!reference) return;
     await api.delete(`/requests/${reference}/attachments/${id}/`).catch(() => undefined);
@@ -374,6 +459,11 @@ export default function StartWizard({
   };
 
   const submit = async () => {
+    // Signed out: the brief is complete; the account is the last step before sending.
+    if (guest) {
+      setGate(true);
+      return;
+    }
     setErrors({});
     setBusy(true);
     try {
@@ -412,7 +502,17 @@ export default function StartWizard({
   };
 
   if (user === undefined) return <div className="min-h-[32rem]" />;
-  if (user === null) return <AuthGate lang={lang} t={t} onSignedIn={setSignedIn} />;
+  if (user === null && gate) {
+    return (
+      <AuthGate lang={lang} t={t} title={s.guest.gateTitle} lead={s.guest.gateLead} next={`/${lang}/start?send=1`}
+        prefill={{ phone: saved.phone, whatsapp: saved.whatsapp }} onBack={() => setGate(false)}
+        onSignedIn={(u) => {
+          setSignedIn(u);
+          setGate(false);
+          setStep(s.steps.length - 1);
+        }} />
+    );
+  }
 
   if (done) {
     return (
@@ -444,19 +544,34 @@ export default function StartWizard({
   const last = step === s.steps.length - 1;
   const selected = services.find((x) => x.slug === draft.service);
   // The live session first: it turns verified the moment the code is accepted.
-  const verified = (session ?? user).email_verified || user.is_developer;
+  const verified = guest || !!(session ?? user)?.email_verified || !!user?.is_developer;
   const brief = briefFor(draft.service);
   const factors = pricing[draft.service] ?? pricing[""] ?? [];
   const plan = plans.find((p) => p.code === draft.plan);
-  const saveLabel = { idle: resumed ? s.resumed : "", saving: s.saving, saved: s.saved, error: s.saveError }[save];
+  const saveLabel = guest
+    ? (meaningful(draft) ? s.guest.saved : "")
+    : { idle: resumed ? s.resumed : "", saving: s.saving, saved: s.saved, error: s.saveError }[save];
 
   // Throw the draft away (files included) and start again from a blank form.
   const discard = async () => {
-    if (!reference) return;
+    if (!reference) {
+      // Signed out: only this device's copy to forget.
+      forgetGuest();
+      dirty.current = false;
+      setPending([]);
+      setResumed(false);
+      setSave("idle");
+      setDraft({ ...EMPTY, plan: defaultPlan, budget_currency: displayCurrency });
+      setContactEdits({});
+      setStep(0);
+      setConfirmDiscard(false);
+      return;
+    }
     setBusy(true);
     try {
       await api.delete(`/requests/${reference}/`);
       dirty.current = false;
+      forgetGuest();
       setReference(null);
       setFiles([]);
       setResumed(false);
@@ -563,8 +678,8 @@ export default function StartWizard({
                 onPlan={(code) => set("plan", code)}
                 onOption={(factor, choice) => set("options", { ...draft.options, [factor]: choice })}
                 onCurrency={(c) => {
-                  // The budget follows the currency: the same range, or the amounts converted.
-                  const moved = convertBudget(draft.budget_min, draft.budget_max, draft.budget_currency, c, convert);
+                  // The budget follows the currency: the same range (own amounts are cleared, the markets differ).
+                  const moved = convertBudget(draft.budget_min, draft.budget_max, draft.budget_currency, c);
                   set("budget_currency", c);
                   set("budget_min", moved.min);
                   set("budget_max", moved.max);
@@ -575,7 +690,7 @@ export default function StartWizard({
                   min={draft.budget_min} max={draft.budget_max} error={errors.budget_max}
                   // A saved range that is none of the presets opens as one's own range.
                   custom={budgetCustom || (!!(draft.budget_min || draft.budget_max)
-                    && !budgetRanges(draft.budget_currency, convert).some((r) => String(r.min ?? "") === draft.budget_min && String(r.max ?? "") === draft.budget_max))}
+                    && !budgetRanges(draft.budget_currency).some((r) => String(r.min ?? "") === draft.budget_min && String(r.max ?? "") === draft.budget_max))}
                   onChange={({ min, max, custom }) => {
                     setBudgetCustom(custom);
                     set("budget_min", min);
@@ -612,14 +727,14 @@ export default function StartWizard({
                     ))}
                   </ul>
                 )}
-                <FileDrop id={`${formId}-files`} label={s.filesLabel} hint={s.filesHint} accept={ACCEPT} files={pending}
+                <FileDrop id={`${formId}-files`} label={s.filesLabel} hint={guest ? `${s.filesHint} ${s.guest.filesLater}` : s.filesHint} accept={ACCEPT} files={pending}
                   onAdd={addFiles} onRemove={(key) => setPending((l) => l.filter((x) => x.key !== key))}
                   disabled={files.length + pending.length >= MAX_FILES} />
               </div>
               <ShowcaseChoice s={s.showcase} confidential={draft.wants_nda} onChange={(v) => set("wants_nda", v)} />
               <fieldset className="flex flex-col gap-6 border-t border-line pt-8">
                 <legend className="hud mb-6 text-muted">{s.contactTitle}</legend>
-                <Hud tone="ink" dot>{fill(s.signedInAs, { email: user.email })}</Hud>
+                {user ? <Hud tone="ink" dot>{fill(s.signedInAs, { email: user.email })}</Hud> : <p className="text-sm text-faint">{s.guest.contactNote}</p>}
                 <div className="grid gap-6 sm:grid-cols-2">
                   <Field label={s.phone} error={errors.phone}>
                     {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.phone} invalid={a.invalid} describedBy={a.describedBy}
@@ -681,9 +796,9 @@ export default function StartWizard({
                   },
                   { k: s.budget, v: draft.budget_min || draft.budget_max ? `${draft.budget_min || "?"} – ${draft.budget_max || "?"} ${draft.budget_currency}` : "", at: 2 },
                   { k: s.deadline, v: draft.deadline, at: 2 },
-                  { k: s.files, v: files.map((f) => f.original_name).join(", "), at: 3 },
+                  { k: s.files, v: [...files.map((f) => f.original_name), ...pending.filter((p) => p.held).map((p) => p.name)].join(", "), at: 3 },
                   { k: s.showcase.title, v: draft.wants_nda ? s.showcase.keep : s.showcase.show, at: 3 },
-                  { k: s.email, v: [user.email, saved.phone, saved.whatsapp !== saved.phone && saved.whatsapp, saved.instagram && `@${saved.instagram}`, saved.messenger]
+                  { k: s.email, v: [user?.email, saved.phone, saved.whatsapp !== saved.phone && saved.whatsapp, saved.instagram && `@${saved.instagram}`, saved.messenger]
                     .filter(Boolean).join(" · "), at: 3 },
                 ].filter((r) => r.v).map((r) => (
                   <div key={r.k} className="grid gap-2 py-4 sm:grid-cols-[10rem_1fr_auto] sm:items-baseline">
@@ -694,7 +809,13 @@ export default function StartWizard({
                 ))}
               </dl>
               <SecurePayments labels={t.trust} compact />
-              {!verified && (
+              {guest && (
+                <p className="flex items-start gap-3 border border-line bg-cell px-5 py-4 text-sm leading-relaxed text-muted">
+                  <span aria-hidden className="mt-1.5 size-1.5 shrink-0 bg-ember-400" />
+                  {s.guest.reviewNote}
+                </p>
+              )}
+              {!verified && user && (
                 <div className="flex flex-col gap-4 border border-ember-400/50 bg-ember-500/[0.05] p-5 md:p-6">
                   <Hud tone="ember" dot>{t.auth.code.toSend}</Hud>
                   {askCode ? (
@@ -723,7 +844,7 @@ export default function StartWizard({
             {t.common.back}
           </Button>
           <div className="flex items-center gap-4">
-            {reference && (
+            {(reference || (guest && meaningful(draft))) && (
               confirmDiscard ? (
                 <span className="flex items-center gap-3">
                   <button type="button" onClick={discard} disabled={busy} className="hud text-err hover:underline">{s.discardConfirm}</button>
@@ -740,8 +861,8 @@ export default function StartWizard({
                 </Hud>
               )}
             </span>
-            <Button type="submit" variant={last ? "ember" : "primary"} arrow={!last} loading={busy} disabled={last && !verified}>
-              {last ? s.submit : t.common.next}
+            <Button type="submit" variant={last ? "ember" : "primary"} arrow={!last || guest} loading={busy} disabled={last && !verified}>
+              {last ? (guest ? s.guest.continue : s.submit) : t.common.next}
             </Button>
           </div>
         </div>

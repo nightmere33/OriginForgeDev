@@ -11,11 +11,12 @@ import { fetchSession, useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { ChoiceChip, Field, Input, Select } from "@/components/ui/field";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { CountrySelect, englishName } from "@/components/ui/country-select";
 import { Hud } from "@/components/ui/hud";
 import { EmailCode } from "@/components/auth/email-code";
 
 type T = Pick<Dictionary, "settings" | "start" | "portal" | "common" | "nav" | "onboarding" | "auth" | "phoneInput">;
-type Profile = Pick<User, "full_name" | "phone" | "whatsapp" | "instagram" | "messenger" | "company" | "country" | "address" | "city" | "postal_code" | "language" | "contact_channel" | "contact_handle">;
+type Profile = Pick<User, "full_name" | "handle" | "phone" | "whatsapp" | "instagram" | "messenger" | "company" | "country" | "country_code" | "address" | "city" | "postal_code" | "language" | "contact_channel" | "contact_handle">;
 const CHANNELS = ["site", "whatsapp", "instagram", "discord", "email", "phone"] as const;
 
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
@@ -31,7 +32,7 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
   const s = t.settings;
   const [waSame, setWaSame] = useState(!user.whatsapp || user.whatsapp === user.phone);
   const [form, setForm] = useState<Profile>({
-    full_name: user.full_name, phone: user.phone, whatsapp: user.whatsapp, instagram: user.instagram ?? "", messenger: user.messenger ?? "",
+    full_name: user.full_name, handle: user.handle ?? "", country_code: user.country_code ?? "", phone: user.phone, whatsapp: user.whatsapp, instagram: user.instagram ?? "", messenger: user.messenger ?? "",
     company: user.company, country: user.country, language: user.language,
     address: user.address ?? "", city: user.city ?? "", postal_code: user.postal_code ?? "",
     contact_channel: user.contact_channel || "site", contact_handle: user.contact_handle,
@@ -52,7 +53,8 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
     } catch (err) {
       setState("");
       setErrors(err instanceof ApiError
-        ? { full_name: err.field("full_name"), phone: err.field("phone"), instagram: err.field("instagram"), messenger: err.field("messenger"), form: err.message }
+        ? { full_name: err.field("full_name"), handle: err.field("handle"), country_code: err.field("country_code"), phone: err.field("phone"),
+            instagram: err.field("instagram"), messenger: err.field("messenger"), form: err.message }
         : { form: t.common.error });
     }
   };
@@ -61,9 +63,21 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
       <Band title={s.profile}>
         <Field label={s.email}>{(a) => <Input id={a.id} value={user.email} readOnly disabled />}</Field>
         {!user.email_verified && <VerifyNow t={t} user={user} />}
-        <Field label={t.start.fullName} error={errors.full_name}>
-          {(a) => <Input id={a.id} autoComplete="name" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
-        </Field>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field label={t.start.fullName} error={errors.full_name}>
+            {(a) => <Input id={a.id} autoComplete="name" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
+          </Field>
+          <Field label={s.handle} help={s.handleHelp} error={errors.handle}>
+            {(a) => (
+              <div className="relative">
+                <span aria-hidden className="pointer-events-none absolute left-4 top-1/2 z-[1] -translate-y-1/2 text-faint">@</span>
+                <Input id={a.id} autoComplete="username" autoCapitalize="off" autoCorrect="off" spellCheck={false} maxLength={30}
+                  aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.handle}
+                  onChange={(e) => set("handle", e.target.value.replace(/^@+/, "").toLowerCase())} className="pl-8" />
+              </div>
+            )}
+          </Field>
+        </div>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label={t.start.phone} error={errors.phone}>
             {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={form.phone} invalid={a.invalid} describedBy={a.describedBy} onChange={(v) => set("phone", v)} />}
@@ -91,7 +105,15 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
               aria-invalid={a.invalid} onChange={(e) => set("messenger", e.target.value)} />}
           </Field>
           <Field label={t.start.company}>{(a) => <Input id={a.id} autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} />}</Field>
-          <Field label={s.country}>{(a) => <Input id={a.id} autoComplete="country-name" value={form.country} onChange={(e) => set("country", e.target.value)} />}</Field>
+          <Field label={s.country} error={errors.country_code}>
+            {(a) => (
+              <CountrySelect id={a.id} lang={lang} labels={t.phoneInput} value={form.country_code} invalid={a.invalid} describedBy={a.describedBy}
+                onChange={(code) => {
+                  setForm((f) => ({ ...f, country_code: code, country: englishName(code) }));
+                  setState("");
+                }} />
+            )}
+          </Field>
         </div>
       </Band>
       <Band title={s.addressTitle}>
@@ -173,8 +195,13 @@ function Preferences({ t, language, onLanguage }: { t: T; language: User["langua
   );
 }
 
-function PasswordForm({ t }: { t: T }) {
+/**
+ * Change the password, or, for an account made with Google or Facebook (it
+ * has none), set a first one so the e-mail works for signing in too.
+ */
+function PasswordForm({ t, hasPassword }: { t: T; hasPassword: boolean }) {
   const s = t.settings;
+  const first = !hasPassword;
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
@@ -184,7 +211,8 @@ function PasswordForm({ t }: { t: T }) {
     setBusy(true);
     setErrors({});
     try {
-      await api.post("/auth/password/change/", { current_password: current, new_password: next });
+      await api.post("/auth/password/change/", first ? { new_password: next } : { current_password: current, new_password: next });
+      if (first) await fetchSession(true);
       setDone(true);
       setCurrent("");
       setNext("");
@@ -199,18 +227,21 @@ function PasswordForm({ t }: { t: T }) {
   return (
     <form noValidate onSubmit={(e) => { e.preventDefault(); change(); }} className="contents">
       <Band title={s.security}>
+        {first && <p className="text-sm leading-relaxed text-muted">{s.setPasswordLead}</p>}
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label={s.currentPassword} error={errors.current}>
-            {(a) => <Input id={a.id} type="password" autoComplete="current-password" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={current} onChange={(e) => { setCurrent(e.target.value); setDone(false); }} />}
-          </Field>
+          {!first && (
+            <Field label={s.currentPassword} error={errors.current}>
+              {(a) => <Input id={a.id} type="password" autoComplete="current-password" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={current} onChange={(e) => { setCurrent(e.target.value); setDone(false); }} />}
+            </Field>
+          )}
           <Field label={s.newPassword} help={t.start.passwordHelp} error={errors.next}>
             {(a) => <Input id={a.id} type="password" autoComplete="new-password" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={next} onChange={(e) => { setNext(e.target.value); setDone(false); }} />}
           </Field>
         </div>
         {errors.form && <p role="alert" className="text-sm text-err">{errors.form}</p>}
         <div className="flex flex-wrap items-center gap-4">
-          <Button type="submit" variant="secondary" disabled={!current || next.length < 10} loading={busy}>{s.changePassword}</Button>
-          <span aria-live="polite">{done && <Hud tone="ink" dot as="span">{s.passwordChanged}</Hud>}</span>
+          <Button type="submit" variant="secondary" disabled={(!first && !current) || next.length < 10} loading={busy}>{first ? s.setPassword : s.changePassword}</Button>
+          <span aria-live="polite">{done && <Hud tone="ink" dot as="span">{first ? s.passwordSet : s.passwordChanged}</Hud>}</span>
         </div>
       </Band>
     </form>
@@ -230,7 +261,7 @@ export function SettingsPage({ lang, t }: { lang: Locale; t: T }) {
         <Link href={`/${lang}/${user.is_developer ? "studio" : "portal"}`} className="hud text-muted hover:text-ink">← {t.portal.requests}</Link>
       </div>
       <ProfileForm lang={lang} t={t} user={user} />
-      <PasswordForm t={t} />
+      <PasswordForm t={t} hasPassword={user.has_password} />
       {!user.is_developer && <DeleteAccount lang={lang} t={t} hasPassword={user.has_password} />}
     </>
   );

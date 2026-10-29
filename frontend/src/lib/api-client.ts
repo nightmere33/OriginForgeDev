@@ -9,6 +9,8 @@ export type User = {
   id: number;
   email: string;
   full_name: string;
+  /** Optional username, unique whatever the case. */
+  handle: string;
   role: "client" | "developer";
   is_developer: boolean;
   company: string;
@@ -17,6 +19,8 @@ export type User = {
   instagram: string;
   messenger: string;
   country: string;
+  /** ISO 3166 code (DZ, FR…); `country` is its English name. */
+  country_code: string;
   address: string;
   city: string;
   postal_code: string;

@@ -419,6 +419,20 @@
       "showHelp": "Je pourrai le présenter comme étude de cas. Vous le voyez avant publication.",
       "keep": "Le garder confidentiel",
       "keepHelp": "Jamais montré. Le contrat inclut une clause de confidentialité."
+    },
+    "guest": {
+      "gateTitle": [
+        "Votre demande est ",
+        "prête",
+        "."
+      ],
+      "gateLead": "Créez votre compte (ou connectez-vous) pour l'envoyer. C'est là que vous suivrez la proposition, le contrat et chaque étape du projet. Votre demande reste exactement comme vous l'avez écrite.",
+      "back": "Retour à ma demande",
+      "saved": "Gardé sur cet appareil",
+      "filesLater": "Ils sont envoyés dès que votre compte existe.",
+      "contactNote": "Votre e-mail vient avec votre compte, à la dernière étape.",
+      "reviewNote": "Dernière étape : créez votre compte ou connectez-vous, puis envoyez. Votre demande reste telle quelle.",
+      "continue": "Continuer vers l'envoi"
     }
   },
   "auth": {
@@ -837,7 +851,7 @@
       "help": {
         "availability": "Personne n'est refusé : quand vous êtes complet, les demandes rejoignent la file avec leur position et leur démarrage estimé. Mettez les démarrages en pause pendant les congés.",
         "payments": "Montrées seulement à un client connecté qui a un paiement à faire. Jamais publiques.",
-        "prices": "En DZD. Euros et dollars suivent le taux du marché du jour. Laissez vide pour « sur devis ».",
+        "prices": "Chaque devise a son propre prix (dinars pour l'Algérie, tarifs standards à l'étranger). Laissez-en un vide pour « sur devis » dans cette devise.",
         "invoices": "Le vendeur sur chaque facture. Chaque facture garde les informations avec lesquelles elle a été émise."
       },
       "fields": {
@@ -967,7 +981,7 @@
         "hidden": "Masqué",
         "listed": "Affiché sur le site",
         "price": "Prix de départ (DZD)",
-        "priceHelp": "Vide = sur devis. Euros et dollars suivent le taux du jour.",
+        "priceHelp": "Chaque devise se fixe à la main, jamais convertie. Vide = sur devis dans cette devise. Le taux du jour ne sert qu'aux paiements (un montant en dinars payé par PayPal ou USDT).",
         "priceKind": "Affichage",
         "kinds": {
           "from": "À partir de",
@@ -998,7 +1012,8 @@
           "deliverables": "Livrables",
           "description": "Description"
         },
-        "onePerLine": "Un par ligne."
+        "onePerLine": "Un par ligne.",
+        "priceIn": "Prix de départ ({currency})"
       },
       "email": {
         "title": "E-mail",
@@ -1495,7 +1510,7 @@
     "security": "Mot de passe",
     "language": "Langue",
     "currency": "Devise d'affichage",
-    "currencyHelp": "Les prix du site suivent cette devise, convertis au taux du marché du jour quand je n'en ai pas fixé. Les contrats gardent la devise convenue.",
+    "currencyHelp": "Les prix du site suivent cette devise : en dinars pour l'Algérie, des tarifs standards en euros ou en dollars. Les contrats gardent la devise convenue.",
     "country": "Pays",
     "save": "Enregistrer",
     "saved": "Enregistré",
@@ -1526,15 +1541,21 @@
     "address": "Adresse postale",
     "addressHelp": "Pour les factures et les envois par coursier. Facultatif.",
     "city": "Ville",
-    "postalCode": "Code postal"
+    "postalCode": "Code postal",
+    "handle": "Nom d'utilisateur",
+    "handleHelp": "Facultatif. 3 à 30 lettres, chiffres, points ou tirets bas.",
+    "setPassword": "Définir un mot de passe",
+    "setPasswordLead": "Vous vous êtes connecté avec Google ou Facebook. Ajoutez un mot de passe pour pouvoir aussi vous connecter avec votre e-mail.",
+    "passwordSet": "Mot de passe défini. Vous pouvez aussi vous connecter avec votre e-mail."
   },
   "onboarding": {
     "title": [
       "Bienvenue. On vous ",
       "installe."
     ],
-    "lead": "Trois questions rapides pour parler votre langue, afficher des prix lisibles et vous joindre là où vous répondez vraiment.",
+    "lead": "Quatre questions rapides pour savoir qui vous êtes, parler votre langue, afficher les bons prix et vous joindre là où vous répondez vraiment.",
     "steps": [
+      "Vous",
       "Langue et devise",
       "Comment m'avez-vous trouvé ?",
       "Où préférez-vous échanger ?"
@@ -1542,7 +1563,7 @@
     "skip": "Passer pour l'instant",
     "language": "Langue du site et des e-mails",
     "currency": "Afficher les prix en",
-    "currencyHelp": "Converti au taux du marché du jour. Les contrats gardent la devise convenue.",
+    "currencyHelp": "Chaque devise a ses propres prix : en dinars en Algérie, des tarifs standards en euros ou en dollars à l'étranger. Les contrats gardent la devise convenue.",
     "heard": {
       "instagram": "Instagram",
       "facebook": "Facebook",
@@ -1577,7 +1598,16 @@
     "discordHandle": "Votre nom d'utilisateur Discord",
     "number": "Numéro où vous joindre",
     "channelNote": "Offres, contrats, paiements et fichiers restent toujours sur le site, pour ne rien perdre. C'est ici que je vous préviendrai.",
-    "finish": "Terminer"
+    "finish": "Terminer",
+    "you": {
+      "name": "Votre nom",
+      "handle": "Nom d'utilisateur (facultatif)",
+      "handleHelp": "3 à 30 lettres, chiffres, points ou tirets bas.",
+      "country": "Pays",
+      "countryHelp": "Il fixe les prix que vous voyez : en dinars en Algérie, en euros ou en dollars ailleurs.",
+      "phone": "Téléphone (facultatif)",
+      "phoneHelp": "Avec l'indicatif du pays, pour vous appeler ou vous écrire si besoin."
+    }
   },
   "reviews": {
     "index": "06",
@@ -1626,6 +1656,7 @@
   "phoneInput": {
     "countrySearch": "Rechercher un pays ou un indicatif",
     "countryNone": "Aucun pays trouvé",
-    "country": "Pays"
+    "country": "Pays",
+    "countryPick": "Choisissez votre pays"
   }
 }

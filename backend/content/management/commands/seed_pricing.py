@@ -29,13 +29,14 @@ PLANS = [
          tagline_fr="Deux mois de suivi complet, surveillance et un partenaire disponible."),
 ]
 
-# Starting prices in DZD, with how to read them. Other currencies follow the
-# live street rate (fx); a price added in the admin for EUR or USD overrides
-# the conversion for that currency. Films are priced per minute of a single
-# film, and their length is one of the factors below.
+# Starting prices per currency, with how to read them: dinars for the
+# Algerian market, standard rates in euros and dollars for clients abroad
+# (content migration 0018 has the benchmarks). Nothing is converted. Films are
+# priced per minute of a single film, and their length is one of the factors.
 STARTING = {
-    "web-platforms": (150000, "from"), "websites": (45000, "from"), "mobile-apps": (100000, "from"),
-    "windows-software": (100000, "from"), "automation": (25000, "from"), "product-films": (3500, "per_minute"),
+    "web-platforms": ((150000, 6500, 7000), "from"), "websites": ((45000, 900, 990), "from"),
+    "mobile-apps": ((100000, 5000, 5500), "from"), "windows-software": ((100000, 4500, 4900), "from"),
+    "automation": ((25000, 450, 490), "from"), "product-films": ((3500, 400, 450), "per_minute"),
 }
 
 PLATFORMS = ["web-platforms"]
@@ -84,20 +85,20 @@ FACTORS = [
     ]),
     ("payments", "Online payments", "Paiement en ligne", APPS, [
         ("none", "None", "Aucun", "1.00", (0, 0, 0), True),
-        ("chargily", "Chargily + CCP / BaridiMob", "Chargily + CCP / BaridiMob", "1.00", (25000, 200, 220), False),
-        ("chargily-paypal", "Chargily + PayPal", "Chargily + PayPal", "1.00", (45000, 350, 380), False),
+        ("chargily", "Card payments (Chargily, Stripe)", "Paiement par carte (Chargily, Stripe)", "1.00", (25000, 600, 650), False),
+        ("chargily-paypal", "Cards and PayPal", "Cartes et PayPal", "1.00", (45000, 900, 990), False),
     ]),
     ("admin", "Admin back-office", "Back-office", BACKOFFICE, [
         ("basic", "Basic", "Simple", "1.00", (0, 0, 0), True),
-        ("full", "Full: stats, roles, exports", "Complet : statistiques, rôles, exports", "1.00", (30000, 250, 270), False),
+        ("full", "Full: stats, roles, exports", "Complet : statistiques, rôles, exports", "1.00", (30000, 800, 880), False),
     ]),
     ("site-editor", "After launch", "Après la mise en ligne", ["websites"], [
         ("on-request", "I ask you for changes", "Je vous demande les modifications", "1.00", (0, 0, 0), True),
-        ("editor", "I edit texts and photos myself", "Je modifie textes et photos moi-même", "1.00", (15000, 120, 130), False),
+        ("editor", "I edit texts and photos myself", "Je modifie textes et photos moi-même", "1.00", (15000, 400, 440), False),
     ]),
     ("content", "Texts and images", "Textes et images", APPS, [
         ("client", "I provide them", "Je les fournis", "1.00", (0, 0, 0), True),
-        ("written", "Write and prepare them for me", "Rédigez-les et préparez-les pour moi", "1.00", (15000, 120, 130), False),
+        ("written", "Write and prepare them for me", "Rédigez-les et préparez-les pour moi", "1.00", (15000, 350, 390), False),
     ]),
     ("win-data", "Data", "Données", WINDOWS, [
         ("local", "On one PC", "Sur un seul PC", "1.00", (0, 0, 0), True),
@@ -106,11 +107,11 @@ FACTORS = [
     ]),
     ("win-devices", "Devices", "Périphériques", WINDOWS, [
         ("none", "None", "Aucun", "1.00", (0, 0, 0), True),
-        ("pos", "Receipt printer, barcode scanner", "Imprimante de tickets, lecteur code-barres", "1.00", (15000, 120, 130), False),
+        ("pos", "Receipt printer, barcode scanner", "Imprimante de tickets, lecteur code-barres", "1.00", (15000, 400, 440), False),
     ]),
     ("win-updates", "Updates", "Mises à jour", WINDOWS, [
         ("manual", "Installer, updated by hand", "Installateur, mis à jour à la main", "1.00", (0, 0, 0), True),
-        ("auto", "Automatic updates", "Mises à jour automatiques", "1.00", (10000, 80, 90), False),
+        ("auto", "Automatic updates", "Mises à jour automatiques", "1.00", (10000, 300, 330), False),
     ]),
     ("auto-sources", "Sites or tools", "Sites ou outils", AUTOMATION, [
         ("one", "One", "Un seul", "1.00", (0, 0, 0), True),
@@ -124,7 +125,7 @@ FACTORS = [
     ]),
     ("auto-output", "Results go to", "Résultats vers", AUTOMATION, [
         ("file", "A file (Excel, CSV)", "Un fichier (Excel, CSV)", "1.00", (0, 0, 0), True),
-        ("system", "Google Sheets, a database or an API", "Google Sheets, une base de données ou une API", "1.00", (10000, 80, 90), False),
+        ("system", "Google Sheets, a database or an API", "Google Sheets, une base de données ou une API", "1.00", (10000, 200, 220), False),
     ]),
     # Films: the base price is one minute of a clean edit.
     ("film-length", "Length", "Durée", FILMS, [
@@ -141,7 +142,7 @@ FACTORS = [
     ("film-voice", "Voice-over", "Voix off", FILMS, [
         ("none", "None, music only", "Aucune, musique seule", "1.00", (0, 0, 0), True),
         ("client", "I send the recording", "J'envoie l'enregistrement", "1.00", (0, 0, 0), False),
-        ("ai", "Generated voice (Arabic, French, English)", "Voix générée (arabe, français, anglais)", "1.00", (2000, 15, 15), False),
+        ("ai", "Generated voice (Arabic, French, English)", "Voix générée (arabe, français, anglais)", "1.00", (2000, 60, 65), False),
     ]),
     ("film-languages", "Language versions", "Versions linguistiques", FILMS, [
         ("one", "One", "Une", "1.00", (0, 0, 0), True),
@@ -171,17 +172,19 @@ class Command(BaseCommand):
             if update and not created:
                 CarePlan.objects.filter(pk=plan.pk).update(**data)
 
-        for slug, (dzd, kind) in STARTING.items():
+        for slug, (amounts, kind) in STARTING.items():
             service = Service.objects.filter(slug=slug).first()
             if not service:
                 continue
-            # A service keeps the dinar price Younes set; --update resets it.
-            rows = ServicePrice.objects.filter(service=service, currency="DZD")
-            if not rows.exists():
-                ServicePrice.objects.create(service=service, currency="DZD", kind=kind, amount=dzd, order=0)
-            elif update:
-                rows.exclude(kind=kind).delete()
-                ServicePrice.objects.update_or_create(service=service, currency="DZD", kind=kind, defaults={"amount": dzd, "order": 0})
+            # A service keeps the prices Younes set; --update resets them.
+            for currency, amount in zip(("DZD", "EUR", "USD"), amounts):
+                rows = ServicePrice.objects.filter(service=service, currency=currency)
+                if not rows.exists():
+                    ServicePrice.objects.create(service=service, currency=currency, kind=kind, amount=amount, order=0)
+                elif update:
+                    rows.exclude(kind=kind).delete()
+                    ServicePrice.objects.update_or_create(service=service, currency=currency, kind=kind,
+                                                          defaults={"amount": amount, "order": 0})
 
         for order, (key, en, fr, services, choices) in enumerate(FACTORS):
             factor, _ = PricingFactor.objects.update_or_create(

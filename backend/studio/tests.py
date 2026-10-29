@@ -83,6 +83,16 @@ class StudioTests(TestCase):
         self.assertIn("price", log.data["fields"])
         self.assertEqual(self.as_user(self.alice).patch("/api/studio/services/web/", {"title_fr": "x"}, format="json").status_code, 403)
 
+    def test_each_currency_gets_its_own_price(self):
+        c = self.as_user(self.dev)
+        res = c.patch("/api/studio/services/web/", {"amount": 50000, "amount_eur": 900, "amount_usd": 990, "kind": "from"}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual((res.data["amount"], res.data["amount_eur"], res.data["amount_usd"]), (50000, 900, 990))
+        res = c.patch("/api/studio/services/web/", {"amount_usd": None, "kind": "fixed"}, format="json")
+        rows = sorted(ServicePrice.objects.filter(service=self.web).values_list("currency", "amount", "kind"))
+        self.assertEqual(rows, [("DZD", 50000, "fixed"), ("EUR", 900, "fixed")])  # USD: quoted per project
+        self.assertIsNone(res.data["amount_usd"])
+
     @override_settings(STUDIO_NOTIFY_EMAIL="", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_email_check_sends_a_test(self):
         from django.core import mail

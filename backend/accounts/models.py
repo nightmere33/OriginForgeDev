@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class UserManager(BaseUserManager):
@@ -50,7 +51,10 @@ class User(AbstractUser):
     # Optional ways to reach the client, besides the phone and the website chat.
     instagram = models.CharField(max_length=60, blank=True, help_text="Username, without the @")
     messenger = models.CharField(max_length=120, blank=True, help_text="Facebook username or m.me link")
-    country = models.CharField(max_length=80, blank=True)
+    country = models.CharField(max_length=80, blank=True, help_text="The country's name in English (invoices)")
+    country_code = models.CharField(max_length=2, blank=True, help_text="ISO 3166 code, e.g. DZ, FR")
+    # How they'd like to be called on the site (optional, unique whatever the case).
+    handle = models.CharField("username", max_length=30, blank=True)
     # Postal address (invoices, couriers); all optional, edited in Settings.
     address = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=80, blank=True)
@@ -91,6 +95,11 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ["full_name"]
 
     objects = UserManager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(Lower("handle"), condition=~models.Q(handle=""), name="unique_handle_any_case"),
+        ]
 
     @property
     def is_developer(self) -> bool:

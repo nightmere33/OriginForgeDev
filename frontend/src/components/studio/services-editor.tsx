@@ -18,12 +18,15 @@ type Service = {
   slug: string; active: boolean; order: number; icon: string;
   title_en: string; title_fr: string; summary_en: string; summary_fr: string; description_en: string; description_fr: string;
   deliverables_en: string; deliverables_fr: string; timeline_en: string; timeline_fr: string;
-  max_active: number | null; accept_directly: boolean; typical_days: number; amount: number | null; kind: string;
+  max_active: number | null; accept_directly: boolean; typical_days: number; kind: string;
+  /** One price per currency, each set by hand (null = quoted per project in it). */
+  amount: number | null; amount_eur: number | null; amount_usd: number | null;
   queue: { direct: boolean; full: boolean; waiting: number; used: number; capacity: number };
 };
 type T = Pick<Dictionary, "studio" | "common">;
 type Mode = "shared" | "own" | "direct";
 const KINDS = ["from", "per_minute", "fixed", "monthly", "hourly"] as const;
+const PRICES = [["amount", "DZD"], ["amount_eur", "EUR"], ["amount_usd", "USD"]] as const;
 const WORDS = [
   ["title", "text"], ["summary", "long"], ["timeline", "text"], ["deliverables", "long"], ["description", "long"],
 ] as const;
@@ -62,7 +65,8 @@ function ServiceRow({ lang, t, initial, onSaved }: { lang: Locale; t: T; initial
   };
 
   const title = lang === "fr" && s.title_fr ? s.title_fr : s.title_en;
-  const price = s.amount === null ? d.quoted : `${d.kinds[s.kind as keyof typeof d.kinds] ?? ""} ${money(lang, s.amount, "DZD")}`;
+  const listed = PRICES.filter(([k]) => s[k] !== null).map(([k, c]) => money(lang, s[k]!, c));
+  const price = listed.length ? `${d.kinds[s.kind as keyof typeof d.kinds] ?? ""} ${listed.join(" · ")}` : d.quoted;
   const lane = s.queue.direct ? d.direct : s.queue.capacity ? fill(d.placesShort, { used: s.queue.used, capacity: s.queue.capacity }) : d.noLimit;
 
   return (
@@ -86,11 +90,14 @@ function ServiceRow({ lang, t, initial, onSaved }: { lang: Locale; t: T; initial
           <form noValidate onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-8 border-t border-line bg-cell/30 px-6 py-8 md:px-10">
             <Toggle label={d.listed} checked={s.active} onChange={(e) => set("active", e.target.checked)} />
 
-            <div className="grid gap-6 sm:grid-cols-[minmax(0,12rem)_minmax(0,12rem)]">
-              <Field label={d.price} help={d.priceHelp} error={errors.amount}>
-                {(a) => <Input id={a.id} aria-describedby={a.describedBy} inputMode="numeric" className="font-mono" value={s.amount === null ? "" : String(s.amount)}
-                  onChange={(e) => set("amount", e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")))} />}
-              </Field>
+            <div className="flex flex-col gap-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {PRICES.map(([k, c]) => (
+                <Field key={k} label={fill(d.priceIn, { currency: c })} error={errors[k]}>
+                  {(a) => <Input id={a.id} aria-describedby={a.describedBy} aria-invalid={a.invalid} inputMode="numeric" className="font-mono" value={s[k] === null ? "" : String(s[k])}
+                    onChange={(e) => set(k, e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")))} />}
+                </Field>
+              ))}
               <Field label={d.priceKind}>
                 {(a) => (
                   <Select id={a.id} value={s.kind} onChange={(e) => set("kind", e.target.value)}>
@@ -98,6 +105,8 @@ function ServiceRow({ lang, t, initial, onSaved }: { lang: Locale; t: T; initial
                   </Select>
                 )}
               </Field>
+            </div>
+            <p className="text-sm text-faint">{d.priceHelp}</p>
             </div>
 
             <fieldset className="flex flex-col gap-4">

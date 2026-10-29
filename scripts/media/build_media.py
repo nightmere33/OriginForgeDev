@@ -27,6 +27,8 @@ PICS = REPO.parent / "project pics"
 OUT = REPO / "backend" / "media" / "work"
 
 PROMO = PROJECTS / "originforge-promo/output/v4/OriginForge-Promo-EN-v4.mp4"
+# The film itself (the showreel) is the latest cut; galaxy and cover cuts keep their v4 timings.
+PROMO_FILM = PROJECTS / "originforge-promo/output/v5/OriginForge-Promo-EN-v5.mp4"
 MEDIGATE = PROJECTS / "medigate-ad/out/MediGate-Pub-FR.mp4"
 ALQ_DIR = PROJECTS / "alquilar/ADS/Alquilar-ad-project/Airbnb Project file/Airbnb Project file"
 ALQ_HOST = ALQ_DIR / "Alquilar-output/Alquilar-Host-Reel-v2-Brian.mp4"
@@ -123,12 +125,13 @@ COVERS = [
 
 # Full films with sound, behind "Watch the film". The promo is also the showreel.
 FILMS = [
-    ("originforge-promo", PROMO, "product-films", 7.0),
+    # A new name per cut: the CDN and browsers cache media by URL.
+    ("originforge-promo-v5", PROMO_FILM, "product-films", 7.0),
     ("medigate-film", MEDIGATE, "medigate", 15.0),
     ("alquilar-film", ALQ_HOST, "alquilar", 9.0),
     ("csi-film", CSI_REC / "Movie_032.mp4", "csi-game", 20.0),
 ]
-REEL = "originforge-promo"
+REEL = "originforge-promo-v5"
 
 # Gallery clips: (slug, name, source, start s | None, duration s | None, caption en, caption fr).
 # GameVerse sources are zip members (screen recordings, kept whole).

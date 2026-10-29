@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { fill } from "@/i18n/fill";
-import { roundTo, useCurrency } from "@/lib/currency";
 import { money } from "@/lib/lifecycle";
 import type { CarePlan, Currency, Estimate, PricingChoice, PricingFactor } from "@/lib/types";
 import { Hud } from "@/components/ui/hud";
@@ -15,13 +14,13 @@ import { DecodeText } from "@/motion/glitch";
 type S = Dictionary["start"];
 
 /** What a choice does to the price, shown on the chip itself: "+25 %", "+25 000 DZD". */
-function effect(lang: Locale, choice: PricingChoice, currency: Currency, fromDzd?: (dzd: number) => number | null) {
+function effect(lang: Locale, choice: PricingChoice, currency: Currency) {
   const parts: string[] = [];
   const pct = Math.round((Number(choice.multiplier) - 1) * 100);
   if (pct) parts.push(`${pct > 0 ? "+" : ""}${pct} %`);
-  // A converted estimate converts its add-ons too, so the chips and the total agree.
-  const addon = fromDzd ? choice.addon_dzd && fromDzd(choice.addon_dzd) : choice[`addon_${currency.toLowerCase()}` as "addon_dzd"];
-  if (addon) parts.push(`+${fromDzd ? "≈ " : ""}${money(lang, addon, currency)}`);
+  // Each currency has its own add-on amount (nothing is converted).
+  const addon = choice[`addon_${currency.toLowerCase()}` as "addon_dzd"];
+  if (addon) parts.push(`+${money(lang, addon, currency)}`);
   return parts.join(" · ");
 }
 
@@ -88,13 +87,6 @@ export function Estimator({
   onOption: (factor: string, choice: string) => void;
   onCurrency: (c: Currency) => void;
 }) {
-  const { convert } = useCurrency();
-  const fromDzd = estimate?.converted
-    ? (dzd: number) => {
-        const v = convert(dzd, "DZD", currency);
-        return v === null ? null : roundTo(v, currency);
-      }
-    : undefined;
   return (
     <div className="flex flex-col gap-10">
       <fieldset>
@@ -140,7 +132,7 @@ export function Estimator({
               </div>
               <div className="flex flex-wrap gap-2">
                 {f.choices.map((c) => {
-                  const fx = effect(lang, c, currency, fromDzd);
+                  const fx = effect(lang, c, currency);
                   return (
                     <label key={c.key}
                       className={cn(

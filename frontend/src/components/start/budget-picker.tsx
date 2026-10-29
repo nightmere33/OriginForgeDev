@@ -3,7 +3,6 @@
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { fill } from "@/i18n/fill";
 import { cn } from "@/lib/cn";
-import { useCurrency } from "@/lib/currency";
 import { money } from "@/lib/lifecycle";
 import type { Currency, Estimate } from "@/lib/types";
 import { Field, Input } from "@/components/ui/field";
@@ -12,33 +11,30 @@ import { DecodeText } from "@/motion/glitch";
 type S = Dictionary["start"];
 type Range = { min: number | null; max: number | null };
 
-// The ranges, set in dinars (prices are set in DZD); euros and dollars follow the live rate.
-const DZD_EDGES = [50_000, 100_000, 200_000, 400_000];
+// The ranges per currency, set like the prices: dinars for the Algerian
+// market, standard ranges in euros and dollars (nothing is converted).
+const EDGES: Record<Currency, number[]> = {
+  DZD: [50_000, 100_000, 200_000, 400_000],
+  EUR: [1_000, 3_000, 7_000, 15_000],
+  USD: [1_000, 3_000, 7_500, 15_000],
+};
 
-/** A converted edge as a number people would say: 2 significant figures, a clean step. */
-function nice(v: number, currency: Currency): number {
-  if (currency === "DZD") return Math.round(v / 5_000) * 5_000 || 5_000;
-  const step = v < 300 ? 25 : v < 1_000 ? 50 : v < 5_000 ? 100 : 500;
-  return Math.max(step, Math.round(v / step) * step);
-}
-
-export function budgetRanges(currency: Currency, convert: (n: number, from: Currency, to?: Currency) => number | null): Range[] {
-  const edges = DZD_EDGES.map((e) => (currency === "DZD" ? e : nice(convert(e, "DZD", currency) ?? e, currency)));
+export function budgetRanges(currency: Currency): Range[] {
+  const edges = EDGES[currency];
   return [{ min: null, max: edges[0] }, ...edges.slice(0, -1).map((e, i) => ({ min: e, max: edges[i + 1] })), { min: edges[edges.length - 1], max: null }];
 }
 
-/** A budget moved to another currency: the same range if it was one, else converted and rounded. */
-export function convertBudget(min: string, max: string, from: Currency, to: Currency,
-  convert: (n: number, from: Currency, to?: Currency) => number | null): { min: string; max: string } {
+/**
+ * A budget moved to another currency: the same range if it was one. Own
+ * amounts are cleared rather than converted: the markets differ, so a
+ * converted number would mislead.
+ */
+export function convertBudget(min: string, max: string, from: Currency, to: Currency): { min: string; max: string } {
   if (from === to || (!min && !max)) return { min, max };
-  const old = budgetRanges(from, convert);
-  const i = old.findIndex((r) => String(r.min ?? "") === min && String(r.max ?? "") === max);
-  if (i >= 0) {
-    const r = budgetRanges(to, convert)[i];
-    return { min: r.min ? String(r.min) : "", max: r.max ? String(r.max) : "" };
-  }
-  const move = (v: string) => (v ? String(nice(convert(Number(v), from, to) ?? Number(v), to)) : "");
-  return { min: move(min), max: move(max) };
+  const i = budgetRanges(from).findIndex((r) => String(r.min ?? "") === min && String(r.max ?? "") === max);
+  if (i < 0) return { min: "", max: "" };
+  const r = budgetRanges(to)[i];
+  return { min: r.min ? String(r.min) : "", max: r.max ? String(r.max) : "" };
 }
 
 const digits = (v: string) => v.replace(/\D/g, "").slice(0, 10);
@@ -53,8 +49,7 @@ export function BudgetPicker({ lang, s, currency, estimate, min, max, custom, on
   lang: Locale; s: S; currency: Currency; estimate: Estimate | null; min: string; max: string; custom: boolean;
   onChange: (next: { min: string; max: string; custom: boolean }) => void; error?: string;
 }) {
-  const { convert } = useCurrency();
-  const ranges = budgetRanges(currency, convert);
+  const ranges = budgetRanges(currency);
   const chosen = custom ? -2 : !min && !max ? -1 : ranges.findIndex((r) => String(r.min ?? "") === min && String(r.max ?? "") === max);
   const amount = (n: number) => money(lang, n, currency);
   const label = (r: Range) => (r.min === null ? fill(s.budgetUnder, { amount: amount(r.max!) })

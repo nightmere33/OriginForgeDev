@@ -10,7 +10,7 @@ import { FLOAT, useFloat } from "./float";
 import { Input } from "./field";
 
 /** Where most clients call from: listed first, then every country A to Z. */
-const FIRST: CountryCode[] = ["DZ", "FR", "MA", "TN", "BE", "CA", "CH", "ES", "IT", "DE", "GB", "US", "AE", "SA", "QA", "TR"];
+export const FIRST: CountryCode[] = ["DZ", "FR", "MA", "TN", "BE", "CA", "CH", "ES", "IT", "DE", "GB", "US", "AE", "SA", "QA", "TR"];
 
 export type PhoneLabels = { countrySearch: string; countryNone: string; country: string };
 
@@ -32,7 +32,7 @@ function write(text: string, country: CountryCode): string {
   return typed.getNumber()?.number ?? `+${getCountryCallingCode(country)}${digits.replace(/^0+/, "")}`;
 }
 
-function Flag({ code, className }: { code: CountryCode; className?: string }) {
+export function Flag({ code, className }: { code: CountryCode; className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 3:2 SVG flags from /public/flags, loaded only when seen
     <img src={`/flags/${code}.svg`} alt="" width={21} height={14} loading="lazy" decoding="async"

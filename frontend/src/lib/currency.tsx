@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * Display currency. The visitor picks DZD, EUR or USD; prices follow.
- * A price set in that currency is shown as is; otherwise it is converted from
- * DZD at the live street rate (backend/fx) and marked "≈". Contract amounts
- * never change currency: they only get a "≈" equivalent next to them.
+ * Display currency. The visitor picks DZD, EUR or USD (the nav, onboarding)
+ * and the whole price list flips: each currency has its own prices (dinars
+ * for the Algerian market, standard rates abroad), never converted. The live
+ * street rate (backend/fx) only serves payments: a dinar amount paid by
+ * PayPal or USDT, and the "≈" hint next to a contract amount.
  *
  * Preference order: this device's choice, then the account's, then a guess
  * from the timezone. The server render uses DZD; the choice applies on mount.
@@ -110,7 +111,7 @@ export function useCurrency(): Ctx {
 
 export const roundTo = (value: number, currency: Currency) => Math.round(value / STEP[currency]) * STEP[currency];
 
-/** A list price in the visitor's currency: the one set for it, or "≈" converted from another. */
+/** A list price in the visitor's currency, as set for it (none set: quoted per project, nothing shown). */
 export function Price({
   lang, prices, labels, className,
 }: {
@@ -119,15 +120,10 @@ export function Price({
   labels: Record<PriceKind, string>;
   className?: string;
 }) {
-  const { currency, convert } = useCurrency();
+  const { currency } = useCurrency();
   const line = (kind: PriceKind, price: string) => ({ kind, text: fill(labels[kind], { price }) });
-  let lines = prices.filter((p) => p.currency === currency).map((p) => line(p.kind, money(lang, p.amount, p.currency)));
-  if (!lines.length) {
-    const source = prices.find((p) => p.currency === "DZD") ?? prices[0];
-    if (!source) return null;
-    const value = convert(source.amount, source.currency);
-    lines = [line(source.kind, value === null ? money(lang, source.amount, source.currency) : `≈ ${money(lang, roundTo(value, currency), currency)}`)];
-  }
+  const lines = prices.filter((p) => p.currency === currency).map((p) => line(p.kind, money(lang, p.amount, p.currency)));
+  if (!lines.length) return null;
   // One keyed list in every case, so a currency switch updates (and decodes) the same text.
   return <>{lines.map((l) => <DecodeText key={l.kind} className={className} text={l.text} />)}</>;
 }

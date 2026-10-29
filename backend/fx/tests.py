@@ -59,13 +59,13 @@ class RatesTests(TestCase):
         data = APIClient().get("/api/rates/").json()
         self.assertEqual((data["base"], data["rates"]["USDT"], data["source"]), ("DZD", 256.0, "Binance P2P"))
 
-    def test_estimate_converts_when_a_currency_has_no_price(self):
+    def test_estimates_are_never_converted_from_dinars(self):
+        # Prices abroad are their own list (content migration 0018); the rate only serves payments.
         self.refresh()
         service = Service.objects.create(slug="sites", title_en="Sites", summary_en="Sites")
         ServicePrice.objects.create(service=service, currency="DZD", amount=128000, kind=ServicePrice.Kind.FROM)
         res = APIClient().post("/api/content/estimate/", {"service": "sites", "currency": "EUR"}, format="json").json()
-        self.assertTrue(res["converted"])
-        self.assertEqual(res["low"], 450)  # 128 000 / 284.44, to the nearest 10
+        self.assertEqual((res["low"], res["converted"]), (None, False))
 
 
 @override_settings(NEXT_REVALIDATE_URL="")

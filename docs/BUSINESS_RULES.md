@@ -152,7 +152,8 @@ The platform records the date and time, the IP address, the device, and a finger
 
 - Visitors and clients choose the currency prices are shown in: **DZD, EUR or USD** (nav switcher, and *Settings* in the client space). The choice is remembered on the device and on the account.
 - Rates are the **street (parallel) rates**, not the Bank of Algeria rate. Source: **Binance P2P USDT/DZD** (midpoint of the buy and sell medians), with USDT taken as the street dollar; the euro is the street dollar crossed with the **ECB EUR/USD** rate. Refreshed every 30 minutes. If a source is down, the last good rate stays in use; with nothing stored yet the fallback is **256 DZD per USDT**. You can force a rate in *Site settings → street dollar override*.
-- **Prices are set in DZD.** EUR and USD follow the live rate and are shown with "≈". Adding a price for EUR or USD on a service in the admin fixes that currency instead (useful if you want separate international pricing).
+- **Each currency has its own price list (changed 29 October 2026).** DZD prices are for the Algerian market; EUR and USD prices are standard international rates, set separately (content migration 0018 has the benchmarks) and edited in *Studio → Services* (one field per currency) and in the admin for option add-ons. Switching the currency (nav, onboarding, settings) flips the whole list: nothing is converted, and a currency without a price shows "quoted per project". The country picked at onboarding suggests the currency (Algeria DZD, Europe, Morocco and Tunisia EUR, elsewhere USD).
+- **The live rate only serves payments:** a DZD amount paid by PayPal (in US dollars) or USDT, and the "≈" hint next to a contract amount. A client abroad is quoted and pays the EUR or USD price in full.
 - A **contract keeps its currency**. Other currencies only appear as "≈" equivalents beside the real amount.
 
 ### 5.2 USDT payments (BEP20)

@@ -419,6 +419,20 @@
       "showHelp": "I may present it as a case study. You see it before it's published.",
       "keep": "Keep it confidential",
       "keepHelp": "Never shown. The contract includes a confidentiality clause."
+    },
+    "guest": {
+      "gateTitle": [
+        "Your brief is ",
+        "ready",
+        "."
+      ],
+      "gateLead": "Create your account (or sign in) to send it. That's where you'll follow the proposal, the contract and every step of the project. Your brief stays exactly as you wrote it.",
+      "back": "Back to my brief",
+      "saved": "Kept on this device",
+      "filesLater": "They upload as soon as your account exists.",
+      "contactNote": "Your e-mail comes with your account, on the last step.",
+      "reviewNote": "Last step: create your account or sign in, then send. Your brief stays as it is.",
+      "continue": "Continue to send"
     }
   },
   "auth": {
@@ -837,7 +851,7 @@
       "help": {
         "availability": "Nobody is turned away: when you're full, requests join the queue with their position and estimated start. Pause starts for holidays.",
         "payments": "Shown only to a signed-in client who has something to pay. Never public.",
-        "prices": "In DZD. Euros and dollars follow today's street rate. Leave empty for \"quoted per project\".",
+        "prices": "Each currency has its own price (dinars for Algeria, standard rates abroad). Leave one empty for \"quoted per project\" in it.",
         "invoices": "The seller on every invoice. Each invoice keeps the details it was issued with."
       },
       "fields": {
@@ -967,7 +981,7 @@
         "hidden": "Hidden",
         "listed": "Listed on the site",
         "price": "Starting price (DZD)",
-        "priceHelp": "Empty = quoted per project. Euros and dollars follow the live rate.",
+        "priceHelp": "Each currency is set by hand, never converted. Empty = quoted per project in that currency. The live rate only serves payments (a dinar amount paid by PayPal or USDT).",
         "priceKind": "How it reads",
         "kinds": {
           "from": "From",
@@ -998,7 +1012,8 @@
           "deliverables": "Deliverables",
           "description": "Description"
         },
-        "onePerLine": "One per line."
+        "onePerLine": "One per line.",
+        "priceIn": "Starting price ({currency})"
       },
       "email": {
         "title": "E-mail",
@@ -1495,7 +1510,7 @@
     "security": "Password",
     "language": "Language",
     "currency": "Display currency",
-    "currencyHelp": "Prices on the site follow this currency, converted at the live street rate when I haven't set one. Contracts keep the currency you agreed on.",
+    "currencyHelp": "Prices on the site follow this currency: dinars for Algeria, standard rates in euros or dollars. Contracts keep the currency you agreed on.",
     "country": "Country",
     "save": "Save changes",
     "saved": "Saved",
@@ -1526,15 +1541,21 @@
     "address": "Street address",
     "addressHelp": "For invoices and anything sent by courier. Optional.",
     "city": "City",
-    "postalCode": "Postal code"
+    "postalCode": "Postal code",
+    "handle": "Username",
+    "handleHelp": "Optional. 3 to 30 letters, digits, dots or underscores.",
+    "setPassword": "Set a password",
+    "setPasswordLead": "You signed in with Google or Facebook. Add a password to also sign in with your e-mail.",
+    "passwordSet": "Password set. You can now sign in with your e-mail too."
   },
   "onboarding": {
     "title": [
       "Welcome. Let's set ",
       "you up."
     ],
-    "lead": "Three quick questions so I speak your language, show prices you can read, and reach you where you actually answer.",
+    "lead": "Four quick questions so I know who you are, speak your language, show the right prices and reach you where you actually answer.",
     "steps": [
+      "About you",
       "Language and currency",
       "How did you find me?",
       "Where should we talk?"
@@ -1542,7 +1563,7 @@
     "skip": "Skip for now",
     "language": "Language of the site and e-mails",
     "currency": "Show prices in",
-    "currencyHelp": "Converted at the live street rate. Contracts keep the currency you agree on.",
+    "currencyHelp": "Each currency has its own prices: dinars in Algeria, standard rates in euros or dollars abroad. Contracts keep the currency you agree on.",
     "heard": {
       "instagram": "Instagram",
       "facebook": "Facebook",
@@ -1577,7 +1598,16 @@
     "discordHandle": "Your Discord username",
     "number": "Number to reach you on",
     "channelNote": "Offers, contracts, payments and files always stay on the website, so nothing gets lost. This is where I'll ping you.",
-    "finish": "Finish"
+    "finish": "Finish",
+    "you": {
+      "name": "Your name",
+      "handle": "Username (optional)",
+      "handleHelp": "3 to 30 letters, digits, dots or underscores.",
+      "country": "Country",
+      "countryHelp": "It sets the prices you see: dinars in Algeria, euros or dollars elsewhere.",
+      "phone": "Phone (optional)",
+      "phoneHelp": "With your country code, so I can call or message you if needed."
+    }
   },
   "reviews": {
     "index": "06",
@@ -1626,6 +1656,7 @@
   "phoneInput": {
     "countrySearch": "Search a country or a code",
     "countryNone": "No country found",
-    "country": "Country"
+    "country": "Country",
+    "countryPick": "Choose your country"
   }
 }

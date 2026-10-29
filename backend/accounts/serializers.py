@@ -6,6 +6,30 @@ from rest_framework import serializers
 
 User = get_user_model()
 
+HANDLE = re.compile(r"[a-z0-9](?:[a-z0-9._]{1,28})[a-z0-9]")
+
+
+def clean_handle(value: str, instance=None) -> str:
+    """3 to 30 letters, digits, dots or underscores; unique whatever the case."""
+    handle = value.strip().lstrip("@").lower()
+    if not handle:
+        return ""
+    if not HANDLE.fullmatch(handle):
+        raise serializers.ValidationError("3 to 30 letters, digits, dots or underscores (not at the ends).")
+    taken = User.objects.filter(handle__iexact=handle)
+    if instance is not None:
+        taken = taken.exclude(pk=instance.pk)
+    if taken.exists():
+        raise serializers.ValidationError("This username is taken.")
+    return handle
+
+
+def clean_country(value: str) -> str:
+    code = value.strip().upper()
+    if code and not re.fullmatch(r"[A-Z]{2}", code):
+        raise serializers.ValidationError("Pick a country from the list.")
+    return code
+
 
 class UserSerializer(serializers.ModelSerializer):
     is_developer = serializers.BooleanField(read_only=True)
@@ -14,8 +38,9 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-            "id", "email", "full_name", "role", "is_developer", "company", "phone",
-            "whatsapp", "instagram", "messenger", "country", "address", "city", "postal_code", "language", "currency", "email_verified",
+            "id", "email", "full_name", "handle", "role", "is_developer", "company", "phone",
+            "whatsapp", "instagram", "messenger", "country", "country_code", "address", "city", "postal_code", "language",
+            "currency", "email_verified",
             "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "onboarded", "has_password",
         )
         read_only_fields = ("id", "email", "role", "is_developer", "email_verified", "onboarded")
@@ -34,6 +59,12 @@ class UserSerializer(serializers.ModelSerializer):
     def get_has_password(self, obj) -> bool:
         # Accounts made through Google or Facebook have none (deletion then asks only for the word).
         return obj.has_usable_password()
+
+    def validate_handle(self, value: str) -> str:
+        return clean_handle(value, self.instance)
+
+    def validate_country_code(self, value: str) -> str:
+        return clean_country(value)
 
     # A handle, a link or "@name": whatever is pasted, the username is kept.
     def validate_instagram(self, value: str) -> str:
@@ -90,7 +121,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 
 class PasswordChangeSerializer(serializers.Serializer):
-    current_password = serializers.CharField(trim_whitespace=False)
+    # Not asked of an account made with Google or Facebook: it has none yet.
+    current_password = serializers.CharField(trim_whitespace=False, required=False, allow_blank=True, default="")
     new_password = serializers.CharField(trim_whitespace=False)
 
 
@@ -99,7 +131,19 @@ class OnboardingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("language", "currency", "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "whatsapp", "company", "country")
+        fields = ("language", "currency", "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "whatsapp",
+                  "company", "country", "country_code", "full_name", "handle", "phone")
+
+    def validate_handle(self, value: str) -> str:
+        return clean_handle(value, self.instance)
+
+    def validate_country_code(self, value: str) -> str:
+        return clean_country(value)
+
+    def validate_full_name(self, value: str) -> str:
+        if not value.strip():
+            raise serializers.ValidationError("Your name, please.")
+        return value.strip()
 
     def validate(self, attrs):
         channel = attrs.get("contact_channel", self.instance.contact_channel if self.instance else "site")

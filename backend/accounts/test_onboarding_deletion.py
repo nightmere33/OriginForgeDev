@@ -35,6 +35,38 @@ class OnboardingTests(TestCase):
         self.assertEqual((self.user.language, self.user.currency, self.user.contact_channel), ("fr", "EUR", "discord"))
         self.assertTrue(res.json()["onboarded"])
 
+    def test_the_profile_step_saves_name_username_country_and_phone(self):
+        res = self.api.post("/api/auth/onboarding/", {
+            "full_name": "Sam Benali", "handle": "@Sam.Benali", "country_code": "fr", "country": "France",
+            "phone": "+33612345678", "currency": "EUR",
+        }, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        data = res.json()
+        self.assertEqual((data["full_name"], data["handle"], data["country_code"], data["country"], data["phone"]),
+                         ("Sam Benali", "sam.benali", "FR", "France", "+33612345678"))
+
+    def test_usernames_are_unique_whatever_the_case_and_well_formed(self):
+        make_user("other@example.com", handle="sam.b")
+        self.assertEqual(self.api.patch("/api/auth/me/", {"handle": "SAM.B"}, format="json").status_code, 400)
+        self.assertEqual(self.api.patch("/api/auth/me/", {"handle": "a"}, format="json").status_code, 400)
+        self.assertEqual(self.api.patch("/api/auth/me/", {"country_code": "France"}, format="json").status_code, 400)
+        self.assertEqual(self.api.patch("/api/auth/me/", {"handle": "sam_b"}, format="json").json()["handle"], "sam_b")
+
+    def test_a_google_account_sets_its_first_password_without_a_current_one(self):
+        social = make_user("google@example.com")
+        social.set_unusable_password()
+        social.save()
+        api = APIClient()
+        api.force_authenticate(social)
+        self.assertFalse(api.get("/api/auth/me/").json()["has_password"])
+        res = api.post("/api/auth/password/change/", {"new_password": "another-long-password-9"}, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        social.refresh_from_db()
+        self.assertTrue(social.check_password("another-long-password-9"))
+        # From then on, changing it asks for the current one.
+        res = self.api.post("/api/auth/password/change/", {"new_password": "yet-another-password-7"}, format="json")
+        self.assertEqual(res.status_code, 400)
+
     def test_a_social_channel_needs_a_handle(self):
         res = self.api.post("/api/auth/onboarding/", {"contact_channel": "instagram", "contact_handle": ""}, format="json")
         self.assertEqual(res.status_code, 400)

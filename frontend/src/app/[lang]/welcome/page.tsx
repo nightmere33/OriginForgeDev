@@ -17,7 +17,7 @@ export default async function Page({ params }: PageProps<"/[lang]/welcome">) {
   const t = await getDictionary(lang);
   return (
     <AuthShell lang={lang} shell={t.auth.shell} mode="welcome" title={t.onboarding.title} lead={t.onboarding.lead}>
-      <Onboarding lang={lang} t={{ onboarding: t.onboarding, common: t.common }} />
+      <Onboarding lang={lang} t={{ onboarding: t.onboarding, common: t.common, phoneInput: t.phoneInput }} />
     </AuthShell>
   );
 }

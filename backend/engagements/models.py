@@ -234,9 +234,18 @@ class Engagement(models.Model):
     deadline = models.DateField(null=True, blank=True)
     production_at = models.DateTimeField(null=True, blank=True)
     maintenance_ends_at = models.DateTimeField(null=True, blank=True)
+    # Countdown reminders already sent for the current maintenance end (a new
+    # end, from an extension, starts a new count).
+    care_reminded_for = models.DateTimeField(null=True, blank=True)
+    care_reminders_sent = models.PositiveSmallIntegerField(default=0)
+    # Maintenance ran out: the conversation closes CARE_GRACE later unless extended.
+    care_ended_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # The conversation is read-only once the project is over.
+    OVER = (Status.CLOSED, Status.CANCELLED, Status.EXPIRED)
 
     class Meta:
         ordering = ["-created_at"]
@@ -328,7 +337,8 @@ class Message(models.Model):
     The project conversation: text, files and voice notes, from request to
     closure. Some messages are cards for something that happened elsewhere
     (an extra cost or offer, a progress update, a problem reported on a live
-    project), so it can be discussed where everything else is.
+    project, the maintenance countdown), so it can be discussed where
+    everything else is.
     """
 
     class Kind(models.TextChoices):
@@ -336,6 +346,7 @@ class Message(models.Model):
         CHARGE = "charge", "Extra cost or offer"
         UPDATE = "update", "Progress update"
         ISSUE = "issue", "Problem reported"
+        CARE = "care", "Maintenance notice"
 
     request = models.ForeignKey(ProjectRequest, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -345,6 +356,8 @@ class Message(models.Model):
     reply_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     charge = models.ForeignKey("billing.Charge", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     update = models.ForeignKey(ProgressUpdate, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    # A card's facts, worded on each side in its own language (care: event, days, until, closes).
+    data = models.JSONField(default=dict, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

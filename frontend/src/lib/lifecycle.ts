@@ -101,6 +101,8 @@ export type Charge = {
   description: string;
   /** An extra the client may decline. */
   optional: boolean;
+  /** More maintenance: days added to the plan once paid. */
+  extends_days: number;
   percent: number;
   amount: number;
   currency: Currency;
@@ -216,16 +218,18 @@ export type Reaction = { emoji: string; count: number; mine: boolean };
 
 export type Message = {
   id: number;
-  /** `charge`, `update` and `issue` are cards for something that happened elsewhere. */
-  kind: "text" | "charge" | "update" | "issue";
+  /** `charge`, `update`, `issue` and `care` are cards for something that happened elsewhere. */
+  kind: "text" | "charge" | "update" | "issue" | "care";
   from_studio: boolean;
   sender_name: string;
   /** The sender's profile picture, or "". */
   sender_avatar: string;
   body: string;
+  /** A card's facts (care: event, days, until, closes), worded here in the page's language. */
+  data: { event?: "started" | "reminder" | "ended" | "extended" | "closed"; days?: number; until?: string; closes?: string };
   attachment: Attachment | null;
   reply_to: { id: number; from_studio: boolean; sender_name: string; body: string; kind: string } | null;
-  charge: Pick<Charge, "id" | "kind" | "label" | "description" | "optional" | "amount" | "currency" | "status" | "due_at" | "paid_at"> | null;
+  charge: Pick<Charge, "id" | "kind" | "label" | "description" | "optional" | "extends_days" | "amount" | "currency" | "status" | "due_at" | "paid_at"> | null;
   update: ProgressUpdate | null;
   reactions: Reaction[];
   read_at: string | null;
@@ -244,7 +248,13 @@ export type RequestSummary = {
   unread: number;
   deadline: string | null;
   maintenance_ends_at: string | null;
+  engagement_status: EngagementStatus | "";
+  /** What the conversation allows: open; ending (maintenance over, closes at `chat_closes_at`); closed (read-only). */
+  chat: ChatState;
+  chat_closes_at: string | null;
 };
+
+export type ChatState = "open" | "ending" | "closed";
 
 export type ProjectRequest = {
   reference: string;
@@ -283,7 +293,7 @@ export type ProjectRequest = {
   created_at: string;
   updated_at: string;
   client?: {
-    full_name: string; email: string; company: string; phone: string; whatsapp: string; instagram: string; messenger: string; country: string;
+    id: number; full_name: string; email: string; company: string; phone: string; whatsapp: string; instagram: string; messenger: string; country: string;
     avatar_url: string; contact_channel: string; contact_channel_label: string; contact_handle: string; heard_from_label: string; heard_from_detail: string;
   };
   // Detail only:

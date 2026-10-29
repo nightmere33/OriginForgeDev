@@ -1358,6 +1358,29 @@
         "issue": "Problem reported",
         "toPayments": "Open in Payments",
         "toProgress": "Open in Progress"
+      },
+      "minimize": "Minimise",
+      "restore": "Open the conversation",
+      "openProject": "Open the project",
+      "closeWindow": "Close this window",
+      "search": "Search a client or a project",
+      "noMatch": "Nothing matches.",
+      "closedList": "Closed conversations",
+      "withYounes": "With Younes",
+      "projects": "{n} projects",
+      "closesOn": "Closes {date}",
+      "ending": "Maintenance has ended. This conversation closes on {date} unless it is extended.",
+      "closed": "This conversation is closed.",
+      "closedClient": "For more maintenance or a new piece of work, write to me by e-mail or start a new project.",
+      "closedStudio": "Extend the maintenance from the project page to reopen it.",
+      "care": {
+        "label": "Maintenance",
+        "started": "Maintenance is on until {until}.",
+        "reminder": "{days} days of maintenance left, until {until}.",
+        "lastDay": "Last day of maintenance: it ends on {until}.",
+        "ended": "Maintenance has ended. This conversation closes on {closes} unless it is extended.",
+        "extended": "Maintenance extended until {until}.",
+        "closed": "This conversation is closed."
       }
     },
     "review": {
@@ -1474,7 +1497,11 @@
       "currency": "Currency",
       "optionalToggle": "Optional: the client can decline it",
       "create": "Send to the client",
-      "withdraw": "Withdraw"
+      "withdraw": "Withdraw",
+      "extendsDays": "More maintenance (days)",
+      "extendsHelp": "Optional. Once paid, maintenance runs this many days longer.",
+      "extendsClosed": "Once paid, maintenance runs this many days longer and the project and its conversation reopen.",
+      "extendsBadge": "+{days} days of maintenance"
     },
     "invoices": {
       "title": "Invoices",

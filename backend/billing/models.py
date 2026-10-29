@@ -51,6 +51,8 @@ class Charge(models.Model):
     # the client may decline it (an offer) or must pay it (a required cost).
     description = models.TextField(blank=True)
     optional = models.BooleanField(default=False)
+    # An extra that buys more maintenance: paid, it extends the plan by this many days.
+    extends_days = models.PositiveSmallIntegerField(default=0)
     percent = models.PositiveSmallIntegerField(default=0)
     amount = models.PositiveIntegerField()
     currency = models.CharField(max_length=3, choices=Currency.choices)

@@ -14,11 +14,19 @@ import { cn } from "@/lib/cn";
 import { CHARGE_TONE, PayCharge, StudioCharge } from "./payments-panel";
 import { ErrorLine, errorText, type PanelProps } from "./shared";
 
-/** Studio: a required cost (due at once) or an optional offer (the client answers first). */
+/**
+ * Studio: a required cost (due at once) or an optional offer (the client
+ * answers first). Once the project is live it can also buy more maintenance
+ * (days added when paid); on a closed project that is the only extra, and
+ * paying it reopens the project and its conversation.
+ */
 function NewExtra({ t, reload, engagement }: Pick<PanelProps, "t" | "reload"> & { engagement: Engagement }) {
   const x = t.project.extras;
+  const care = ["live", "closed"].includes(engagement.status);
+  const closed = engagement.status === "closed";
+  const blank = { label: "", description: "", amount: "", currency: engagement.currency as Currency, optional: closed, extends_days: "" };
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ label: "", description: "", amount: "", currency: engagement.currency as Currency, optional: false });
+  const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -30,12 +38,12 @@ function NewExtra({ t, reload, engagement }: Pick<PanelProps, "t" | "reload"> & 
     setBusy(true);
     setError(undefined);
     try {
-      await api.post(`/engagements/${engagement.id}/extras/`, { ...form, amount: Number(form.amount) });
-      setForm({ label: "", description: "", amount: "", currency: engagement.currency, optional: false });
+      await api.post(`/engagements/${engagement.id}/extras/`, { ...form, amount: Number(form.amount), extends_days: Number(form.extends_days) || 0 });
+      setForm(blank);
       setOpen(false);
       await reload();
     } catch (err) {
-      setError(errorText(t, err, "label", "amount", "currency", "status"));
+      setError(errorText(t, err, "label", "amount", "currency", "extends_days", "status"));
     } finally {
       setBusy(false);
     }
@@ -55,10 +63,16 @@ function NewExtra({ t, reload, engagement }: Pick<PanelProps, "t" | "reload"> & 
           )}
         </Field>
       </div>
+      {care && (
+        <Field label={x.extendsDays} help={closed ? x.extendsClosed : x.extendsHelp}>
+          {(a) => <Input id={a.id} inputMode="numeric" value={form.extends_days} placeholder="30" aria-describedby={a.describedBy} className="sm:max-w-[9rem]"
+            onChange={(e) => set("extends_days", e.target.value.replace(/\D/g, "").slice(0, 3))} />}
+        </Field>
+      )}
       <Toggle label={x.optionalToggle} checked={form.optional} onChange={(e) => set("optional", e.target.checked)} />
       <ErrorLine>{error}</ErrorLine>
       <div className="flex flex-wrap gap-3">
-        <Button variant="ember" disabled={!form.label.trim() || !Number(form.amount)} loading={busy} onClick={send}>{x.create}</Button>
+        <Button variant="ember" disabled={!form.label.trim() || !Number(form.amount) || (closed && !Number(form.extends_days))} loading={busy} onClick={send}>{x.create}</Button>
         <Button variant="ghost" onClick={() => setOpen(false)}>{t.common.back}</Button>
       </div>
     </div>
@@ -93,6 +107,7 @@ function ExtraRow({ lang, t, side, reload, charge: c, engagement, reference }: P
           <span className="flex flex-wrap items-center gap-3">
             <span className={cn("text-ink", settled && "text-muted")}>{c.label}</span>
             <span className={cn("hud border px-1.5 py-0.5", c.optional ? "border-line text-muted" : "border-ember-700 text-ember-400")}>{c.optional ? x.optional : x.required}</span>
+            {c.extends_days > 0 && <span className="hud text-ember-400">{fill(x.extendsBadge, { days: c.extends_days })}</span>}
           </span>
           {c.description && <p className="max-w-2xl whitespace-pre-line text-sm leading-relaxed text-muted">{c.description}</p>}
           <span className="hud text-faint">
@@ -148,7 +163,7 @@ export function ExtrasPanel(props: PanelProps & { engagement: Engagement; refere
   const { t, side, engagement } = props;
   const x = t.project.extras;
   const extras = engagement.charges.filter((c) => c.kind === "extra").reverse();
-  const open = ["in_development", "client_review", "awaiting_balance", "on_hold", "live"].includes(engagement.status);
+  const open = ["in_development", "client_review", "awaiting_balance", "on_hold", "live", "closed"].includes(engagement.status);
   if (!extras.length && side === "client") return null;
   return (
     <div className="flex flex-col gap-6">

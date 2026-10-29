@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { gsap } from "./gsap";
 import { introClock } from "./intro";
 import { onRuler, rulerMap } from "./ruler-map";
-import { frameScroll } from "./smooth";
+import { dockClear, frameScroll } from "./smooth";
 
 export type TitleMark = { id: string; label: string; top: number };
 
@@ -100,7 +100,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
       const vw = innerWidth;
       const vh = innerHeight;
       const z = rulerMap.z;
-      const key = `${y}|${vw}|${vh}|${z}|${z > 0 ? rulerMap.top + rulerMap.d0 : 0}`;
+      const key = `${y}|${vw}|${vh}|${z}|${z > 0 ? rulerMap.top + rulerMap.d0 : 0}|${dockClear.px}`;
       if (key === last) return;
       last = key;
 
@@ -155,7 +155,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
           const h = isHero ? 1 - pj : 0;
           const pa = pj;
           const at = (scale: number) => right - total * scale + offset * scale;
-          const yQueue = vh - 34 - (n - 1 - i) * ROW;
+          const yQueue = vh - 34 - dockClear.px - (n - 1 - i) * ROW;
           const yCurrent = top + passedRows * ROW + 4;
           const yPassed = top + i * ROW;
           let x = q * at(small) + c * at(current) + pa * at(small);
@@ -208,6 +208,7 @@ export default function SectionTitles({ marks }: { marks: TitleMark[] }) {
       if (frostBottom.current) {
         const queued = a.reduce((s, v) => s + (1 - v), 0);
         frostBottom.current.style.height = `${queued * ROW + 48}px`;
+        frostBottom.current.style.bottom = `${dockClear.px}px`;
         frostBottom.current.style.opacity = queued > 0.05 ? String(1 - z) : "0";
       }
     };

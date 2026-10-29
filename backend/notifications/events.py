@@ -43,6 +43,14 @@ EVENTS = {
         "en": ("An extra revision round for {title}", "I added a revision round to \"{title}\". You have {left} left."),
         "fr": ("Un tour de modifications en plus pour {title}", "J'ai ajouté un tour de modifications à « {title} ». Il vous en reste {left}."),
     },
+    "maintenance_reminder": {
+        "en": ("{days} days of maintenance left for {title}", "Maintenance for \"{title}\" runs until {until}. Report anything that needs fixing before then, or ask to extend it, in the conversation."),
+        "fr": ("Plus que {days} jours de maintenance pour {title}", "La maintenance de « {title} » court jusqu'au {until}. Signalez ce qui doit être corrigé d'ici là, ou demandez à la prolonger, dans la conversation."),
+    },
+    "maintenance_ended": {
+        "en": ("Maintenance has ended for {title}", "Maintenance for \"{title}\" has ended. The conversation stays open until {closes}; after that it closes unless maintenance is extended."),
+        "fr": ("La maintenance de {title} est terminée", "La maintenance de « {title} » est terminée. La conversation reste ouverte jusqu'au {closes}, puis elle se ferme sauf si la maintenance est prolongée."),
+    },
     "maintenance_extended": {
         "en": ("Maintenance extended for {title}", "Maintenance for \"{title}\" now runs until {until}. Report any problem from your client space."),
         "fr": ("Maintenance prolongée pour {title}", "La maintenance de « {title} » court maintenant jusqu'au {until}. Signalez tout problème depuis votre espace client."),
@@ -132,6 +140,8 @@ EVENTS = {
     },
     "studio_changes": {"en": ("Changes requested on {ref}", "{client}: {note}")},
     "studio_offer_answer": {"en": ("Offer {answer}: {ref}", "{client} {answer} \"{label}\" ({amount}).")},
+    "studio_care_ending": {"en": ("Maintenance ending: {ref}", "{client}'s \"{title}\" has {days} days of maintenance left.")},
+    "studio_care_ended": {"en": ("Maintenance ended: {ref}", "{client}'s \"{title}\" is out of maintenance; the conversation closes on {closes} unless you extend it.")},
     "studio_issue": {"en": ("Problem reported on {ref}", "{client} reported a problem on the live project: {note}")},
     "studio_approved": {"en": ("Approved: {ref}", "{client} approved \"{what}\".")},
     "studio_deposit_expired": {"en": ("Deposit not received: {ref}", "The deposit window for \"{title}\" closed; the project lapsed.")},

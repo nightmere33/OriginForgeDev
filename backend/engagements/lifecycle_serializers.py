@@ -139,7 +139,7 @@ class ChargeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Charge
-        fields = ("id", "kind", "label", "description", "optional", "percent", "amount", "currency", "status", "due_at",
+        fields = ("id", "kind", "label", "description", "optional", "extends_days", "percent", "amount", "currency", "status", "due_at",
                   "paid_at", "answered_at", "created_at", "overdue", "usdt_amount", "online", "payments", "paid_by",
                   "can_pay_early", "invoice", "proofs")
 
@@ -254,6 +254,7 @@ class ExtraSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1, max_value=100_000_000)
     currency = serializers.ChoiceField(choices=["DZD", "EUR", "USD"])
     optional = serializers.BooleanField(required=False, default=False)
+    extends_days = serializers.IntegerField(required=False, default=0, min_value=0, max_value=365)
 
 
 class ChargeCardSerializer(serializers.ModelSerializer):
@@ -261,7 +262,7 @@ class ChargeCardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Charge
-        fields = ("id", "kind", "label", "description", "optional", "amount", "currency", "status", "due_at", "paid_at")
+        fields = ("id", "kind", "label", "description", "optional", "extends_days", "amount", "currency", "status", "due_at", "paid_at")
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -276,7 +277,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ("id", "kind", "from_studio", "sender_name", "sender_avatar", "body", "attachment", "reply_to", "charge", "update",
+        fields = ("id", "kind", "from_studio", "sender_name", "sender_avatar", "body", "data", "attachment", "reply_to", "charge", "update",
                   "reactions", "read_at", "created_at")
 
     def get_from_studio(self, obj) -> bool:

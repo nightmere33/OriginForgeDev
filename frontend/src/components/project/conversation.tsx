@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUpRight, CornerUpLeft, LifeBuoy, Mic, Paperclip, Receipt, Send, SmilePlus, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowUpRight, CornerUpLeft, LifeBuoy, Lock, Mic, Paperclip, Receipt, Send, ShieldCheck, SmilePlus, Sparkles, Square, Volume2, VolumeX, X } from "lucide-react";
 import { fill } from "@/i18n/fill";
 import { useLiveRefresh } from "@/lib/live";
 import { api } from "@/lib/api-client";
-import { money, REACTIONS, type Attachment, type Message } from "@/lib/lifecycle";
+import { day, money, REACTIONS, type Attachment, type ChatState, type Message } from "@/lib/lifecycle";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatBytes, Textarea } from "@/components/ui/field";
@@ -93,6 +93,7 @@ function Card({ lang, t, side, m, open, onImage }: Pick<PanelProps, "lang" | "t"
           <span className="text-ink-strong">{ch.label}</span>
           <span className="font-mono tabular-nums text-ink">{money(lang, ch.amount, ch.currency)}</span>
         </span>
+        {ch.extends_days > 0 && <span className="hud text-ember-400">{fill(t.project.extras.extendsBadge, { days: ch.extends_days })}</span>}
         {ch.description && <Linked text={ch.description} className="text-sm text-muted" />}
         {open("payments")}
       </div>
@@ -131,6 +132,21 @@ function Card({ lang, t, side, m, open, onImage }: Pick<PanelProps, "lang" | "t"
   return null;
 }
 
+/** A maintenance notice (the countdown, the end, an extension), worded in the page's language. */
+function careText(lang: PanelProps["lang"], t: PanelProps["t"], m: Message) {
+  const c = t.project.chat.care;
+  const d = m.data ?? {};
+  const until = d.until ? day(lang, d.until) : "";
+  switch (d.event) {
+    case "started": return fill(c.started, { until });
+    case "reminder": return d.days === 1 ? fill(c.lastDay, { until }) : fill(c.reminder, { days: d.days ?? 0, until });
+    case "ended": return fill(c.ended, { closes: d.closes ? day(lang, d.closes) : "" });
+    case "extended": return fill(c.extended, { until });
+    case "closed": return c.closed;
+    default: return m.body;
+  }
+}
+
 /** The eight reactions, in a strip that tears in above the bubble. */
 function ReactionPicker({ t, onPick, onClose, align }: { t: PanelProps["t"]; onPick: (emoji: string) => void; onClose: () => void; align: "start" | "end" }) {
   const strip = useRef<HTMLDivElement>(null);
@@ -159,12 +175,17 @@ function ReactionPicker({ t, onPick, onClose, align }: { t: PanelProps["t"]; onP
   );
 }
 
-export function Conversation({ lang, t, side, reference, enabled, variant = "panel", onOpenTab }: Omit<PanelProps, "reload"> & {
+export function Conversation({ lang, t, side, reference, enabled, variant = "panel", onOpenTab, state = "open", closesAt, paused = false }: Omit<PanelProps, "reload"> & {
   reference: string; enabled: boolean;
   /** `dock`: fills the floating window (its own header lives outside). */
   variant?: "panel" | "dock";
   /** On the project page: switch tabs in place; elsewhere the card links to the project. */
   onOpenTab?: (tab: ProjectTab) => void;
+  /** Closed: read-only. Ending: maintenance is over and the thread closes at `closesAt`. */
+  state?: ChatState;
+  closesAt?: string | null;
+  /** A minimised window: it keeps up to date without marking anything seen. */
+  paused?: boolean;
 }) {
   const c = t.project.chat;
   const [messages, setMessages] = useState<Message[] | null>(null);
@@ -184,10 +205,14 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   const stick = useRef(true);
   const fileId = useId();
   const mine = useCallback((m: Message) => (side === "studio") === m.from_studio, [side]);
+  const hidden = useRef(paused);
+  useEffect(() => {
+    hidden.current = paused;
+  }, [paused]);
 
   const load = useCallback(
-    // Seen only when actually seen: a thread open in a hidden tab reads without marking (peek).
-    () => api.get<Message[]>(`/requests/${reference}/messages/${document.visibilityState === "visible" ? "" : "?peek=1"}`).then((next) => {
+    // Seen only when actually seen: a thread in a hidden tab or a minimised window reads without marking (peek).
+    () => api.get<Message[]>(`/requests/${reference}/messages/${document.visibilityState === "visible" && !hidden.current ? "" : "?peek=1"}`).then((next) => {
       const prev = lastSeen.current;
       // A tone for what the other side just sent (never on the first load).
       if (prev !== null && next.some((m) => m.id > prev && !mine(m))) playReceived();
@@ -198,6 +223,11 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   );
 
   useLiveRefresh(load, reference, { messages: true });
+
+  // Restored from minimised: what came in meanwhile is seen now.
+  useEffect(() => {
+    if (!paused && enabled) load();
+  }, [paused, enabled, load]);
 
   // Poll while the tab is visible; refresh as soon as it comes back.
   useEffect(() => {
@@ -211,6 +241,17 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
       document.removeEventListener("visibilitychange", tick);
     };
   }, [enabled, load]);
+
+  // The thread got shorter (a phone keyboard opening, the window resized): keep the newest in view.
+  useEffect(() => {
+    const el = list.current;
+    if (!el || !enabled) return;
+    const keep = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    keep.observe(el);
+    return () => keep.disconnect();
+  }, [enabled]);
 
   // Newest at the bottom: follow new messages unless the reader scrolled up to read.
   const count = messages?.length ?? 0;
@@ -285,6 +326,7 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   );
 
   if (!enabled) return <p className="text-muted">{c.draftFirst}</p>;
+  const dock = variant === "dock";
   const lastMine = [...(messages ?? [])].reverse().find(mine);
   const base = side === "client" ? `/${lang}/portal/requests` : `/${lang}/studio/requests`;
   const openTab = (tab: ProjectTab) => onOpenTab ? (
@@ -315,6 +357,18 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
         </li>,
       );
     }
+    if (m.kind === "care") {
+      // Notices sit in the middle of the thread, like the day rules.
+      rows.push(
+        <li key={m.id} data-msg={m.id} className="my-3 flex justify-center">
+          <span className="flex max-w-[92%] items-start gap-2 border border-line bg-cell px-3.5 py-2 text-sm text-muted">
+            <ShieldCheck aria-hidden className="mt-0.5 size-3.5 shrink-0 text-ember-400" />
+            <span><span className="sr-only">{c.care.label}: </span>{careText(lang, t, m)}</span>
+          </span>
+        </li>,
+      );
+      return;
+    }
     const joins = (a?: Message, b?: Message) => !!a && !!b && a.kind === "text" && b.kind === "text" && mine(a) === mine(b)
       && dayKey(a.created_at) === dayKey(b.created_at) && Math.abs(Date.parse(b.created_at) - Date.parse(a.created_at)) < GROUP_MS;
     const first = !joins(prev, m);
@@ -324,7 +378,7 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
       <li key={m.id} data-msg={m.id}
         className={cn("group/msg relative flex flex-col", own ? "items-end" : "items-start", first ? "mt-3" : "mt-0.5", card && "mt-4")}>
         {first && !own && <span className="hud mb-1 pl-10 pr-1 text-faint">{nameOf(m)}</span>}
-        <div className={cn("relative flex max-w-[86%] items-end gap-2 sm:max-w-[78%]", own ? "flex-row-reverse" : "flex-row")}>
+        <div className={cn("relative flex items-end gap-2", dock ? "max-w-[94%]" : "max-w-[86%] sm:max-w-[78%]", own ? "flex-row-reverse" : "flex-row")}>
           {/* The other side's face closes each of their groups, as in a messenger. */}
           {!own && (last ? <Avatar name={m.sender_name} src={m.sender_avatar} studio={m.from_studio} className="size-8 self-end" />
             : <span aria-hidden className="w-8 shrink-0" />)}
@@ -376,7 +430,9 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
               </span>
             )}
           </div>
-          <div className={cn("flex shrink-0 items-center gap-0.5 pb-1 transition-opacity duration-[var(--dur-micro)]",
+          {/* In a dock window the actions float over the bubble's corner, so the text keeps the width. */}
+          <div className={cn("flex shrink-0 items-center gap-0.5 transition-opacity duration-[var(--dur-micro)]",
+            dock ? cn("absolute -top-4 z-10 border border-line bg-raised shadow-[0_10px_24px_-14px_rgb(0_0_0/0.8)]", own ? "left-0" : "right-0") : "pb-1",
             showActions ? "opacity-100" : "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:hidden",
             showActions && "[@media(hover:none)]:flex")}>
             <button type="button" onClick={() => setPicker((p) => (p === m.id ? null : m.id))} aria-label={c.react} aria-expanded={picker === m.id}
@@ -399,7 +455,6 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
     );
   });
 
-  const dock = variant === "dock";
   return (
     <div className={cn("flex min-h-0 flex-col", dock && "h-full")}>
       <ol ref={list} data-lenis-prevent aria-live="polite" aria-label={c.title}
@@ -416,7 +471,21 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
         ) : rows}
       </ol>
 
-      {voice.seconds !== null ? (
+      {state === "ending" && closesAt && (
+        <p className={cn("flex items-start gap-2 border-line bg-ember-500/[0.06] px-4 py-2.5 text-sm text-muted", dock ? "border-t" : "border border-t-0")}>
+          <ShieldCheck aria-hidden className="mt-0.5 size-3.5 shrink-0 text-ember-400" />
+          {fill(c.ending, { date: day(lang, closesAt) })}
+        </p>
+      )}
+      {state === "closed" ? (
+        <div className={cn("flex items-start gap-3 border-line bg-cell px-4 py-4", dock ? "border-t" : "border border-t-0")}>
+          <Lock aria-hidden className="mt-0.5 size-4 shrink-0 text-faint" />
+          <span className="flex flex-col gap-1">
+            <span className="text-sm text-ink">{c.closed}</span>
+            <span className="text-sm text-faint">{side === "studio" ? c.closedStudio : c.closedClient}</span>
+          </span>
+        </div>
+      ) : voice.seconds !== null ? (
         <div className={cn("flex items-center gap-4 border-line bg-cell px-4 py-3", dock ? "border-t" : "border border-t-0")}>
           <Hud tone="ember" dot live as="span">{c.recording} · {clock(voice.seconds)}</Hud>
           <span className="ml-auto flex gap-2">

@@ -279,7 +279,7 @@ export function ChoiceChip({
         <Check className="size-3" strokeWidth={3} />
       </span>
       <span className="flex flex-col gap-1">
-        <span className="text-ink group-has-[:checked]/chip:text-ink-strong">{label}</span>
+        <span className={cn("text-ink group-has-[:checked]/chip:text-ink-strong", inline && "text-sm leading-snug")}>{label}</span>
         {description && <span className="text-sm text-faint">{description}</span>}
       </span>
     </label>

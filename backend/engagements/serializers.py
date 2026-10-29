@@ -119,8 +119,12 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
         """
         eng = getattr(obj, "engagement", None)
         plan = eng.plan_name if eng else (pick(obj.plan, "name", request_lang(self.context.get("request"))) if obj.plan else "")
+        from .lifecycle import chat_state
+
+        chat, closes = chat_state(obj)
         out = {"plan": plan, "paid": 0, "total": 0, "percent": 0, "currency": eng.currency if eng else "", "waiting": "",
-               "unread": getattr(obj, "unread_count", 0), "deadline": None, "maintenance_ends_at": None}
+               "unread": getattr(obj, "unread_count", 0), "deadline": None, "maintenance_ends_at": None,
+               "engagement_status": eng.status if eng else "", "chat": chat, "chat_closes_at": closes}
         if eng:
             contract = [c for c in eng.charges.all() if c.kind != "extra" and c.status != "void"]
             out["total"] = sum(c.amount for c in contract)

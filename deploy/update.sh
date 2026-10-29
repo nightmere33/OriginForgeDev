@@ -15,14 +15,22 @@ D=$APP/deploy
 sudo -u originforge -H tar -xzf /tmp/code.tar.gz -C "$APP"
 echo "code unpacked"
 
-# The location rules travel with the code (the server blocks, domain and
-# certificate stay). A rule nginx rejects never replaces the running one.
-SNIPPET=/etc/nginx/snippets/originforge-locations.conf
-if [ -f "$SNIPPET" ] && ! cmp -s "$D/nginx/locations.conf" "$SNIPPET"; then
-  cp "$SNIPPET" /tmp/of-locations.bak
-  install -m 644 "$D/nginx/locations.conf" "$SNIPPET"
-  if nginx -t 2>/dev/null; then systemctl reload nginx; echo "nginx locations updated"
-  else cp /tmp/of-locations.bak "$SNIPPET"; echo "nginx rejected the new locations; kept the old ones"; fi
+# The location rules and http-level maps travel with the code (the server
+# blocks, domain and certificate stay). Rules nginx rejects never replace the
+# running ones: both files go back as they were.
+LOCATIONS=/etc/nginx/snippets/originforge-locations.conf
+UPSTREAMS=/etc/nginx/conf.d/originforge-upstreams.conf
+if [ -f "$LOCATIONS" ] && [ -f "$UPSTREAMS" ] && ! { cmp -s "$D/nginx/locations.conf" "$LOCATIONS" && cmp -s "$D/nginx/upstreams.conf" "$UPSTREAMS"; }; then
+  cp "$LOCATIONS" /tmp/of-locations.bak
+  cp "$UPSTREAMS" /tmp/of-upstreams.bak
+  install -m 644 "$D/nginx/locations.conf" "$LOCATIONS"
+  install -m 644 "$D/nginx/upstreams.conf" "$UPSTREAMS"
+  if nginx -t 2>/dev/null; then systemctl reload nginx; echo "nginx rules updated"
+  else
+    cp /tmp/of-locations.bak "$LOCATIONS"
+    cp /tmp/of-upstreams.bak "$UPSTREAMS"
+    echo "nginx rejected the new rules; kept the old ones"
+  fi
 fi
 
 # 2. Each step runs from disk, fresh; with no ORIGIN given they keep the current address.

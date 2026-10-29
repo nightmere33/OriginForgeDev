@@ -508,7 +508,8 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
 
         {tab === "messages" && (
           <Panel title={t.project.chat.title}>
-            <Conversation lang={lang} t={t} side={side} reference={req.reference} enabled={req.status !== "draft"} onOpenTab={setTab} />
+            <Conversation lang={lang} t={t} side={side} reference={req.reference} enabled={req.status !== "draft"} onOpenTab={setTab}
+              state={req.summary?.chat} closesAt={req.summary?.chat_closes_at} />
           </Panel>
         )}
 

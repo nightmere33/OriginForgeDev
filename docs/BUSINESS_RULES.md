@@ -118,7 +118,10 @@ The platform records the date and time, the IP address, the device, and a finger
 6. The **maintenance window** of their plan starts.
 
 ### 3.10 Closure
-- When maintenance ends, the project is **closed**. The client keeps access to everything (files, conversation, invoices) and can request new work or a monthly care plan.
+- During maintenance the conversation stays open. Countdown reminders go out at 15, 7, 3 and 1 days left, by e-mail, in the bell and as a note in the conversation; you are told too from 3 days.
+- When maintenance ends, the conversation stays open **72 hours** more, then the project is **closed** and its conversation becomes read-only. You can close it earlier yourself.
+- More maintenance reopens it: extend it from the project page, or offer it as a paid extra with a number of days (paying it extends the plan, even on a closed project).
+- The client keeps access to everything (files, conversation, invoices) and can request new work or a monthly care plan.
 - The platform asks for a short **review** (shown on the site only if they agree and you approve it).
 
 ---

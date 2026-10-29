@@ -14,6 +14,16 @@ export const smooth: { lenis: Lenis | null } = { lenis: null };
  */
 export const frameScroll = () => (smooth.lenis ? smooth.lenis.scroll : scrollY);
 
+/**
+ * Room the chat launcher takes at the bottom right (px), so the ruler and
+ * the queued section titles end above it. Also set as --dock-clear for CSS.
+ */
+export const dockClear = { px: 0 };
+export function setDockClear(px: number) {
+  dockClear.px = px;
+  document.documentElement.style.setProperty("--dock-clear", `${px}px`);
+}
+
 /** Glide an element just under the fixed nav, as for anchors. */
 export function scrollToElement(el: Element, offset = 96) {
   const target = Math.max(0, scrollY + el.getBoundingClientRect().top - offset);

@@ -221,7 +221,7 @@ export default function ScrollRuler() {
     <aside
       aria-hidden
       data-print-hide
-      className="pointer-events-none fixed bottom-6 right-0 top-[calc(var(--nav-h)+1.75rem)] z-40 w-14"
+      className="pointer-events-none fixed bottom-[calc(1.5rem+var(--dock-clear,0px))] right-0 top-[calc(var(--nav-h)+1.75rem)] z-40 w-14"
     >
       {/* No gutter below 1400px: content passes under the rail, frosted here so the ticks read. */}
       <div className="ruler-frost frost absolute -inset-y-6 right-0 w-16" />

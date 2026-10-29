@@ -10,6 +10,7 @@ rows it changes, records the move in the audit log and tells the other side.
 Views call these; nothing else should assign statuses.
 """
 
+import math
 import re
 from datetime import timedelta
 
@@ -32,6 +33,11 @@ from .models import Contract, Engagement, Message, Milestone, ProjectRequest, Pr
 R = ProjectRequest.Status
 P = Proposal.Status
 E = Engagement.Status
+
+# Maintenance countdown: a reminder as each of these many days is reached,
+# then the conversation stays open CARE_GRACE after the end, unless extended.
+CARE_REMINDER_DAYS = (15, 7, 3, 1)
+CARE_GRACE = timedelta(hours=72)
 
 SMALL = {"DZD": 60_000, "EUR": 400, "USD": 400}
 FIXED_PRICE_SERVICES = ("product-films",)
@@ -307,11 +313,14 @@ def pay_early(request, charge_id: int) -> Charge:
 
 # ── Extra costs and optional offers (outside the contract total) ─────────
 
-def add_extra(request, engagement_id: int, label: str, amount: int, currency: str, description: str = "", optional: bool = False) -> Charge:
+def add_extra(request, engagement_id: int, label: str, amount: int, currency: str, description: str = "", optional: bool = False,
+              extends_days: int = 0) -> Charge:
     """
     A cost the contract doesn't cover (AI credits, an API, hosting, a feature
     asked for along the way). Required: due now. Optional: an offer the client
     accepts (then pays) or declines. Either way a card lands in the chat.
+    `extends_days`: more maintenance, added to the plan once paid (also
+    offered on a closed project, which it reopens).
     """
     _require_developer(request.user)
     label, description = label.strip(), description.strip()
@@ -321,12 +330,14 @@ def add_extra(request, engagement_id: int, label: str, amount: int, currency: st
         raise ValidationError({"amount": "Enter the amount."})
     with transaction.atomic():
         eng = Engagement.objects.select_for_update().select_related("request__client").get(pk=engagement_id)
-        if eng.status not in Engagement.STARTED:
+        if eng.status not in Engagement.STARTED and not (extends_days and eng.status == E.CLOSED):
             raise ValidationError({"status": "Extras open once the deposit is paid, until the project is closed."})
+        if extends_days and eng.status not in (E.LIVE, E.CLOSED):
+            raise ValidationError({"extends_days": "More maintenance is offered once the project is live."})
         order = (eng.charges.aggregate(last=Max("order"))["last"] or 0) + 1
         charge = Charge.objects.create(
             engagement=eng, order=order, kind=Charge.Kind.EXTRA, label=label[:80], description=description,
-            optional=optional, amount=amount, currency=currency,
+            optional=optional, amount=amount, currency=currency, extends_days=extends_days,
             status=Charge.Status.PROPOSED if optional else Charge.Status.SCHEDULED,
         )
         if not optional:
@@ -400,6 +411,10 @@ def mark_paid(request, charge: Charge, payment: Payment) -> Charge:
                 status=Milestone.Status.ACTIVE if i == 0 else Milestone.Status.PLANNED,
             )
         notify_client("project_started", req.client, _path(req, "progress"), title=req.title, deadline=eng.deadline.isoformat())
+    if charge.extends_days and eng.status in (E.LIVE, E.CLOSED):
+        extend_care(eng, charge.extends_days, now)
+        eng.save(update_fields=["status", "maintenance_ends_at", "closed_at", "care_ended_at", "updated_at"])
+        transaction.on_commit(lambda: care_extended(eng))
     record(request, "charge.paid", req, charge=charge.label, amount=charge.amount, provider=payment.provider, invoice=invoice.number)
     notify_client("payment_received", req.client, _path(req, "payments"), invoice_id=invoice.pk, amount=money(charge.amount, charge.currency),
                   title=req.title, label=charge.label, number=invoice.number)
@@ -551,8 +566,7 @@ def engagement_action(request, engagement_id: int, action: str, note: str = "", 
         elif action == "go_live":
             eng.production_at, eng.maintenance_ends_at = now, now + timedelta(days=eng.maintenance_days)
         elif action == "extend_maintenance":
-            eng.maintenance_ends_at = max(eng.maintenance_ends_at or now, now) + timedelta(days=days)
-            eng.closed_at = None
+            extend_care(eng, days, now)
         elif action == "close":
             eng.closed_at = now
         elif action == "cancel":
@@ -575,12 +589,14 @@ def engagement_action(request, engagement_id: int, action: str, note: str = "", 
     elif action == "grant_revision":
         notify_client("revision_granted", client, _path(req, "progress"), title=req.title, left=eng.revision_rounds - eng.revisions_used)
     elif action == "extend_maintenance":
-        notify_client("maintenance_extended", client, _path(req), title=req.title, until=eng.maintenance_ends_at.date().isoformat())
+        care_extended(eng)
     elif action == "close":
+        care_card(req, "closed")
         notify_client("project_closed", client, _path(req), title=req.title)
     elif action == "report_issue":
         notify_studio_event("studio_issue", _studio_path(req, "messages"), ref=req.reference, client=client.full_name, note=note.strip())
     elif action == "go_live":
+        care_card(req, "started", until=eng.maintenance_ends_at.date().isoformat(), days=eng.maintenance_days)
         notify_client("project_live", client, _path(req), title=req.title, until=eng.maintenance_ends_at.date().isoformat())
         notify_client("review_invite", client, _path(req), title=req.title)
         if not eng.nda:
@@ -657,6 +673,8 @@ def post_message(request, req: ProjectRequest, body: str, attachment=None, reply
         _require_client(user, req)
     if req.status == R.DRAFT:
         raise ValidationError({"body": "Send the request first."})
+    if chat_state(req)[0] == "closed":
+        raise ValidationError({"body": "This conversation is closed. Maintenance can be extended to reopen it."})
     if not body.strip() and attachment is None:
         raise ValidationError({"body": "Write a message or attach a file."})
     quoted = None
@@ -695,6 +713,88 @@ def react(request, message: Message, emoji: str) -> Message:
     push([user_group(req.client_id), STUDIO], {"type": "message", "request": req.pk, "reference": req.reference, "id": message.pk,
                                               "sender": message.sender_id, "reaction": True})
     return message
+
+
+# ── Maintenance and the conversation ───────────────────────────────────────
+
+def chat_state(req) -> tuple[str, object]:
+    """("open" | "ending" | "closed", when it closes): what the conversation allows now."""
+    eng = getattr(req, "engagement", None)
+    if eng is not None:
+        if eng.status in Engagement.OVER:
+            return "closed", eng.closed_at
+        if eng.status == E.LIVE and eng.care_ended_at:
+            return "ending", eng.care_ended_at + CARE_GRACE
+        return "open", None
+    return ("closed", None) if req.status == R.ARCHIVED else ("open", None)
+
+
+def care_card(req, event: str, **data):
+    """A maintenance notice in the conversation, from the studio (worded by each side's page)."""
+    from django.contrib.auth import get_user_model
+
+    studio = get_user_model().objects.filter(role="developer", is_active=True).order_by("pk").first()
+    if studio is None:
+        return None
+    texts = {
+        "started": "Maintenance is on until {until}.",
+        "reminder": "{days} days of maintenance left (until {until}).",
+        "ended": "Maintenance has ended. This conversation closes on {closes} unless it is extended.",
+        "extended": "Maintenance extended until {until}.",
+        "closed": "This conversation is closed.",
+    }
+    message = Message.objects.create(request=req, sender=studio, kind=Message.Kind.CARE, body=texts[event].format(**data), data={"event": event, **data})
+    transaction.on_commit(lambda: _announce(message))
+    return message
+
+
+def extend_care(eng, days: int, now):
+    """More maintenance (on the locked engagement; the caller saves): it reopens a closed project."""
+    eng.maintenance_ends_at = max(eng.maintenance_ends_at or now, now) + timedelta(days=days)
+    eng.status, eng.closed_at, eng.care_ended_at = E.LIVE, None, None
+
+
+def care_extended(eng):
+    req = eng.request
+    until = eng.maintenance_ends_at.date().isoformat()
+    care_card(req, "extended", until=until)
+    notify_client("maintenance_extended", req.client, _path(req), title=req.title, until=until)
+
+
+def _care_tick(eng, now) -> str:
+    """One live project's countdown: a reminder, the end notice, or the close. Returns what it did."""
+    req, ends = eng.request, eng.maintenance_ends_at
+    if ends > now:
+        days = math.ceil((ends - now) / timedelta(days=1))
+        crossed = sum(1 for d in CARE_REMINDER_DAYS if days <= d)
+        if eng.care_reminded_for != ends:
+            # A new period (going live, an extension): steps already behind it are skipped.
+            Engagement.objects.filter(pk=eng.pk).update(care_reminded_for=ends, care_reminders_sent=crossed)
+            return ""
+        if crossed <= eng.care_reminders_sent:
+            return ""
+        Engagement.objects.filter(pk=eng.pk).update(care_reminders_sent=crossed)
+        until = ends.date().isoformat()
+        care_card(req, "reminder", days=days, until=until)
+        notify_client("maintenance_reminder", req.client, _path(req, "messages"), title=req.title, days=days, until=until)
+        if days <= 3:
+            notify_studio_event("studio_care_ending", _studio_path(req, "messages"), ref=req.reference, client=req.client.full_name,
+                                title=req.title, days=days)
+        return "reminder"
+    if eng.care_ended_at is None:
+        closes = now + CARE_GRACE
+        Engagement.objects.filter(pk=eng.pk).update(care_ended_at=now)
+        care_card(req, "ended", closes=closes.date().isoformat())
+        notify_client("maintenance_ended", req.client, _path(req, "messages"), title=req.title, closes=closes.date().isoformat())
+        notify_studio_event("studio_care_ended", _studio_path(req, "messages"), ref=req.reference, client=req.client.full_name,
+                            title=req.title, closes=closes.date().isoformat())
+        return "ended"
+    if now < eng.care_ended_at + CARE_GRACE:
+        return ""
+    Engagement.objects.filter(pk=eng.pk).update(status=E.CLOSED, closed_at=now)
+    care_card(req, "closed")
+    notify_client("project_closed", req.client, _path(req), title=req.title)
+    return "closed"
 
 
 # ── Timers (run every few minutes: manage.py lifecycle_tick / Celery beat) ─
@@ -736,10 +836,12 @@ def tick(now=None) -> dict:
                               amount=money(charge.amount, charge.currency), due=charge.due_at.date().isoformat())
                 counts["reminders"] += 1
 
-    for eng in Engagement.objects.filter(status=E.LIVE, maintenance_ends_at__lt=now).select_related("request__client"):
-        Engagement.objects.filter(pk=eng.pk).update(status=E.CLOSED, closed_at=now)
-        notify_client("project_closed", eng.client, _path(eng.request), title=eng.title)
-        counts["closed"] += 1
+    for eng in Engagement.objects.filter(status=E.LIVE, maintenance_ends_at__isnull=False).select_related("request__client"):
+        step = _care_tick(eng, now)
+        if step == "closed":
+            counts["closed"] += 1
+        elif step:
+            counts["care_notices"] = counts.get("care_notices", 0) + 1
 
     # Unanswered for a day: a nudge to the studio (once per request).
     for req in ProjectRequest.objects.filter(status=R.SUBMITTED, review_reminded_at__isnull=True,

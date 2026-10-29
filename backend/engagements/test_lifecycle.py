@@ -148,6 +148,9 @@ class LifecycleTests(LifecycleBase):
         self.assertEqual((live.maintenance_ends_at - live.production_at).days, 30)  # Pro plan
         tick(now=live.maintenance_ends_at + timedelta(minutes=1))
         live.refresh_from_db()
+        self.assertEqual((live.status, bool(live.care_ended_at)), ("live", True))  # the conversation stays open 72 h
+        tick(now=live.maintenance_ends_at + timedelta(hours=72, minutes=2))
+        live.refresh_from_db()
         self.assertEqual(live.status, "closed")
 
     def test_three_versions_then_final_offer(self):

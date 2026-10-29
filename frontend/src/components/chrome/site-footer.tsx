@@ -2,19 +2,23 @@ import Link from "next/link";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { cacheLife } from "next/cache";
 import { getSite } from "@/lib/content";
+import { BrandIcon, type Brand } from "@/components/ui/brand-icon";
 import { CopyHandle } from "@/components/ui/copy-handle";
 import { SecurePayments } from "@/components/ui/secure-payments";
 import { LEGAL_LABELS, LEGAL_PAGES } from "@/i18n/legal";
 
 export default async function SiteFooter({ lang, t }: { lang: Locale; t: Dictionary }) {
   const site = await getSite(lang);
-  const social = [
-    { label: "GitHub", href: site.github_url },
-    { label: "LinkedIn", href: site.linkedin_url },
-    { label: "Instagram", href: site.instagram_url },
-    { label: "X", href: site.x_url },
-    { label: "Upwork", href: site.upwork_url },
-  ].filter((s) => s.href);
+  const whatsapp = site.whatsapp.replace(/[^\d]/g, "");
+  const links: { label: string; href: string; icon: Brand }[] = [
+    { label: "WhatsApp", href: whatsapp && `https://wa.me/${whatsapp}`, icon: "whatsapp" },
+    { label: "Instagram", href: site.instagram_url, icon: "instagram" },
+    { label: "LinkedIn", href: site.linkedin_url, icon: "linkedin" },
+    { label: "GitHub", href: site.github_url, icon: "github" },
+    { label: "X", href: site.x_url, icon: "x" },
+    { label: "Upwork", href: site.upwork_url, icon: "upwork" },
+  ];
+  const social = links.filter((s) => s.href);
   const pages = [
     { label: t.nav.work, href: `/${lang}/work` },
     { label: t.nav.services, href: `/${lang}#services` },
@@ -52,14 +56,16 @@ export default async function SiteFooter({ lang, t }: { lang: Locale; t: Diction
           <ul className="mt-4 space-y-2">
             {social.map((s) => (
               <li key={s.label}>
-                <a href={s.href} target="_blank" rel="noopener noreferrer" className="text-muted transition-colors hover:text-ink">
+                <a href={s.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 text-muted transition-colors hover:text-ink">
+                  <BrandIcon name={s.icon} />
                   {s.label}
                 </a>
               </li>
             ))}
             {site.discord_username && (
               <li>
-                <CopyHandle look="link" value={site.discord_username} label={`Discord · ${site.discord_username}`} copiedLabel={t.footer.copied} />
+                <CopyHandle look="link" value={site.discord_username} label={`Discord · ${site.discord_username}`} copiedLabel={t.footer.copied}
+                  icon={<BrandIcon name="discord" />} />
               </li>
             )}
           </ul>

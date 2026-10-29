@@ -79,6 +79,17 @@ def request_changed(req, action: str):
     push([user_group(req.client_id)] if req.status == "draft" else [user_group(req.client_id), STUDIO], event)
 
 
+def messages_read(req, reader_id: int, notifications: bool = False):
+    """
+    Someone opened a conversation: unread badges drop on every page that
+    shows them, and the sender's thread shows "Seen". The reader's bell is
+    refreshed too when their message notifications were cleared.
+    """
+    push([user_group(req.client_id), STUDIO], {"type": "read", "request": req.pk, "reference": req.reference, "reader": reader_id})
+    if notifications:
+        push([user_group(reader_id)], {"type": "notifications"})
+
+
 def message_posted(message):
     req = message.request
     event = {"type": "message", "request": req.pk, "reference": req.reference, "id": message.pk, "sender": message.sender_id}

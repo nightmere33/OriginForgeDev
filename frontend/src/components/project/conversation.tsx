@@ -7,6 +7,7 @@ import { fill } from "@/i18n/fill";
 import { useLiveRefresh } from "@/lib/live";
 import { api } from "@/lib/api-client";
 import { money, REACTIONS, type Attachment, type Message } from "@/lib/lifecycle";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatBytes, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
@@ -185,7 +186,8 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
   const mine = useCallback((m: Message) => (side === "studio") === m.from_studio, [side]);
 
   const load = useCallback(
-    () => api.get<Message[]>(`/requests/${reference}/messages/`).then((next) => {
+    // Seen only when actually seen: a thread open in a hidden tab reads without marking (peek).
+    () => api.get<Message[]>(`/requests/${reference}/messages/${document.visibilityState === "visible" ? "" : "?peek=1"}`).then((next) => {
       const prev = lastSeen.current;
       // A tone for what the other side just sent (never on the first load).
       if (prev !== null && next.some((m) => m.id > prev && !mine(m))) playReceived();
@@ -321,8 +323,11 @@ export function Conversation({ lang, t, side, reference, enabled, variant = "pan
     rows.push(
       <li key={m.id} data-msg={m.id}
         className={cn("group/msg relative flex flex-col", own ? "items-end" : "items-start", first ? "mt-3" : "mt-0.5", card && "mt-4")}>
-        {first && !own && <span className="hud mb-1 px-1 text-faint">{nameOf(m)}</span>}
+        {first && !own && <span className="hud mb-1 pl-10 pr-1 text-faint">{nameOf(m)}</span>}
         <div className={cn("relative flex max-w-[86%] items-end gap-2 sm:max-w-[78%]", own ? "flex-row-reverse" : "flex-row")}>
+          {/* The other side's face closes each of their groups, as in a messenger. */}
+          {!own && (last ? <Avatar name={m.sender_name} src={m.sender_avatar} studio={m.from_studio} className="size-8 self-end" />
+            : <span aria-hidden className="w-8 shrink-0" />)}
           <div
             onDoubleClick={() => react(m, REACTIONS[0])}
             onClick={(e) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export type ProjectTab = "overview" | "payments" | "progress" | "messages" | "files" | "contract";
@@ -12,18 +12,20 @@ export type TabSpec = { key: ProjectTab; label: string; badge?: number; dot?: bo
  * address (`?tab=payments`), so a notification, an e-mail link or a reload
  * lands on the right one, and Back is not polluted (it replaces, never pushes).
  */
+/** Open a tab: it lives in the address, so this works from any handler. */
+export function openProjectTab(tab: ProjectTab) {
+  const url = new URL(location.href);
+  if (tab === "overview") url.searchParams.delete("tab");
+  else url.searchParams.set("tab", tab);
+  // null, as Next documents it: its router then updates useSearchParams (its own state object would not).
+  history.replaceState(null, "", url);
+}
+
 export function useProjectTab(tabs: TabSpec[]): [ProjectTab, (tab: ProjectTab) => void] {
   const params = useSearchParams();
   const asked = params.get("tab") as ProjectTab | null;
   const active = tabs.some((t) => t.key === asked) ? asked! : "overview";
-  const open = useCallback((tab: ProjectTab) => {
-    const url = new URL(location.href);
-    if (tab === "overview") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    // null, as Next documents it: its router then updates useSearchParams (its own state object would not).
-    history.replaceState(null, "", url);
-  }, []);
-  return [active, open];
+  return [active, openProjectTab];
 }
 
 /**

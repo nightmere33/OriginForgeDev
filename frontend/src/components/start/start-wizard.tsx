@@ -12,7 +12,7 @@ import { useCurrency } from "@/lib/currency";
 import { useSession } from "@/lib/session";
 import type { CarePlan, Currency, Estimate, PricingFactor } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { ChoiceChip, Field, FileDrop, Input, Textarea, formatBytes, type DropFile } from "@/components/ui/field";
+import { Beside, ChoiceChip, Field, FileDrop, Input, Textarea, formatBytes, type DropFile } from "@/components/ui/field";
 import { Accented, Hud } from "@/components/ui/hud";
 import { cn } from "@/lib/cn";
 import { AuthGate } from "./auth-gate";
@@ -392,8 +392,8 @@ export default function StartWizard({
       if (!isUrlList(draft.reference_links)) e.reference_links = "https://…";
       // The phone is required (that's how a project gets moving); WhatsApp is optional but must be a number.
       if (!contact.phone) e.phone = s.phoneRequired;
-      else if (!isValidPhoneNumber(contact.phone)) e.phone = s.phoneInvalid;
-      if (!waSame && contact.whatsapp && !isValidPhoneNumber(contact.whatsapp)) e.whatsapp = s.phoneInvalid;
+      else if (!isValidPhoneNumber(contact.phone, "DZ")) e.phone = s.phoneInvalid;
+      if (!waSame && contact.whatsapp && !isValidPhoneNumber(contact.whatsapp, "DZ")) e.whatsapp = s.phoneInvalid;
     }
     return e;
   };
@@ -697,11 +697,13 @@ export default function StartWizard({
                     set("budget_max", max);
                   }} />
               </div>
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,20rem)_1fr] sm:items-end">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,20rem)_1fr] sm:items-start">
                 <Field label={s.deadline} error={errors.deadline}>
                   {(a) => <DatePicker id={a.id} lang={lang} min={today()} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={draft.deadline} onChange={(v) => set("deadline", v)} />}
                 </Field>
-                <ChoiceChip label={s.deadlineFlexible} checked={draft.deadline_flexible} onChange={(e) => set("deadline_flexible", e.target.checked)} />
+                <Beside>
+                  <ChoiceChip inline label={s.deadlineFlexible} checked={draft.deadline_flexible} onChange={(e) => set("deadline_flexible", e.target.checked)} />
+                </Beside>
               </div>
             </>
           )}
@@ -743,10 +745,12 @@ export default function StartWizard({
                         setErrors((e) => ({ ...e, phone: undefined }));
                       }} />}
                   </Field>
-                  <ChoiceChip label={s.whatsappSame} checked={waSame} onChange={(e) => {
-                    setWaSame(e.target.checked);
-                    setErrors((er) => ({ ...er, whatsapp: undefined }));
-                  }} className="self-end" />
+                  <Beside>
+                    <ChoiceChip inline label={s.whatsappSame} checked={waSame} onChange={(e) => {
+                      setWaSame(e.target.checked);
+                      setErrors((er) => ({ ...er, whatsapp: undefined }));
+                    }} />
+                  </Beside>
                   {!waSame && (
                     <Field label={s.whatsapp} error={errors.whatsapp} className="[animation:step-in_var(--dur-standard)_var(--ease-out)] sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
                       {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={contact.whatsapp} invalid={a.invalid} describedBy={a.describedBy}

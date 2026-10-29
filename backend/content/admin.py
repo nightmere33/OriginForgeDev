@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .models import (
     FAQ, CarePlan, CaseStudy, CaseStudyMedia, Credential, PricingChoice, PricingFactor, Service, ServicePrice,
-    SiteSettings, Tech, Testimonial,
+    SiteFilm, SiteSettings, Tech, Testimonial,
 )
 
 
@@ -40,6 +40,12 @@ class ServicePriceInline(admin.TabularInline):
     model = ServicePrice
     extra = 1
     fields = ("currency", "amount", "kind", "order")
+
+
+@admin.register(SiteFilm)
+class SiteFilmAdmin(admin.ModelAdmin):
+    list_display = ("kind", "language", "duration", "width", "height")
+    list_filter = ("kind", "language")
 
 
 @admin.register(Service)

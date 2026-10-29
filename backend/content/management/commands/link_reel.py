@@ -1,6 +1,7 @@
 """
-Point the showreel and the case-study films at the files listed in
-media/work/manifest.json, and nothing else (no copy, covers or galleries):
+Point the showreel, the site's own films (per language) and the case-study
+films at the files listed in media/work/manifest.json, and nothing else (no
+copy, covers or galleries):
 
     python manage.py link_reel
 
@@ -14,7 +15,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand, CommandError
 
-from content.models import CaseStudy, SiteSettings
+from content.models import CaseStudy, SiteFilm, SiteSettings
 
 
 class Command(BaseCommand):
@@ -38,6 +39,16 @@ class Command(BaseCommand):
         site.showreel_width, site.showreel_height = reel["width"], reel["height"]
         site.save()
         self.stdout.write(f"showreel: {reel['file']} ({reel['width']}x{reel['height']}, {reel.get('duration')} s)")
+
+        for film in manifest.get("site_films", []):
+            if not all(default_storage.exists(f) for f in (film["file"], film.get("file_av1"), film["poster"]) if f):
+                self.stdout.write(self.style.WARNING(f"{film['kind']} ({film['language']}): files not uploaded, skipped"))
+                continue
+            SiteFilm.objects.update_or_create(kind=film["kind"], language=film["language"], defaults={
+                "file": film["file"], "file_av1": film.get("file_av1", ""), "poster": film["poster"],
+                "width": film["width"], "height": film["height"], "duration": film.get("duration", 0),
+            })
+            self.stdout.write(f"{film['kind']} ({film['language']}): {film['file']}")
 
         studies = {s.slug: s for s in CaseStudy.objects.all()}
         for film in manifest.get("films", []):

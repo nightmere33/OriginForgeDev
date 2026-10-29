@@ -15,7 +15,7 @@ from django.dispatch import receiver
 
 from .models import (
     FAQ, CarePlan, CaseStudy, CaseStudyMedia, Credential, PricingChoice, PricingFactor, Service, ServicePrice,
-    SiteSettings, Tech, Testimonial,
+    SiteFilm, SiteSettings, Tech, Testimonial,
 )
 
 logger = logging.getLogger("originforge.content")
@@ -45,6 +45,7 @@ def tags_for(instance) -> list[str]:
         return ["work", f"work:{instance.case_study.slug}", "galaxy"]
     return {
         SiteSettings: ["site"],
+        SiteFilm: ["site"],
         Service: ["services"],
         ServicePrice: ["services"],
         Tech: ["tech"],

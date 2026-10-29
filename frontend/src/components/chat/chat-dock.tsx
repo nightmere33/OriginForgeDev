@@ -10,6 +10,7 @@ import { day, type ProjectRequest } from "@/lib/lifecycle";
 import { useLiveRefresh } from "@/lib/live";
 import { useSession } from "@/lib/session";
 import { cn } from "@/lib/cn";
+import { Avatar } from "@/components/ui/avatar";
 import { Conversation } from "@/components/project/conversation";
 import type { T } from "@/components/project/shared";
 
@@ -117,6 +118,8 @@ export function ChatDock({ lang, t }: { lang: Locale; t: T }) {
                       <li key={r.reference}>
                         <button type="button" onClick={() => setPicked(r.reference)}
                           className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-cell focus-visible:bg-cell focus-visible:outline-none">
+                          {side === "studio" && r.client ? <Avatar name={r.client.full_name} src={r.client.avatar_url} className="size-9" />
+                            : side === "client" && <Avatar name="Younes" studio className="size-9" />}
                           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                             <span className={cn("truncate text-sm", r.summary?.unread ? "text-ink-strong" : "text-ink")}>{r.title || r.reference}</span>
                             <span className="hud truncate text-faint">
@@ -139,11 +142,11 @@ export function ChatDock({ lang, t }: { lang: Locale; t: T }) {
       <button ref={launcher} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
         aria-label={unread ? `${c.open} · ${fill(t.portal.cards.unread, { n: unread })}` : c.open}
         className={cn(
-          "fixed bottom-5 right-5 z-[45] flex size-14 items-center justify-center border transition-[background-color,border-color,transform] duration-[var(--dur-micro)] active:translate-y-px",
+          "fixed bottom-4 right-4 z-[45] flex size-11 items-center lg:bottom-5 lg:right-5 lg:size-14 justify-center border transition-[background-color,border-color,transform] duration-[var(--dur-micro)] active:translate-y-px",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-400",
           open ? "border-line-strong bg-raised text-ink max-sm:hidden" : "border-transparent bg-steel-50 text-steel-950 shadow-[0_18px_48px_-20px_rgb(0_0_0/0.7)] hover:bg-steel-200",
         )}>
-        {open ? <X aria-hidden className="size-5" /> : <MessageCircle aria-hidden className="size-5" />}
+        {open ? <X aria-hidden className="size-4 lg:size-5" /> : <MessageCircle aria-hidden className="size-4 lg:size-5" />}
         {!open && unread > 0 && (
           <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center bg-ember-500 px-1 text-[0.65rem] tabular-nums text-on-ember"
             style={{ animation: "live-pulse 2.4s ease-in-out infinite" }}>{unread}</span>

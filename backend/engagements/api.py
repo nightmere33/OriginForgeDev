@@ -163,14 +163,29 @@ class TaskViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.Ge
 
 
 def request_messages(viewset, request, req: ProjectRequest):
-    """GET the conversation (marks the other side's messages read) or POST to it."""
+    """
+    GET the conversation, or POST to it. Reading marks the other side's
+    messages seen and clears this reader's message notifications for it, then
+    tells every open page (badges drop, the sender sees "Seen"). `?peek=1`
+    reads without marking: a conversation open in a hidden browser tab.
+    """
     if request.method == "GET":
-        unread = req.messages.filter(read_at__isnull=True)
-        if request.user.is_developer:
-            unread = unread.exclude(sender__role="developer").exclude(sender__is_staff=True)
-        else:
-            unread = unread.exclude(sender=request.user)
-        unread.update(read_at=timezone.now())
+        if request.query_params.get("peek") != "1":
+            unread = req.messages.filter(read_at__isnull=True)
+            if request.user.is_developer:
+                unread = unread.exclude(sender__role="developer").exclude(sender__is_staff=True)
+            else:
+                unread = unread.exclude(sender=request.user)
+            now = timezone.now()
+            seen = unread.update(read_at=now)
+            from live.models import Notification
+            from live.service import messages_read
+
+            cleared = Notification.objects.filter(
+                user=request.user, read_at__isnull=True, key__in=("new_message", "studio_message"), path__contains=req.reference,
+            ).update(read_at=now)
+            if seen or cleared:
+                messages_read(req, request.user.pk, notifications=bool(cleared))
         msgs = req.messages.select_related(
             "sender", "attachment__uploaded_by", "reply_to__sender", "reply_to__attachment", "charge",
         ).prefetch_related("reactions", "update__attachments__uploaded_by")

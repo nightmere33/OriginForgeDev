@@ -109,6 +109,43 @@ class SiteSettings(models.Model):
         return "Site settings"
 
 
+class SiteFilm(models.Model):
+    """
+    A film the site shows about itself, one cut per language: the showreel on
+    the home page, and the how-to beside the process and on the start page. A
+    language without its own cut gets the English one.
+    """
+
+    class Kind(models.TextChoices):
+        SHOWREEL = "showreel", "Showreel (home)"
+        HOWTO = "howto", "How to start a project"
+
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    language = models.CharField(max_length=2, choices=[("en", "English"), ("fr", "Français"), ("ar", "العربية")], default="en")
+    file = models.FileField(upload_to="site/", help_text="H.264 MP4 with sound")
+    file_av1 = models.FileField(upload_to="site/", blank=True, help_text="The same cut in AV1, for devices that decode it efficiently")
+    poster = models.ImageField(upload_to="site/", blank=True)
+    width = models.PositiveIntegerField(default=720)
+    height = models.PositiveIntegerField(default=1280)
+    duration = models.PositiveIntegerField(default=0, help_text="Seconds")
+
+    class Meta:
+        ordering = ("kind", "language")
+        constraints = [models.UniqueConstraint(fields=("kind", "language"), name="one_site_film_per_language")]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} ({self.language})"
+
+    @classmethod
+    def for_language(cls, lang: str) -> dict:
+        """{kind: film} for this language, English where it has none."""
+        out: dict[str, "SiteFilm"] = {}
+        for film in cls.objects.filter(language__in={lang, "en"}):
+            if film.kind not in out or film.language == lang:
+                out[film.kind] = film
+        return out
+
+
 class Service(models.Model):
     slug = models.SlugField(unique=True)
     order = models.PositiveSmallIntegerField(default=0)

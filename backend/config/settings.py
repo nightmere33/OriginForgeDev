@@ -186,6 +186,7 @@ REST_FRAMEWORK = {
         "draft": "120/hour",
         "message": "120/hour",
         "upload": "60/hour",
+        "avatar": "20/hour",
     },
 }
 
@@ -214,6 +215,8 @@ PRIVATE_MEDIA_ROOT = Path(os.environ.get("PRIVATE_MEDIA_ROOT", BASE_DIR / "priva
 # Django has said yes (X-Accel-Redirect). Empty in development: Django streams.
 PRIVATE_MEDIA_ACCEL_PREFIX = os.environ.get("PRIVATE_MEDIA_ACCEL_PREFIX", "")
 
+# Profile pictures scoring this or more on the explicit-content check are refused (accounts.avatar).
+AVATAR_NSFW_THRESHOLD = float(os.environ.get("AVATAR_NSFW_THRESHOLD", "0.5"))
 UPLOAD_MAX_BYTES = int(os.environ.get("UPLOAD_MAX_BYTES", str(25 * 1024 * 1024)))
 UPLOAD_MAX_FILES_PER_REQUEST = 10
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

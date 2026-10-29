@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 import type { Dictionary } from "@/i18n/dictionaries";
+import type { SiteFilm } from "@/lib/types";
+import FilmPlayer from "@/components/media/film-player";
 import { Accented, Hud } from "@/components/ui/hud";
 import { SectionEyebrow, SectionShell } from "@/components/ui/section-shell";
 import { gsap, ScrollTrigger, useGSAP } from "@/motion/gsap";
@@ -14,7 +16,7 @@ import { cn } from "@/lib/cn";
  * pin) keeps layout native and cheap; GSAP only reads progress. Below lg it
  * is a plain ordered list.
  */
-export default function ProcessSection({ t }: { t: Dictionary }) {
+export default function ProcessSection({ t, howto }: { t: Dictionary; howto?: SiteFilm }) {
   const root = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLSpanElement>(null);
   const [active, setActive] = useState(0);
@@ -56,6 +58,12 @@ export default function ProcessSection({ t }: { t: Dictionary }) {
             <p data-reveal className="mt-5 max-w-md text-lg leading-relaxed text-muted">
               {t.process.lead}
             </p>
+            {howto && (
+              <div data-reveal className="mt-8">
+                <FilmPlayer thumb film={{ h264: howto.file, av1: howto.av1, width: howto.width, height: howto.height }} poster={howto.poster}
+                  title={t.howto.title} duration={howto.duration} labels={{ watch: t.howto.watch, close: t.nav.close, kicker: t.howto.kicker }} />
+              </div>
+            )}
             <div aria-hidden className="mt-10 hidden items-end gap-4 lg:flex">
               <span className="font-display text-mega leading-none tracking-[-0.04em] text-ink-strong [font-stretch:125%] tabular-nums">
                 {String(active + 1).padStart(2, "0")}

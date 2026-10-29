@@ -31,6 +31,11 @@ def clean_country(value: str) -> str:
     return code
 
 
+def avatar_url(user) -> str:
+    """Site-relative, so it works behind any host; "" when there is none."""
+    return user.avatar.url if user and user.avatar else ""
+
+
 class UserSerializer(serializers.ModelSerializer):
     is_developer = serializers.BooleanField(read_only=True)
     email_verified = serializers.SerializerMethodField()
@@ -40,10 +45,15 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             "id", "email", "full_name", "handle", "role", "is_developer", "company", "phone",
             "whatsapp", "instagram", "messenger", "country", "country_code", "address", "city", "postal_code", "language",
-            "currency", "email_verified",
+            "currency", "email_verified", "avatar_url",
             "heard_from", "heard_from_detail", "contact_channel", "contact_handle", "onboarded", "has_password",
         )
         read_only_fields = ("id", "email", "role", "is_developer", "email_verified", "onboarded")
+
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj) -> str:
+        return avatar_url(obj)
 
     onboarded = serializers.SerializerMethodField()
 

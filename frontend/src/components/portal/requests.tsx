@@ -12,18 +12,22 @@ import { api, ApiError, type User } from "@/lib/api-client";
 import { day, money, stageOf, type ProjectRequest, type RequestSummary } from "@/lib/lifecycle";
 import { fetchSession, useSession } from "@/lib/session";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Field, Select, Textarea, formatBytes } from "@/components/ui/field";
+import { Beside, Field, Select, Textarea, formatBytes } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { StatusPill } from "@/components/ui/status";
 import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
+import { GridFill } from "@/components/ui/grid-fill";
+import { BrandIcon } from "@/components/ui/brand-icon";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/cn";
+import { scrollToElement } from "@/motion/smooth";
 import { ContractPanel } from "@/components/project/contract-panel";
 import { Conversation } from "@/components/project/conversation";
 import { ExtrasPanel, InvoiceList } from "@/components/project/extras";
 import { CarePanel, KeyDates, PlanCard } from "@/components/project/overview";
 import { DueCharge, PaymentsLedger } from "@/components/project/payments-panel";
 import { PaymentFollow } from "@/components/project/payment-follow";
-import { ProjectTabs, TabPanel, useProjectTab, type TabSpec } from "@/components/project/project-tabs";
+import { openProjectTab, ProjectTabs, TabPanel, useProjectTab, type TabSpec } from "@/components/project/project-tabs";
 import { ProposalBuilder } from "@/components/project/proposal-builder";
 import { ProposalCard } from "@/components/project/proposal-card";
 import { RevisionsPanel } from "@/components/project/revisions";
@@ -131,7 +135,7 @@ function waitingText(t: T, side: Side, w: RequestSummary["waiting"]) {
 
 /** Waiting on this side (an ember light), or on the other (a quiet note). */
 const waitingOnMe = (side: Side, w: RequestSummary["waiting"]) =>
-  side === "client" ? ["pay", "offer", "review", "sign", "answer"].includes(w) : ["proof", "offer_studio"].includes(w);
+  side === "client" ? ["pay", "offer", "review", "sign", "answer"].includes(w) : ["proof", "offer_studio", "new"].includes(w);
 
 /** The studio inbox: one row per request, with the plan, what is waiting and new messages. */
 function RequestRows({ lang, t, items, base }: { lang: Locale; t: T; items: ProjectRequest[]; base: string }) {
@@ -226,6 +230,7 @@ function ProjectCards({ lang, t, items, onChange }: { lang: Locale; t: T; items:
           </li>
         );
       })}
+      <GridFill count={items.length} cols={["sm:2", "xl:3"]} />
     </ul>
   );
 }
@@ -342,6 +347,7 @@ function Files({ lang, t, side, req }: { lang: Locale; t: T; side: Side; req: Pr
           </a>
         </li>
       ))}
+      <GridFill count={files.length} cols={["sm:2"]} />
     </ul>
   );
 }
@@ -375,8 +381,8 @@ function Header({ lang, t, req, back }: { lang: Locale; t: T; req: ProjectReques
   );
 }
 
-/** The one thing this side should do now, or null. */
-function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload: () => Promise<void>, user: User): ReactNode {
+/** The one thing this side should do now, or null. `contract` is the signing panel, built by the Hub. */
+function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload: () => Promise<void>, contract: ReactNode): ReactNode {
   const props = { lang, t, side, reload };
   const open = req.proposals?.find((p) => p.status === "sent");
   const eng = req.engagement;
@@ -388,9 +394,7 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
     return null;
   }
   if (req.contract?.status === "pending") {
-    return side === "client"
-      ? <ContractPanel {...props} contract={req.contract} reference={req.reference} defaultName={user.full_name} />
-      : <p className="text-muted">{t.project.contract.waiting}</p>;
+    return side === "client" ? contract : <p className="text-muted">{t.project.contract.waiting}</p>;
   }
   if (open?.can_respond) return <ProposalCard {...props} proposal={open} />;
   if (open) return <p className="text-muted">{side === "client" ? t.project.proposal.waitingYounes : t.project.proposal.waitingClient}</p>;
@@ -405,7 +409,24 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
  */
 function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; side: Side; req: ProjectRequest; reload: () => Promise<void>; user: User; top?: ReactNode }) {
   const props = { lang, t, side, reload };
-  const action = nextAction(lang, t, side, req, reload, user);
+  // While the signature is written, the panel stays put whatever the live refresh brings.
+  const [signing, setSigning] = useState(false);
+  const idBase = `project-${req.reference}`;
+  const onSigning = async (phase: "start" | "failed" | "done") => {
+    if (phase !== "done") return setSigning(phase === "start");
+    await reload();
+    setSigning(false);
+    openProjectTab("overview");
+    // The deposit replaces the long sheet: bring it into view once it is drawn.
+    setTimeout(() => {
+      const step = document.getElementById(`${idBase}-next`);
+      if (step) scrollToElement(step);
+    }, 80);
+  };
+  const contract = req.contract && (
+    <ContractPanel {...props} contract={req.contract} reference={req.reference} defaultName={user.full_name} onSigning={onSigning} />
+  );
+  const action = signing ? contract : nextAction(lang, t, side, req, reload, contract);
   const eng = req.engagement;
   const open = req.proposals?.find((p) => p.status === "sent");
   const accepted = req.proposals?.find((p) => p.status === "accepted");
@@ -426,7 +447,6 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
     ...(req.contract ? [{ key: "contract" as const, label: tb.contract, dot: req.contract.status === "pending" && side === "client" }] : []),
   ];
   const [tab, setTab] = useProjectTab(tabs);
-  const idBase = `project-${req.reference}`;
   const nothing = side === "client" && req.status !== "draft" && <p className="border-t border-line px-6 py-6 text-muted md:px-10">{t.project.nothingToDo}</p>;
 
   return (
@@ -438,7 +458,7 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
       <TabPanel idBase={idBase} active={tab}>
         {tab === "overview" && (
           <>
-            {action ? <NextStep t={t}>{action}</NextStep> : nothing}
+            {action ? <NextStep t={t} id={`${idBase}-next`}>{action}</NextStep> : nothing}
             {canPropose && <Panel title={t.project.proposal.title}><ProposalBuilder lang={lang} t={t} reload={reload} req={req} /></Panel>}
             {eng && (
               <Panel title={side === "client" ? t.project.plan.title : t.project.plan.studioTitle}>
@@ -496,9 +516,7 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
 
         {tab === "contract" && req.contract && (
           <>
-            <Panel title={t.project.contract.title}>
-              <ContractPanel {...props} contract={req.contract} reference={req.reference} defaultName={user.full_name} />
-            </Panel>
+            <Panel title={t.project.contract.title}>{contract}</Panel>
             {accepted && <Panel title={t.project.proposal.title}><ProposalCard {...props} proposal={accepted} /></Panel>}
             {eng && history.length > 0 && (
               <Panel title={t.project.proposal.history}>
@@ -582,13 +600,14 @@ function ClientBar({ t, req }: { t: T; req: ProjectRequest }) {
   const wa = c.whatsapp.replace(/[^\d]/g, "");
   return (
     <div className="flex flex-wrap items-center gap-3 border-t border-line px-6 py-5 md:px-10">
+      <Avatar name={c.full_name} src={c.avatar_url} className="size-9" />
       <Hud tone="faint" className="mr-auto">{t.studio.client} · {c.full_name}{c.company ? ` · ${c.company}` : ""}{c.country ? ` · ${c.country}` : ""}</Hud>
       <ButtonLink href={`mailto:${c.email}`} variant="secondary" size="sm"><Mail aria-hidden className="size-3.5" />{c.email}</ButtonLink>
       {c.phone && <ButtonLink href={`tel:${c.phone}`} variant="secondary" size="sm"><Phone aria-hidden className="size-3.5" />{c.phone}</ButtonLink>}
-      {wa && <ButtonLink href={`https://wa.me/${wa}`} variant="secondary" size="sm"><MessageCircle aria-hidden className="size-3.5" />WhatsApp</ButtonLink>}
+      {wa && <ButtonLink href={`https://wa.me/${wa}`} variant="secondary" size="sm"><BrandIcon name="whatsapp" />WhatsApp</ButtonLink>}
       {(c.instagram || (c.contact_channel === "instagram" && c.contact_handle)) && (() => {
         const handle = (c.instagram || c.contact_handle).replace(/^@/, "");
-        return <ButtonLink href={`https://instagram.com/${encodeURIComponent(handle)}`} variant="secondary" size="sm">Instagram · @{handle}</ButtonLink>;
+        return <ButtonLink href={`https://instagram.com/${encodeURIComponent(handle)}`} variant="secondary" size="sm"><BrandIcon name="instagram" />Instagram · @{handle}</ButtonLink>;
       })()}
       {c.messenger && (
         <ButtonLink href={`https://m.me/${encodeURIComponent(c.messenger)}`} variant="secondary" size="sm"><MessageCircle aria-hidden className="size-3.5" />Messenger</ButtonLink>
@@ -623,7 +642,7 @@ function MoveBar({ t, req, reload }: { t: T; req: ProjectRequest; reload: () => 
     }
   };
   return (
-    <div className="grid gap-4 border-t border-line px-6 py-6 md:grid-cols-[14rem_1fr_auto] md:items-end md:px-10">
+    <div className="grid gap-4 border-t border-line px-6 py-6 md:grid-cols-[14rem_1fr_auto] md:items-start md:px-10">
       <Field label={t.studio.move}>
         {(a) => (
           <Select id={a.id} value={to} onChange={(e) => setTo(e.target.value)}>
@@ -635,9 +654,11 @@ function MoveBar({ t, req, reload }: { t: T; req: ProjectRequest; reload: () => 
         )}
       </Field>
       <Field label={t.portal.note} error={error}>
-        {(a) => <Textarea id={a.id} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={note} placeholder={t.studio.notePlaceholder} onChange={(e) => setNote(e.target.value)} className="min-h-12" />}
+        {(a) => <Textarea id={a.id} aria-invalid={a.invalid} aria-describedby={a.describedBy} value={note} placeholder={t.studio.notePlaceholder} onChange={(e) => setNote(e.target.value)} rows={1} className="h-12 min-h-12" />}
       </Field>
-      <Button variant="ember" disabled={!to} loading={busy} onClick={apply}>{t.studio.apply}</Button>
+      <Beside from="md">
+        <Button variant="ember" disabled={!to} loading={busy} onClick={apply}>{t.studio.apply}</Button>
+      </Beside>
     </div>
   );
 }

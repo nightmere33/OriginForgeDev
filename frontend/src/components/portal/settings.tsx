@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { fill } from "@/i18n/fill";
 import { api, ApiError, type User } from "@/lib/api-client";
 import { CurrencyToggle, useCurrency } from "@/lib/currency";
 import { fetchSession, useSession } from "@/lib/session";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ChoiceChip, Field, Input, Select } from "@/components/ui/field";
+import { Beside, ChoiceChip, Field, Input, Select } from "@/components/ui/field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CountrySelect, englishName } from "@/components/ui/country-select";
 import { Hud } from "@/components/ui/hud";
@@ -25,6 +26,62 @@ function Band({ title, children }: { title: string; children: React.ReactNode })
       <Hud tone="faint" as="h3">{title}</Hud>
       <div className="flex max-w-2xl flex-col gap-6">{children}</div>
     </section>
+  );
+}
+
+/**
+ * The profile picture uploads on its own, at once: the server crops it,
+ * strips the photo data and checks it for explicit content before keeping it.
+ */
+function PictureField({ t, user }: { t: T; user: User }) {
+  const p = t.settings.picture;
+  const input = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<"" | "busy" | "saved">("");
+  const [error, setError] = useState<string>();
+  const send = async (file?: File) => {
+    setState("busy");
+    setError(undefined);
+    try {
+      if (file) {
+        const form = new FormData();
+        form.append("file", file);
+        await api.post("/auth/me/avatar/", form);
+      } else await api.delete("/auth/me/avatar/");
+      await fetchSession(true);
+      setState(file ? "saved" : "");
+    } catch (err) {
+      setState("");
+      setError(err instanceof ApiError ? err.field("file") ?? err.message : t.common.error);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="hud text-muted">{p.label}</span>
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="relative">
+          <Avatar name={user.full_name} src={user.avatar_url} className="size-16 text-sm" />
+          {state === "busy" && <span aria-hidden className="absolute inset-0 animate-pulse rounded-full bg-bg/60" />}
+        </span>
+        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" tabIndex={-1} aria-hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) send(file);
+          }} />
+        <Button type="button" variant="secondary" size="sm" loading={state === "busy"} onClick={() => input.current?.click()}>
+          {user.avatar_url ? p.change : p.choose}
+        </Button>
+        {user.avatar_url && state !== "busy" && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => send()}>{p.remove}</Button>
+        )}
+        <span role="status" className="hud text-faint">{state === "busy" ? p.checking : state === "saved" ? p.saved : ""}</span>
+      </div>
+      {error ? (
+        <p role="alert" className="flex items-center gap-2 text-sm text-err"><span aria-hidden className="size-1.5 shrink-0 bg-err" />{error}</p>
+      ) : (
+        <p className="text-sm text-faint">{p.help}</p>
+      )}
+    </div>
   );
 }
 
@@ -61,6 +118,7 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
   return (
     <form noValidate onSubmit={(e) => { e.preventDefault(); save(); }} className="contents">
       <Band title={s.profile}>
+        <PictureField t={t} user={user} />
         <Field label={s.email}>{(a) => <Input id={a.id} value={user.email} readOnly disabled />}</Field>
         {!user.email_verified && <VerifyNow t={t} user={user} />}
         <div className="grid gap-6 sm:grid-cols-2">
@@ -82,10 +140,12 @@ function ProfileForm({ lang, t, user }: { lang: Locale; t: T; user: User }) {
           <Field label={t.start.phone} error={errors.phone}>
             {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={form.phone} invalid={a.invalid} describedBy={a.describedBy} onChange={(v) => set("phone", v)} />}
           </Field>
-          <ChoiceChip label={t.start.whatsappSame} checked={waSame} onChange={(e) => {
-            setWaSame(e.target.checked);
-            setState("");
-          }} className="self-end" />
+          <Beside>
+            <ChoiceChip inline label={t.start.whatsappSame} checked={waSame} onChange={(e) => {
+              setWaSame(e.target.checked);
+              setState("");
+            }} />
+          </Beside>
           {!waSame && (
             <Field label={t.start.whatsapp} className="sm:col-span-2 sm:max-w-[calc(50%-0.75rem)]">
               {(a) => <PhoneInput id={a.id} lang={lang} labels={t.phoneInput} value={form.whatsapp} autoComplete="off" onChange={(v) => set("whatsapp", v)} />}

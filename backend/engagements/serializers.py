@@ -2,6 +2,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
+from accounts.serializers import avatar_url
 from common.i18n import pick, request_lang
 from content.models import CarePlan, PricingChoice, Service
 
@@ -48,12 +49,16 @@ class ClientSummarySerializer(serializers.Serializer):
     instagram = serializers.CharField()
     messenger = serializers.CharField()
     country = serializers.CharField()
+    avatar_url = serializers.SerializerMethodField()
     # From onboarding: where they'd rather talk, and how they found the studio.
     contact_channel = serializers.CharField()
     contact_channel_label = serializers.CharField(source="get_contact_channel_display")
     contact_handle = serializers.CharField()
     heard_from_label = serializers.CharField(source="get_heard_from_display")
     heard_from_detail = serializers.CharField()
+
+    def get_avatar_url(self, obj) -> str:
+        return avatar_url(obj)
 
 
 class ProjectRequestSerializer(serializers.ModelSerializer):
@@ -110,7 +115,7 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
         """
         What a project card shows without opening it: the plan, how much is
         paid, unread messages and what is waiting on whom (`waiting`: pay,
-        offer, review, sign, answer, proof, or "").
+        offer, review, sign, answer, proof, offer_studio, new, or "").
         """
         eng = getattr(obj, "engagement", None)
         plan = eng.plan_name if eng else (pick(obj.plan, "name", request_lang(self.context.get("request"))) if obj.plan else "")
@@ -132,6 +137,8 @@ class ProjectRequestSerializer(serializers.ModelSerializer):
                 out["waiting"] = "proof"
             elif eng.status == "client_review" or any(m.status == "review" for m in eng.milestones.all()):
                 out["waiting"] = "review"
+        elif obj.status == ProjectRequest.Status.SUBMITTED:
+            out["waiting"] = "new"
         elif obj.status == ProjectRequest.Status.ACCEPTED:
             out["waiting"] = "sign"
         elif obj.status == ProjectRequest.Status.PROPOSAL_SENT:

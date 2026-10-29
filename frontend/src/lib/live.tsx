@@ -5,7 +5,9 @@
  *
  *   notification  an in-app notification arrived
  *   request       a request or its project moved (offer, contract, payment, progress)
- *   message       a new message in a project conversation
+ *   message       a new message in a project conversation (or a reaction)
+ *   read          someone opened a conversation: unread badges drop, "Seen" shows
+ *   notifications the bell changed elsewhere (messages read): reload it
  *   resync        (local) the socket came back after a drop: refetch what you show
  *
  * The socket reconnects with backoff, pings so idle proxies keep it, and
@@ -20,7 +22,9 @@ export type LiveEvent =
   | { type: "hello" | "pong" | "resync" }
   | { type: "notification"; notification: AppNotification }
   | { type: "request"; id: number; reference: string; action: string }
-  | { type: "message"; request: number; reference: string; id: number; sender: number };
+  | { type: "message"; request: number; reference: string; id: number; sender: number }
+  | { type: "read"; request: number; reference: string; reader: number }
+  | { type: "notifications" };
 
 export type AppNotification = {
   id: number;
@@ -132,7 +136,7 @@ export function useLiveRefresh(refetch: () => unknown, reference?: string, { mes
     const hit =
       e.type === "resync" ||
       (e.type === "request" && (!reference || e.reference === reference)) ||
-      (messages && e.type === "message" && (!reference || e.reference === reference));
+      (messages && (e.type === "message" || e.type === "read") && (!reference || e.reference === reference));
     if (!hit) return;
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => refetch(), 150);
@@ -196,7 +200,7 @@ export function useNotifications(onNew?: (n: AppNotification) => void) {
         setStore({ ...store, items: [e.notification, ...store.items].slice(0, 30), unread: store.unread + 1 });
         onNew?.(e.notification);
       }
-    } else if (e.type === "resync") loadNotifications();
+    } else if (e.type === "resync" || e.type === "notifications") loadNotifications();
   });
   return user ? snapshot : EMPTY;
 }

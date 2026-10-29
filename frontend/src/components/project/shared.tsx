@@ -62,9 +62,9 @@ export function Panel({
 }
 
 /** The one call to action a side has right now: ember rule, raised cell. */
-export function NextStep({ t, children }: { t: T; children: ReactNode }) {
+export function NextStep({ t, children, id }: { t: T; children: ReactNode; id?: string }) {
   return (
-    <section aria-label={t.project.nextStep} className="border-t border-line px-6 py-8 md:px-10">
+    <section id={id} aria-label={t.project.nextStep} className="border-t border-line px-6 py-8 md:px-10">
       <Hud tone="ember" dot live>{t.project.nextStep}</Hud>
       <div className="mt-5 border-l-2 border-ember-500 bg-cell px-5 py-6 md:px-8">{children}</div>
     </section>

@@ -1,8 +1,9 @@
-import { AtSign, Download, Mail, MessageCircle, MessagesSquare } from "lucide-react";
+import { Download, Mail } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import type { Credential, SiteSettings, Tech } from "@/lib/types";
 import { Hud } from "@/components/ui/hud";
 import { ButtonLink } from "@/components/ui/button";
+import { BrandIcon } from "@/components/ui/brand-icon";
 import { CopyHandle } from "@/components/ui/copy-handle";
 import { SectionEyebrow, SectionShell } from "@/components/ui/section-shell";
 import ScrubText from "./scrub-text";
@@ -89,19 +90,19 @@ export default function AboutSection({
           )}
           {whatsapp && (
             <ButtonLink href={`https://wa.me/${whatsapp}`} variant="secondary" size="sm">
-              <MessageCircle aria-hidden className="size-3.5" />
+              <BrandIcon name="whatsapp" />
               WhatsApp
             </ButtonLink>
           )}
           {site.instagram_url && (
             <ButtonLink href={site.instagram_url} target="_blank" rel="noopener noreferrer" variant="secondary" size="sm">
-              <AtSign aria-hidden className="size-3.5" />
+              <BrandIcon name="instagram" />
               Instagram
             </ButtonLink>
           )}
           {site.discord_username && (
             <CopyHandle value={site.discord_username} label={`Discord · ${site.discord_username}`} copiedLabel={t.footer.copied}
-              icon={<MessagesSquare aria-hidden className="size-3.5" />} />
+              icon={<BrandIcon name="discord" />} />
           )}
           <ButtonLink href={`/${lang}/cv`} variant="primary" size="sm">
             <Download aria-hidden className="size-3.5" />

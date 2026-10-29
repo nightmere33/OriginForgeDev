@@ -10,7 +10,7 @@ import { SectionEyebrow, SectionShell } from "@/components/ui/section-shell";
 import ReelPlate from "@/components/media/reel-plate";
 import { pickVideo } from "@/lib/video";
 
-export type Reel = { file: string; av1?: string | null; poster: string; width: number; height: number };
+export type Reel = { file: string; av1?: string | null; poster: string; width: number; height: number; duration: number };
 
 /**
  * 04 / Showreel: the studio's own launch film in a phone, played with sound
@@ -77,7 +77,7 @@ export default function ShowreelSection({ t, reel }: { t: Dictionary; reel: Reel
             )}
           </div>
           <div data-reveal className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
-            <Hud tone="faint">65 s</Hud>
+            {reel.duration > 0 && <Hud tone="faint">{reel.duration} s</Hud>}
             <Hud tone="faint">9:16</Hud>
             <Hud tone="faint">three.js · Whisper · ffmpeg</Hud>
           </div>

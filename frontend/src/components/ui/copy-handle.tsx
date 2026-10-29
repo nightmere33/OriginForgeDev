@@ -32,7 +32,8 @@ export function CopyHandle({ value, label, copiedLabel, icon, look = "button" }:
 
   if (look === "link") {
     return (
-      <button type="button" onClick={copy} title={value} className="text-left text-muted transition-colors hover:text-ink">
+      <button type="button" onClick={copy} title={value} className="inline-flex items-center gap-2.5 text-left text-muted transition-colors hover:text-ink">
+        {icon}
         <DecodeText text={text} />
         {status}
       </button>

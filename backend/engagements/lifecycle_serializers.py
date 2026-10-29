@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
+from accounts.serializers import avatar_url
 from billing.models import Charge, Invoice, Payment, PaymentProof
 from content.models import CarePlan
 from fx import service as fx
@@ -266,6 +267,7 @@ class ChargeCardSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     from_studio = serializers.SerializerMethodField()
     sender_name = serializers.CharField(source="sender.full_name", read_only=True)
+    sender_avatar = serializers.SerializerMethodField()
     attachment = AttachmentSerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
     charge = ChargeCardSerializer(read_only=True)
@@ -274,11 +276,14 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ("id", "kind", "from_studio", "sender_name", "body", "attachment", "reply_to", "charge", "update",
+        fields = ("id", "kind", "from_studio", "sender_name", "sender_avatar", "body", "attachment", "reply_to", "charge", "update",
                   "reactions", "read_at", "created_at")
 
     def get_from_studio(self, obj) -> bool:
         return obj.sender.is_developer
+
+    def get_sender_avatar(self, obj) -> str:
+        return avatar_url(obj.sender)
 
     def get_reply_to(self, obj) -> dict | None:
         q = obj.reply_to

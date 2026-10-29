@@ -15,6 +15,16 @@ D=$APP/deploy
 sudo -u originforge -H tar -xzf /tmp/code.tar.gz -C "$APP"
 echo "code unpacked"
 
+# The location rules travel with the code (the server blocks, domain and
+# certificate stay). A rule nginx rejects never replaces the running one.
+SNIPPET=/etc/nginx/snippets/originforge-locations.conf
+if [ -f "$SNIPPET" ] && ! cmp -s "$D/nginx/locations.conf" "$SNIPPET"; then
+  cp "$SNIPPET" /tmp/of-locations.bak
+  install -m 644 "$D/nginx/locations.conf" "$SNIPPET"
+  if nginx -t 2>/dev/null; then systemctl reload nginx; echo "nginx locations updated"
+  else cp /tmp/of-locations.bak "$SNIPPET"; echo "nginx rejected the new locations; kept the old ones"; fi
+fi
+
 # 2. Each step runs from disk, fresh; with no ORIGIN given they keep the current address.
 bash "$D/setup_backend.sh"
 bash "$D/install_services.sh" >/dev/null

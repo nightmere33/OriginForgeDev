@@ -13,6 +13,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework import permissions, status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -128,6 +129,41 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class AvatarView(APIView):
+    """POST a `file` to set one's profile picture (see accounts.avatar), DELETE to remove it."""
+
+    parser_classes = [MultiPartParser]
+    throttle_scope = "avatar"
+
+    def post(self, request):
+        from .avatar import Refused, process
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response({"file": ["Choose a picture."]}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            picture, score = process(upload)
+        except Refused as refused:
+            if refused.status == 422:
+                record(request, "avatar.refused", request.user, score="explicit")
+            return Response({"file": [str(refused)]}, status=refused.status)
+        user = request.user
+        old = user.avatar.name if user.avatar else ""
+        user.avatar.save(picture.name, picture, save=False)
+        user.save(update_fields=["avatar"])
+        if old:
+            user.avatar.storage.delete(old)
+        record(request, "avatar.changed", user)
+        return Response(UserSerializer(user).data)
+
+    def delete(self, request):
+        user = request.user
+        if user.avatar:
+            user.avatar.delete(save=False)
+            user.save(update_fields=["avatar"])
+        return Response(UserSerializer(user).data)
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -360,6 +396,8 @@ class DeleteAccountView(APIView):
             for field in ("company", "phone", "whatsapp", "instagram", "messenger", "country", "country_code", "handle", "address", "city", "postal_code",
                           "contact_handle", "heard_from_detail"):
                 setattr(user, field, "")
+            if user.avatar:
+                user.avatar.delete(save=False)
             user.set_unusable_password()
             user.is_active = False
             user.email_verified_at = None

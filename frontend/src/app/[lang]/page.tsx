@@ -70,13 +70,8 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <Marquee items={t.ticker} />
       <WorkSection lang={lang} t={t} work={work} galaxy={galaxy} />
       <ServicesSection lang={lang} t={t} services={services} />
-      <ProcessSection t={t} />
-      {site.showreel && site.showreel_poster && (
-        <ShowreelSection
-          t={t}
-          reel={{ file: site.showreel, av1: site.showreel_av1, poster: site.showreel_poster, width: site.showreel_width, height: site.showreel_height }}
-        />
-      )}
+      <ProcessSection t={t} howto={site.films?.howto} />
+      {site.films?.showreel?.poster && <ShowreelSection t={t} reel={{ ...site.films.showreel, poster: site.films.showreel.poster }} />}
       <AboutSection lang={lang} t={t} site={site} tech={tech} credentials={credentials} />
       <ReviewsSection lang={lang} t={t} summary={reviews.summary} items={reviews.items} index={t.reviews.index} />
       <FaqSection t={t} faqs={faqs} index={rated ? "07" : t.faq.index} />

@@ -5,7 +5,7 @@ from common.i18n import TranslatedSerializer, lines, pick, request_lang
 
 from .models import (
     FAQ, CarePlan, CaseStudy, CaseStudyMedia, Credential, PricingChoice, PricingFactor, Service, ServicePrice,
-    SiteSettings, Tech, Testimonial,
+    SiteFilm, SiteSettings, Tech, Testimonial,
 )
 
 
@@ -59,7 +59,21 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         for field in ("availability", "location", "about"):
             data[field] = pick(instance, field, lang)
         data["about"] = lines(data["about"])
+        data["films"] = {kind: film_data(self.context.get("request"), film) for kind, film in SiteFilm.for_language(lang).items()}
+        if "showreel" not in data["films"] and instance.showreel:
+            # Before the first SiteFilm: the showreel set on the settings themselves.
+            data["films"]["showreel"] = {
+                "file": data["showreel"], "av1": data["showreel_av1"], "poster": data["showreel_poster"],
+                "width": instance.showreel_width, "height": instance.showreel_height, "duration": 0,
+            }
         return data
+
+
+def film_data(request, film) -> dict:
+    return {
+        "file": media_url(request, film.file), "av1": media_url(request, film.file_av1) or None,
+        "poster": media_url(request, film.poster) or None, "width": film.width, "height": film.height, "duration": film.duration,
+    }
 
 
 class ServicePriceSerializer(serializers.ModelSerializer):

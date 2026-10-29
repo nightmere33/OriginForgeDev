@@ -165,13 +165,19 @@
       }
     ]
   },
+  "howto": {
+    "kicker": "Guide",
+    "title": "Comment lancer votre projet sur OriginForge",
+    "watch": "Voir comment ça marche",
+    "watchStart": "Vous ne savez pas par où commencer ? Regardez le guide"
+  },
   "reel": {
     "index": "04",
     "label": "Showreel",
-    "annotation": "Rendu en code · 65 secondes",
+    "annotation": "Rendu en code",
     "title": [
-      "Soixante secondes ",
-      "d'OriginForge."
+      "Le studio, ",
+      "en un film."
     ],
     "lead": "Le film de lancement de ce studio, réalisé avec le même moteur que les publicités MediGate et Alquilar. Activez le son.",
     "play": "Lire le showreel avec le son",
@@ -622,7 +628,8 @@
         "sign": "Contrat à signer",
         "answer": "Une proposition à examiner",
         "proof": "Reçu en cours de vérification",
-        "offer_studio": "Contre-proposition envoyée"
+        "offer_studio": "Contre-proposition envoyée",
+        "new": "Envoyée, Younes vous répond bientôt"
       },
       "paid": "{percent} % payé",
       "unread": "{n} nouveau(x)",
@@ -1047,7 +1054,8 @@
       "sign": "Contrat non signé",
       "answer": "Proposition sans réponse",
       "proof": "Reçu à vérifier",
-      "offer_studio": "Contre-proposition à traiter"
+      "offer_studio": "Contre-proposition à traiter",
+      "new": "Nouvelle demande, à traiter"
     }
   },
   "project": {
@@ -1506,6 +1514,15 @@
     ],
     "lead": "Vos coordonnées, la façon dont le site s'adresse à vous, et votre mot de passe.",
     "profile": "Profil",
+    "picture": {
+      "label": "Photo de profil",
+      "help": "JPEG, PNG ou WebP, jusqu'à 8 Mo. Elle est recadrée en carré, nettoyée de ses données photo et vérifiée avant d'apparaître.",
+      "choose": "Choisir une photo",
+      "change": "Changer",
+      "remove": "Retirer",
+      "checking": "Vérification de la photo",
+      "saved": "Photo mise à jour"
+    },
     "preferences": "Préférences",
     "security": "Mot de passe",
     "language": "Langue",

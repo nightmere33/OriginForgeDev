@@ -23,10 +23,14 @@ export type SiteSettings = {
   showreel_poster: string | null;
   showreel_width: number;
   showreel_height: number;
+  /** The site's own films in the page's language (English where none): the showreel, the how-to. */
+  films: Partial<Record<"showreel" | "howto", SiteFilm>>;
   years_experience: number;
   projects_shipped: number;
   reply_hours: number;
 };
+
+export type SiteFilm = { file: string; av1: string | null; poster: string | null; width: number; height: number; duration: number };
 
 export type Service = {
   slug: string;

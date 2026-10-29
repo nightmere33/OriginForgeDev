@@ -43,6 +43,20 @@ export function Field({
   );
 }
 
+/**
+ * A control that sits in a row of labelled fields (a checkbox, a button): a
+ * blank label line above it on wide screens keeps it level with their inputs,
+ * whatever errors or help appear under them.
+ */
+export function Beside({ children, from = "sm", className }: { children: ReactNode; from?: "sm" | "md"; className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <span aria-hidden className={cn("hud invisible", from === "sm" ? "max-sm:hidden" : "max-md:hidden")}>&nbsp;</span>
+      {children}
+    </div>
+  );
+}
+
 const control =
   "w-full rounded-none border border-line bg-cell px-4 text-ink placeholder:text-faint " +
   "transition-[border-color,box-shadow] duration-[var(--dur-micro)] hover:border-line-strong " +
@@ -243,22 +257,24 @@ export function Select({ id, name, value, defaultValue, onChange, disabled, clas
 }
 
 /** Checkbox or radio drawn as a hairline tile. */
+/** `inline`: the height of an input, for a chip beside fields (inside `Beside`). */
 export function ChoiceChip({
-  label, description, type = "checkbox", className, ...props
-}: { label: string; description?: string } & ComponentProps<"input">) {
+  label, description, type = "checkbox", className, inline, ...props
+}: { label: string; description?: string; inline?: boolean } & ComponentProps<"input">) {
   return (
     <label
       className={cn(
         "group/chip relative flex cursor-pointer items-start gap-3 border border-line bg-cell p-4 transition-colors duration-[var(--dur-micro)]",
         "hover:border-line-strong has-[:checked]:border-ember-400 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ember-400",
         "has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50",
+        inline && "min-h-12 items-center px-4 py-2",
         className,
       )}
     >
       <input type={type} className="peer sr-only" {...props} />
       <span
         aria-hidden
-        className="mt-0.5 flex size-4 shrink-0 items-center justify-center border border-line-strong text-on-ember transition-colors peer-checked:border-ember-400 peer-checked:bg-ember-400 [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100"
+        className={cn(!inline && "mt-0.5", "flex size-4 shrink-0 items-center justify-center border border-line-strong text-on-ember transition-colors peer-checked:border-ember-400 peer-checked:bg-ember-400 [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100")}
       >
         <Check className="size-3" strokeWidth={3} />
       </span>

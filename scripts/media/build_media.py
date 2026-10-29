@@ -28,7 +28,9 @@ OUT = REPO / "backend" / "media" / "work"
 
 PROMO = PROJECTS / "originforge-promo/output/v4/OriginForge-Promo-EN-v4.mp4"
 # The film itself (the showreel) is the latest cut; galaxy and cover cuts keep their v4 timings.
-PROMO_FILM = PROJECTS / "originforge-promo/output/v5/OriginForge-Promo-EN-v5.mp4"
+PROMO_FILM = PROJECTS / "originforge-promo/output/v5/OriginForge-Promo-EN-v5.1.mp4"
+# "How to start a project on the site", shown beside the process and on the start page.
+HOWTO_EN = PROJECTS / "originforge-promo/output/howto/OriginForge-HowTo-EN.mp4"
 MEDIGATE = PROJECTS / "medigate-ad/out/MediGate-Pub-FR.mp4"
 ALQ_DIR = PROJECTS / "alquilar/ADS/Alquilar-ad-project/Airbnb Project file/Airbnb Project file"
 ALQ_HOST = ALQ_DIR / "Alquilar-output/Alquilar-Host-Reel-v2-Brian.mp4"
@@ -126,12 +128,19 @@ COVERS = [
 # Full films with sound, behind "Watch the film". The promo is also the showreel.
 FILMS = [
     # A new name per cut: the CDN and browsers cache media by URL.
-    ("originforge-promo-v5", PROMO_FILM, "product-films", 7.0),
+    ("originforge-promo-v5-1", PROMO_FILM, "product-films", 7.0),
     ("medigate-film", MEDIGATE, "medigate", 15.0),
     ("alquilar-film", ALQ_HOST, "alquilar", 9.0),
     ("csi-film", CSI_REC / "Movie_032.mp4", "csi-game", 20.0),
 ]
-REEL = "originforge-promo-v5"
+REEL = "originforge-promo-v5-1"
+
+# The site's own films, one cut per language: (kind, language, name, source, poster s).
+# A language without its cut falls back to English (content.SiteFilm). French
+# versions go here as they are made, e.g. ("howto", "fr", "originforge-howto-fr", HOWTO_FR, 2.0).
+SITE_FILMS = [
+    ("howto", "en", "originforge-howto-en", HOWTO_EN, 2.0),
+]
 
 # Gallery clips: (slug, name, source, start s | None, duration s | None, caption en, caption fr).
 # GameVerse sources are zip members (screen recordings, kept whole).
@@ -317,6 +326,12 @@ def build(only: str | None, force: bool) -> dict:
             manifest["films"].append({"name": name, "slug": slug, **item})
             if name == REEL:
                 manifest["reel"] = item
+        manifest["site_films"] = [{"kind": "showreel", "language": "en", **manifest["reel"]}] if manifest.get("reel") else []
+        for kind, language, name, src, poster_at in SITE_FILMS:
+            if not src.exists():
+                continue
+            item = encode(src, OUT / "films" / name, scale_for(src, 1280, 720), FILM, force, audio=True, poster_at=poster_at)
+            manifest["site_films"].append({"kind": kind, "language": language, **item})
 
     if wanted("clips"):
         (OUT / "clips").mkdir(parents=True, exist_ok=True)

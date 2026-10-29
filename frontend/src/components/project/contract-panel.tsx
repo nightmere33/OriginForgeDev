@@ -225,9 +225,14 @@ export function ContractSheet({ lang, t, contract, reference, preview, writing }
   );
 }
 
+/**
+ * `onSigning` hands the move-on to the page: "start" before the request (the
+ * live refresh that the signature triggers must not swap this panel out
+ * mid-animation), "failed", or "done" once the seal is pressed.
+ */
 export function ContractPanel({
-  lang, t, side, reload, contract, reference, defaultName,
-}: PanelProps & { contract: Contract; reference: string; defaultName: string }) {
+  lang, t, side, reload, contract, reference, defaultName, onSigning,
+}: PanelProps & { contract: Contract; reference: string; defaultName: string; onSigning?: (phase: "start" | "failed" | "done") => void }) {
   const s = t.project.contract;
   const [name, setName] = useState(defaultName);
   const [agree, setAgree] = useState(false);
@@ -239,13 +244,15 @@ export function ContractPanel({
   const sign = async () => {
     setBusy(true);
     setError(undefined);
+    onSigning?.("start");
     try {
       await api.post(`/contracts/${contract.id}/sign/`, { signed_name: name, agree });
       // The signature is written on the sheet before the page moves on to the deposit.
       setWriting({ name: name.trim(), at: new Date().toISOString() });
       const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setTimeout(() => reload(), reduce ? 600 : SIGNING_MS);
+      setTimeout(() => (onSigning ? onSigning("done") : reload()), reduce ? 600 : SIGNING_MS);
     } catch (err) {
+      onSigning?.("failed");
       setError(errorText(t, err, "agree", "signed_name"));
       setBusy(false);
     }

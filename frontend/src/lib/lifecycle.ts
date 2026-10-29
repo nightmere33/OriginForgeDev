@@ -220,6 +220,8 @@ export type Message = {
   kind: "text" | "charge" | "update" | "issue";
   from_studio: boolean;
   sender_name: string;
+  /** The sender's profile picture, or "". */
+  sender_avatar: string;
   body: string;
   attachment: Attachment | null;
   reply_to: { id: number; from_studio: boolean; sender_name: string; body: string; kind: string } | null;
@@ -237,8 +239,8 @@ export type RequestSummary = {
   total: number;
   percent: number;
   currency: Currency | "";
-  /** What is waiting, and on whom: the client pays / answers an offer / reviews / signs / answers a proposal; the studio checks a receipt or a counter-offer. */
-  waiting: "" | "pay" | "offer" | "proof" | "review" | "sign" | "answer" | "offer_studio";
+  /** What is waiting, and on whom: the client pays / answers an offer / reviews / signs / answers a proposal; the studio answers a new request, checks a receipt or a counter-offer. */
+  waiting: "" | "pay" | "offer" | "proof" | "review" | "sign" | "answer" | "offer_studio" | "new";
   unread: number;
   deadline: string | null;
   maintenance_ends_at: string | null;
@@ -282,7 +284,7 @@ export type ProjectRequest = {
   updated_at: string;
   client?: {
     full_name: string; email: string; company: string; phone: string; whatsapp: string; instagram: string; messenger: string; country: string;
-    contact_channel: string; contact_channel_label: string; contact_handle: string; heard_from_label: string; heard_from_detail: string;
+    avatar_url: string; contact_channel: string; contact_channel_label: string; contact_handle: string; heard_from_label: string; heard_from_detail: string;
   };
   // Detail only:
   proposals?: Proposal[];

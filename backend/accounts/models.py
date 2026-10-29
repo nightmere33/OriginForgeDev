@@ -1,6 +1,13 @@
+import uuid
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.db.models.functions import Lower
+
+
+def avatar_path(instance, filename):
+    """A fresh random name per picture: an old link never shows the new one, nor the other way round."""
+    return f"avatars/{uuid.uuid4().hex}.webp"
 
 
 class UserManager(BaseUserManager):
@@ -63,6 +70,8 @@ class User(AbstractUser):
     # How prices are shown to this person (amounts in a contract keep their own currency).
     currency = models.CharField(max_length=3, choices=[(c, c) for c in ("DZD", "EUR", "USD")], default="DZD")
     email_verified_at = models.DateTimeField(null=True, blank=True)
+    # Profile picture: always a 384 px WebP made by accounts.avatar (checked, no EXIF).
+    avatar = models.ImageField(upload_to=avatar_path, blank=True)
 
     # Onboarding (asked once after sign-up; editable in settings).
     class HeardFrom(models.TextChoices):

@@ -165,13 +165,19 @@
       }
     ]
   },
+  "howto": {
+    "kicker": "Guide",
+    "title": "How to start your project on OriginForge",
+    "watch": "Watch how it works",
+    "watchStart": "Not sure where to begin? Watch the guide"
+  },
   "reel": {
     "index": "04",
     "label": "Showreel",
-    "annotation": "Rendered in code · 65 seconds",
+    "annotation": "Rendered in code",
     "title": [
-      "Sixty seconds ",
-      "of OriginForge."
+      "The studio, ",
+      "in one film."
     ],
     "lead": "The launch film for this studio, made with the same engine as the MediGate and Alquilar ads. Turn the sound on.",
     "play": "Play the showreel with sound",
@@ -622,7 +628,8 @@
         "sign": "Contract to sign",
         "answer": "A proposal to answer",
         "proof": "Receipt being checked",
-        "offer_studio": "Counter-offer sent"
+        "offer_studio": "Counter-offer sent",
+        "new": "Sent, Younes will answer soon"
       },
       "paid": "{percent} % paid",
       "unread": "{n} new",
@@ -1047,7 +1054,8 @@
       "sign": "Contract unsigned",
       "answer": "Proposal unanswered",
       "proof": "Receipt to check",
-      "offer_studio": "Counter-offer to answer"
+      "offer_studio": "Counter-offer to answer",
+      "new": "New request, needs your answer"
     }
   },
   "project": {
@@ -1506,6 +1514,15 @@
     ],
     "lead": "Your details, how the site speaks to you, and your password.",
     "profile": "Profile",
+    "picture": {
+      "label": "Profile picture",
+      "help": "JPEG, PNG or WebP, up to 8 MB. It is cropped to a square, cleaned of its photo data and checked before it shows.",
+      "choose": "Choose a picture",
+      "change": "Change",
+      "remove": "Remove",
+      "checking": "Checking the picture",
+      "saved": "Picture updated"
+    },
     "preferences": "Preferences",
     "security": "Password",
     "language": "Language",

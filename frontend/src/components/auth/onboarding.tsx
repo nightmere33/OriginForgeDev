@@ -94,7 +94,7 @@ function Steps({ lang, t, user }: { lang: Locale; t: T; user: User }) {
   const checkYou = () => {
     const e: typeof errors = {};
     if (!a.full_name.trim()) e.full_name = o.you.name;
-    if (a.phone && !isValidPhoneNumber(a.phone)) e.phone = o.you.phoneHelp;
+    if (a.phone && !isValidPhoneNumber(a.phone, "DZ")) e.phone = o.you.phoneHelp;
     setErrors(e);
     return !Object.keys(e).length;
   };

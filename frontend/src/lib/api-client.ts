@@ -27,6 +27,8 @@ export type User = {
   language: "en" | "fr" | "ar";
   currency: "DZD" | "EUR" | "USD";
   email_verified: boolean;
+  /** Profile picture (a 384 px WebP checked by the server), or "". */
+  avatar_url: string;
   heard_from: string;
   heard_from_detail: string;
   contact_channel: "site" | "whatsapp" | "instagram" | "discord" | "email" | "phone";

@@ -23,12 +23,26 @@ const COPY = {
   },
 };
 
+// A tab opened before a deploy asks for code that changed: one fresh load fixes it.
+const STALE = /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i;
+const RELOADED = "of:stale-reload";
+
 /** A page that failed: the nav and footer stay, this panel takes the page's place. */
 export default function PageError({ error, retry }: { error: unknown; retry: () => void }) {
   const { lang } = useParams<{ lang: string }>();
   const t = lang === "fr" ? COPY.fr : COPY.en;
   useEffect(() => {
     console.error(error);
+    const text = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+    if (!STALE.test(text)) return;
+    try {
+      // Once a minute at most, so a real outage never loops.
+      if (Date.now() - Number(sessionStorage.getItem(RELOADED) || 0) < 60_000) return;
+      sessionStorage.setItem(RELOADED, String(Date.now()));
+    } catch {
+      return;
+    }
+    location.reload();
   }, [error]);
 
   return (

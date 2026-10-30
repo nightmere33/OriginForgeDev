@@ -5,6 +5,7 @@ import { Play, X } from "lucide-react";
 import { pickVideo, type VideoSources } from "@/lib/video";
 import { smooth } from "@/motion/smooth";
 import { cn } from "@/lib/cn";
+import { sized } from "@/lib/sized";
 import { ForgeVideo } from "./forge-video";
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
@@ -71,7 +72,7 @@ export default function FilmPlayer({
           <span className="relative block aspect-[9/16] w-16 shrink-0 overflow-hidden border border-line-strong bg-cell">
             {poster && (
               // eslint-disable-next-line @next/next/no-img-element -- a 64 px crop of the film's own poster
-              <img src={poster} alt="" loading="lazy" decoding="async"
+              <img src={sized(poster, 256)} alt="" loading="lazy" decoding="async"
                 className="size-full object-cover transition-transform duration-700 ease-out group-hover/thumb:scale-105" />
             )}
             <span className="absolute inset-0 flex items-center justify-center bg-black/30">

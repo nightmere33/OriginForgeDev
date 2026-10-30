@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { sized } from "@/lib/sized";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import type { CaseStudySummary, GalaxyItem } from "@/lib/types";
 import { Accented, Hud } from "@/components/ui/hud";
@@ -124,7 +125,7 @@ function WorkCell({
           <div className="flex items-center gap-3">
             {study.logo_mark && (
               // eslint-disable-next-line @next/next/no-img-element -- brand mark (SVG/PNG)
-              <img src={study.logo_mark} alt="" className="size-9 shrink-0" />
+              <img src={sized(study.logo_mark, 96)} alt="" className="size-9 shrink-0" />
             )}
             <h3 className="text-h3 tracking-[-0.02em] text-ink-strong">{study.title}</h3>
           </div>

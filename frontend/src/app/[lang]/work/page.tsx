@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { sized } from "@/lib/sized";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -75,7 +76,7 @@ export default async function WorkIndex({ params }: PageProps<"/[lang]/work">) {
                     <div className="flex items-center gap-3">
                       {study.logo_mark && (
                       // eslint-disable-next-line @next/next/no-img-element -- brand mark (SVG/PNG)
-                      <img src={study.logo_mark} alt="" className="size-9 shrink-0" />
+                      <img src={sized(study.logo_mark, 96)} alt="" className="size-9 shrink-0" />
                     )}
                       <h2 className="text-h3 tracking-[-0.02em] text-ink-strong">{study.title}</h2>
                     </div>

@@ -32,8 +32,15 @@ if ! sudo -u originforge -H bash -c "NEXT_TELEMETRY_DISABLED=1 npm run build > $
   exit 1
 fi
 # Standalone output needs the static assets and public/ beside server.js.
-sudo -u originforge bash -c "rm -rf $F/.next/standalone/.next/static $F/.next/standalone/public \
-  && cp -r $F/.next/static $F/.next/standalone/.next/static && cp -r $F/public $F/.next/standalone/public"
+# Earlier builds' chunks stay served for 14 days (their names are hashed, so
+# nothing clashes): a tab opened before this deploy still finds the code it
+# asks for when it navigates, instead of failing on a missing chunk.
+KEEP=/srv/originforge/shared/next-static
+install -d -o originforge -g originforge "$KEEP"
+sudo -u originforge bash -c "cp -r $F/.next/static/. $KEEP/ \
+  && find $KEEP -type f -mtime +14 -delete; find $KEEP -mindepth 1 -type d -empty -delete; \
+  rm -rf $F/.next/standalone/.next/static $F/.next/standalone/public \
+  && cp -r $KEEP $F/.next/standalone/.next/static && cp -r $F/public $F/.next/standalone/public"
 systemctl restart originforge-next
 sleep 4
 curl -s -o /dev/null -w "next /en -> %{http_code} (%{time_total}s)\n" http://127.0.0.1:3000/en

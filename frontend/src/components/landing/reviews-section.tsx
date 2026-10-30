@@ -85,7 +85,7 @@ export default function ReviewsSection({
                 <Link href={`/${lang}/work/${rv.project.slug}`} className="group/proj -mx-2 flex items-center gap-3 px-2 py-1.5 transition-colors hover:bg-cell">
                   {rv.project.mark ? (
                     // eslint-disable-next-line @next/next/no-img-element -- a small logo from the media server
-                    <img src={rv.project.mark} alt="" width={28} height={28} className="size-7 shrink-0 object-contain" />
+                    <img src={rv.project.mark} alt="" width={28} height={28} loading="lazy" decoding="async" className="size-7 shrink-0 object-contain" />
                   ) : (
                     <span aria-hidden className="size-2 shrink-0" style={{ background: rv.project.accent || "var(--ember-500)" }} />
                   )}

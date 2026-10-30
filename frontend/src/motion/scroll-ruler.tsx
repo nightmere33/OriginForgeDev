@@ -34,9 +34,14 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
  * behind the pointer. Section names live in SectionTitles. Sections opt in
  * with `data-ruler="Label"` and an id.
  */
+// The studio and the client space are tools, not stories: their dashboards
+// keep the native scrollbar, and no section name floats over their cards.
+const APP = /^\/(?:en|fr)\/(?:studio|portal)(?:\/|$)/;
+
 export default function ScrollRuler() {
   const pathname = usePathname();
-  const [enabled, setEnabled] = useState(false);
+  const [capable, setCapable] = useState(false);
+  const enabled = capable && !APP.test(pathname);
   const [marks, setMarks] = useState<Mark[]>([]);
   const railRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLDivElement>(null);
@@ -58,7 +63,7 @@ export default function ScrollRuler() {
     // a mouse attached still reports a fine pointer).
     const mobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     const query = matchMedia("(pointer: fine) and (hover: hover) and (min-width: 1024px)");
-    const update = () => setEnabled(!mobileUa && query.matches);
+    const update = () => setCapable(!mobileUa && query.matches);
     update();
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);

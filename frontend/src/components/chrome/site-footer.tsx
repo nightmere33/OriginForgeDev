@@ -5,6 +5,7 @@ import { getSite } from "@/lib/content";
 import { BrandIcon, type Brand } from "@/components/ui/brand-icon";
 import { CopyHandle } from "@/components/ui/copy-handle";
 import { SecurePayments } from "@/components/ui/secure-payments";
+import { AccountLink } from "./account-link";
 import { LEGAL_LABELS, LEGAL_PAGES } from "@/i18n/legal";
 
 export default async function SiteFooter({ lang, t }: { lang: Locale; t: Dictionary }) {
@@ -24,7 +25,6 @@ export default async function SiteFooter({ lang, t }: { lang: Locale; t: Diction
     { label: t.nav.services, href: `/${lang}#services` },
     { label: t.nav.process, href: `/${lang}#process` },
     { label: t.nav.start, href: `/${lang}/start` },
-    { label: t.nav.login, href: `/${lang}/login` },
   ];
 
   return (
@@ -49,6 +49,10 @@ export default async function SiteFooter({ lang, t }: { lang: Locale; t: Diction
                 </Link>
               </li>
             ))}
+            <li>
+              <AccountLink lang={lang} labels={{ login: t.nav.login, studio: t.nav.studio, portal: t.nav.portal }}
+                className="text-muted transition-colors hover:text-ink" />
+            </li>
           </ul>
         </nav>
         <div className="bg-bg px-6 py-10 md:px-8">

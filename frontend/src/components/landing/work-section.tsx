@@ -125,7 +125,7 @@ function WorkCell({
           <div className="flex items-center gap-3">
             {study.logo_mark && (
               // eslint-disable-next-line @next/next/no-img-element -- brand mark (SVG/PNG)
-              <img src={sized(study.logo_mark, 96)} alt="" className="size-9 shrink-0" />
+              <img src={sized(study.logo_mark, 96)} alt="" loading="lazy" decoding="async" className="size-9 shrink-0" />
             )}
             <h3 className="text-h3 tracking-[-0.02em] text-ink-strong">{study.title}</h3>
           </div>

@@ -42,7 +42,8 @@ export function SectionEyebrow({ index, label, annotation }: { index: string; la
           <span aria-hidden className="mx-2 text-faint">
             /
           </span>
-          {label}
+          {/* A label, not a sentence: pages that reuse their heading ("Your projects.") lose its full stop. */}
+          {label.replace(/\.$/, "")}
         </p>
         {annotation && <p className="hud hidden text-faint sm:block">{annotation}</p>}
       </div>

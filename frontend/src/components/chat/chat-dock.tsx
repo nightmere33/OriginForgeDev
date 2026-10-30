@@ -329,8 +329,8 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
       )}>
       <MessageCircle aria-hidden className="size-4 lg:size-5" />
       {unread > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center bg-ember-500 px-1 text-[0.65rem] tabular-nums text-on-ember"
-          style={{ animation: "live-pulse 2.4s ease-in-out infinite" }}>{unread}</span>
+        <span className="badge-ring absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center bg-ember-500 px-1 text-[0.65rem] tabular-nums text-on-ember"
+>{unread}</span>
       )}
     </button>
   );

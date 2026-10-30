@@ -201,7 +201,7 @@ export function ResetForm({ lang, t }: { lang: Locale; t: T }) {
       )}
       <FormError message={errors.form} />
       <PhaseButton phase={phase} labels={phases(uid ? a.phases.resetConfirm : a.phases.reset)} />
-      <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400">← <GlitchLabel text={a.submitLogin} /></Link>
+      <Link href={`/${lang}/login`} className="hud inline-flex min-h-11 items-center gap-1 text-muted hover:text-ember-400">← <GlitchLabel text={a.submitLogin} /></Link>
     </form>
   );
 }

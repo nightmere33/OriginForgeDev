@@ -93,7 +93,8 @@ export default function ServicesSection({ lang, t, services }: { lang: Locale; t
       <p className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line px-6 py-5 text-sm text-muted md:px-10">
         <Gamepad2 aria-hidden className="size-4 text-ember-400" />
         {t.services.alsoOnRequest}
-        <Link href={`/${lang}/start?service=game`} className="hud inline-flex items-center gap-2 text-ink transition-colors hover:text-ember-400">
+        {/* A full-height tap target on phones (the line itself stays compact). */}
+        <Link href={`/${lang}/start?service=game`} className="hud -my-3 inline-flex min-h-11 items-center gap-2 text-ink transition-colors hover:text-ember-400">
           {t.services.alsoOnRequestCta}
           <ArrowRight aria-hidden className="size-3.5 text-ember-400" />
         </Link>

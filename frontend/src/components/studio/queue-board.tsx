@@ -160,9 +160,9 @@ export function QueueBoard({ lang, t }: { lang: Locale; t: T }) {
                         {(a) => <Input id={a.id} inputMode="numeric" value={asking.days} autoFocus
                           onChange={(e) => setAsking({ ref: r.reference, days: e.target.value.replace(/\D/g, "").slice(0, 2) })} />}
                       </Field>
-                      <Button variant="ember" size="sm" loading={busy === `${r.reference}:deposit`}
+                      <Button variant="ember" loading={busy === `${r.reference}:deposit`}
                         onClick={() => askDeposit(r, Math.min(90, Math.max(1, Number(asking.days) || 5)))}>{q.askNow}</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setAsking(null)}>{q.cancel}</Button>
+                      <Button variant="ghost" onClick={() => setAsking(null)}>{q.cancel}</Button>
                       <p className="basis-full text-sm text-faint">{q.askHelp}</p>
                     </div>
                   )}

@@ -350,12 +350,15 @@ export function cents(lang: Locale, value: string | number, currency: string) {
   return `${parts.map((x) => (x.type === "group" ? " " : x.value)).join("")} ${currency}`;
 }
 
+// French writes the first of the month "1er" ("le 1er août"); Intl gives "1".
+const firstOfMonth = (lang: Locale, text: string) => (lang === "fr" ? text.replace(/^1(?=\s)/, "1er") : text);
+
 export function day(lang: Locale, iso: string, withYear = true) {
-  return new Intl.DateTimeFormat(intl(lang), { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(new Date(iso));
+  return firstOfMonth(lang, new Intl.DateTimeFormat(intl(lang), { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(new Date(iso)));
 }
 
 export function dateTime(lang: Locale, iso: string) {
-  return new Intl.DateTimeFormat(intl(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  return firstOfMonth(lang, new Intl.DateTimeFormat(intl(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)));
 }
 
 /**

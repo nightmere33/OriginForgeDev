@@ -410,6 +410,27 @@ html[data-motion] body:has([data-reveal-scope]) [data-choreo]:not([data-shown]) 
   }
 }
 
+/* An unread count: the number stays solid, a ring breathes out of it. */
+@keyframes badge-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--ember-500) 60%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--ember-500) 0%, transparent);
+  }
+}
+
+.badge-ring {
+  animation: badge-ring 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-ring {
+    animation: none;
+  }
+}
+
 @keyframes live-pulse {
   0%, 100% {
     opacity: 1;

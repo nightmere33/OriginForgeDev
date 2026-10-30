@@ -19,13 +19,17 @@ function Share({ charge, index }: { charge: Charge; index: number }) {
   );
 }
 
-function shareState(lang: Locale, p: P, c: Charge): string {
+function shareState(lang: Locale, p: P, c: Charge, studio?: boolean): string {
   if (c.status === "paid") {
     const when = c.paid_at ? fill(p.paidOn, { date: day(lang, c.paid_at) }) : p.statuses.paid;
     return c.paid_by ? `${when} · ${fill(p.paidVia, { method: p.methods[c.paid_by] })}` : when;
   }
   if (c.status === "due") return c.overdue ? p.overdue : c.due_at ? fill(p.payBy, { date: day(lang, c.due_at) }) : p.statuses.due;
-  if (c.status === "scheduled") return c.kind === "deposit" ? p.progress.when.depositLater : p.progress.when[c.kind as keyof P["progress"]["when"]];
+  if (c.status === "scheduled") {
+    // Worded for whoever reads it: "your review" to the client, "the client's review" to the studio.
+    const when = studio ? p.progress.whenStudio : p.progress.when;
+    return c.kind === "deposit" ? when.depositLater : when[c.kind as keyof P["progress"]["when"]];
+  }
   return p.statuses[c.status as keyof P["statuses"]] ?? c.status;
 }
 
@@ -35,8 +39,8 @@ function shareState(lang: Locale, p: P, c: Charge): string {
  * Labels sit under their share from `sm` up, as a list on phones. `compact`
  * is the bar alone with "payment n of N", above the form that pays it.
  */
-export function PaymentProgress({ lang, p, engagement, compact, className }: {
-  lang: Locale; p: P; engagement: Engagement; compact?: boolean; className?: string;
+export function PaymentProgress({ lang, p, engagement, compact, className, studio }: {
+  lang: Locale; p: P; engagement: Engagement; compact?: boolean; className?: string; studio?: boolean;
 }) {
   // The contract's own schedule; extras and offers are listed apart (they never change its total).
   const charges = engagement.charges.filter((c) => c.status !== "void" && c.kind !== "extra");
@@ -88,7 +92,7 @@ export function PaymentProgress({ lang, p, engagement, compact, className }: {
                 {c.label} <span className="hud text-faint">{c.percent} %</span>
               </span>
               <span className="font-mono text-sm tabular-nums text-ink">{money(lang, c.amount, c.currency)}</span>
-              <span className={cn("hud truncate", c.status === "due" ? (c.overdue ? "text-err" : "text-ember-400") : "text-faint")}>{shareState(lang, p, c)}</span>
+              <span className={cn("hud truncate", c.status === "due" ? (c.overdue ? "text-err" : "text-ember-400") : "text-faint")}>{shareState(lang, p, c, studio)}</span>
             </span>
           </li>
         ))}

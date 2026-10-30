@@ -97,7 +97,8 @@ export function ProposalCard({ lang, t, side, reload, proposal: p, compact }: Pa
               <p className="hud text-faint">{s.scope}</p>
               <p className="mt-3 whitespace-pre-line leading-relaxed text-ink">{p.scope}</p>
             </div>
-            <div className="flex flex-col gap-6">
+            {/* Only when there is something to list: an empty column left a gap under the scope on phones. */}
+            {(p.deliverables.length > 0 || p.exclusions.length > 0) && <div className="flex flex-col gap-6">
               {p.deliverables.length > 0 && (
                 <div>
                   <p className="hud text-faint">{s.deliverables}</p>
@@ -114,7 +115,7 @@ export function ProposalCard({ lang, t, side, reload, proposal: p, compact }: Pa
                   </ul>
                 </div>
               )}
-            </div>
+            </div>}
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">

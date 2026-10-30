@@ -418,7 +418,7 @@ function DaysAction({ t, label, go, help, initial, busy, onGo }: Pick<PanelProps
         <Field label={t.project.pay.daysToPay} className="w-32">
           {(a) => <Input id={a.id} inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, "").slice(0, 2))} />}
         </Field>
-        <Button variant="secondary" size="sm" loading={busy} onClick={() => onGo(n)}>{go}</Button>
+        <Button variant="secondary" loading={busy} onClick={() => onGo(n)}>{go}</Button>
       </div>
       <p className="text-sm text-faint">{help}</p>
     </div>
@@ -469,7 +469,7 @@ export function PaymentsLedger(props: PanelProps & { engagement: Engagement }) {
         || (c.status === "scheduled" && (started || c.kind === "deposit"))) && (
         <div>{contract.map((c) => <StudioCharge key={c.id} {...props} charge={c} started={started} />)}</div>
       )}
-      <PaymentProgress lang={lang} p={t.project.pay} engagement={engagement} />
+      <PaymentProgress lang={lang} p={t.project.pay} engagement={engagement} studio={side === "studio"} />
       {early && <PayEarly t={t} reload={props.reload} charge={early} />}
       {side === "studio" && (
         <div className="divide-y divide-line border-y border-line">

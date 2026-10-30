@@ -396,7 +396,7 @@
     "queue": {
       "hours": "Je lis chaque demande moi-même et je réponds sous {min} à {max} heures.",
       "direct": "{service} ne passe pas par la file : je le prends directement.",
-      "open": "Disponible maintenant : on peut commencer dès qu'on est d'accord sur le plan.",
+      "open": "Disponible maintenant : je peux commencer dès que nous sommes d'accord sur le plan.",
       "full": "Complet en ce moment : {active} projets en cours",
       "paused": "Les démarrages sont en pause pour peu de temps",
       "join": "Votre demande rejoint la file en position {n}.",
@@ -1279,6 +1279,9 @@
       "proofApproved": "Confirmé",
       "windowNote": "Le travail commence dès réception de l'acompte. Sans acompte à cette date, le contrat devient caduc.",
       "depositLaterLead": "Signé. Votre projet garde sa place dans la file : je vous demanderai l'acompte quand viendra son tour. Rien à payer d'ici là.",
+      "depositKept": "Signé. L'acompte attend son tour dans la file : demandez-le quand vous êtes prêt à démarrer.",
+      "depositWaiting": "Signé. En attente de l'acompte, à régler avant le {date}. Vous pouvez changer la date.",
+      "openPayments": "Ouvrir Paiements",
       "askDeposit": "Demander l'acompte maintenant",
       "daysToPay": "Jours pour payer",
       "changeDate": "Changer la date de paiement",
@@ -1333,6 +1336,12 @@
           "depositLater": "Demandé quand vient votre tour",
           "milestone": "Quand le travail est assez avancé",
           "balance": "Quand le travail est prêt à valider"
+        },
+        "whenStudio": {
+          "deposit": "Lance le travail",
+          "depositLater": "Demandé quand vient son tour",
+          "milestone": "Quand le travail est assez avancé",
+          "balance": "Quand le travail passe en validation client"
         }
       },
       "track": {

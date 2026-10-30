@@ -318,7 +318,7 @@ export function SettingsPage({ lang, t }: { lang: Locale; t: T }) {
   return (
     <>
       <div className="border-t border-line px-6 py-4 md:px-10">
-        <Link href={`/${lang}/${user.is_developer ? "studio" : "portal"}`} className="hud text-muted hover:text-ink">← {t.portal.requests}</Link>
+        <Link href={`/${lang}/${user.is_developer ? "studio" : "portal"}`} className="hud -my-3 inline-flex min-h-11 items-center text-muted hover:text-ink">← {t.portal.requests}</Link>
       </div>
       <ProfileForm lang={lang} t={t} user={user} />
       <PasswordForm t={t} hasPassword={user.has_password} />

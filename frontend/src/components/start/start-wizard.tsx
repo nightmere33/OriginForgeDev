@@ -599,7 +599,7 @@ export default function StartWizard({
                   disabled={i > step}
                   aria-current={i === step ? "step" : undefined}
                   className={cn(
-                    "hud flex w-full items-center gap-3 border-b border-transparent py-2 text-left transition-colors lg:border-line lg:py-4",
+                    "hud flex w-full min-w-11 items-center gap-3 border-b border-transparent py-2 text-left transition-colors lg:border-line lg:py-4",
                     i === step ? "text-ink" : i < step ? "text-muted hover:text-ink" : "text-faint",
                   )}
                 >

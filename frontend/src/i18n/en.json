@@ -396,7 +396,7 @@
     "queue": {
       "hours": "I read every request myself and answer within {min} to {max} hours.",
       "direct": "{service} doesn't wait in a queue: I take it on directly.",
-      "open": "Available now: we can start as soon as we agree on the plan.",
+      "open": "Available now: I can start as soon as we agree on the plan.",
       "full": "Full right now: {active} projects in progress",
       "paused": "New starts are paused for a short while",
       "join": "Your request joins the queue at #{n}.",
@@ -1279,6 +1279,9 @@
       "proofApproved": "Confirmed",
       "windowNote": "Work starts as soon as the deposit is in. Without it by that date, the agreement lapses.",
       "depositLaterLead": "Signed. Your project keeps its place in the queue: I'll ask for the deposit when its turn comes. Nothing to pay until then.",
+      "depositKept": "Signed. The deposit is kept for its turn in the queue: ask for it when you're ready to start.",
+      "depositWaiting": "Signed. Waiting for the deposit, due by {date}. You can move the date.",
+      "openPayments": "Open Payments",
       "askDeposit": "Ask for the deposit now",
       "daysToPay": "Days to pay",
       "changeDate": "Change the date to pay",
@@ -1333,6 +1336,12 @@
           "depositLater": "Asked when your turn comes",
           "milestone": "When the work is far enough along",
           "balance": "When the work is ready for your review"
+        },
+        "whenStudio": {
+          "deposit": "Starts the work",
+          "depositLater": "Asked when its turn comes",
+          "milestone": "When the work is far enough along",
+          "balance": "When the work goes to the client's review"
         }
       },
       "track": {

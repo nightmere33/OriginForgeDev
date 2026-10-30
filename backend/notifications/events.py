@@ -213,7 +213,8 @@ def _readable(value, lang: str):
 
     if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         y, m, d = (int(x) for x in value.split("-"))
-        return f"{d} {MONTHS.get(lang, MONTHS['en'])[m - 1]} {y}"
+        first = "1er" if lang == "fr" and d == 1 else d  # "le 1er août"
+        return f"{first} {MONTHS.get(lang, MONTHS['en'])[m - 1]} {y}"
     return value
 
 

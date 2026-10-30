@@ -376,7 +376,7 @@ function Header({ lang, t, req, back }: { lang: Locale; t: T; req: ProjectReques
   return (
     <>
       <div className="border-t border-line px-6 py-8 md:px-10">
-        <Link href={back} className="hud text-muted hover:text-ink">← {t.portal.requests}</Link>
+        <Link href={back} className="hud -my-3 inline-flex min-h-11 items-center text-muted hover:text-ink">← {t.portal.requests}</Link>
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <Hud tone="faint">{req.reference} · {req.service_title ?? "·"} · {day(lang, req.created_at)}</Hud>
@@ -421,6 +421,17 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
       if (review) return <ClientReview {...props} engagement={eng} />;
       // Signed while waiting in the queue: the deposit is asked when its turn comes.
       if (eng.status === "awaiting_deposit") return <p className="max-w-2xl leading-relaxed text-ink">{t.project.pay.depositLaterLead}</p>;
+    }
+    // Studio: a signed project waiting for its deposit (kept for its turn, or asked by a date).
+    const deposit = eng.charges.find((c) => c.kind === "deposit");
+    if (side === "studio" && eng.status === "awaiting_deposit" && deposit) {
+      const text = deposit.status === "due" && deposit.due_at ? fill(t.project.pay.depositWaiting, { date: day(lang, deposit.due_at) }) : t.project.pay.depositKept;
+      return (
+        <p className="max-w-2xl leading-relaxed text-ink">
+          {text}{" "}
+          <Link href={`/${lang}/studio/requests/${req.reference}?tab=payments`} className="text-ember-400 underline-offset-4 hover:underline">{t.project.pay.openPayments}</Link>
+        </p>
+      );
     }
     return null;
   }

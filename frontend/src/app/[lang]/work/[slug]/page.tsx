@@ -104,7 +104,7 @@ async function CaseStudy({ params }: { params: PageProps<"/[lang]/work/[slug]">[
     <>
       <SectionShell id="case" ruler={study.title}>
         <div className="flex items-center justify-between gap-4 border-b border-line px-6 py-3 md:px-10">
-          <Link href={`/${lang}/work`} className="hud inline-flex items-center gap-2 text-muted hover:text-ink">
+          <Link href={`/${lang}/work`} className="hud -my-3 inline-flex min-h-11 items-center gap-2 text-muted hover:text-ink">
             <ArrowLeft aria-hidden className="size-3.5" />
             {t.caseStudy.back}
           </Link>

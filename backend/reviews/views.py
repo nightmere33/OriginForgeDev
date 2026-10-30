@@ -34,7 +34,8 @@ class MyReviewsView(APIView):
             {"engagement": e.pk, "reference": e.request.reference, "title": e.request.title, "label": service._label(e)}
             for e in service.reviewable(request.user)
         ]
-        return Response({"eligible": eligible, "reviews": MyReviewSerializer(mine, many=True).data})
+        invites = [{"token": i.token, "project": i.case_study.title, "slug": i.case_study.slug} for i in service.pending_invites(request.user)]
+        return Response({"eligible": eligible, "reviews": MyReviewSerializer(mine, many=True).data, "invites": invites})
 
     def post(self, request):
         data = WriteReviewSerializer(data=request.data)
@@ -92,16 +93,30 @@ class StudioInvitesView(APIView):
     def get(self, request):
         from content.models import CaseStudy
 
+        from accounts.models import User
+
         invites = InviteSerializer(service.ReviewInvite.objects.select_related("case_study")[:100], many=True).data
         projects = list(CaseStudy.objects.filter(published=True).order_by("order").values("slug", "title"))
-        return Response({"invites": invites, "projects": projects})
+        # Client accounts to pick from, newest first (the client who just signed up is at the top).
+        accounts = list(User.objects.filter(is_active=True, is_staff=False).exclude(role=User.Role.DEVELOPER)
+                        .order_by("-date_joined").values("id", "full_name", "email", "language")[:300])
+        return Response({"invites": invites, "projects": projects, "accounts": accounts})
 
     def post(self, request):
         from content.models import CaseStudy
 
+        from accounts.models import User
+
         body = NewInviteSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         d = body.validated_data
+        if d.get("user"):
+            account = User.objects.filter(pk=d["user"], is_active=True, is_staff=False).exclude(role=User.Role.DEVELOPER).first()
+            if not account:
+                return Response({"user": ["Choose a client account."]}, status=status.HTTP_400_BAD_REQUEST)
+            d = {**d, "email": account.email, "full_name": d.get("full_name") or account.full_name, "language": account.language}
+        elif not d.get("email"):
+            return Response({"email": ["Choose an account or type an e-mail address."]}, status=status.HTTP_400_BAD_REQUEST)
         study = CaseStudy.objects.filter(slug=d["case_study"], published=True).first()
         if not study:
             return Response({"case_study": ["Choose a published project."]}, status=status.HTTP_400_BAD_REQUEST)

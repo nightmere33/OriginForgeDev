@@ -262,6 +262,7 @@ export function PortalHome({ lang, t }: { lang: Locale; t: T }) {
   return (
     <>
       <VerifyBanner t={t} user={user} />
+      <ReviewInvites lang={lang} t={t} />
       {!user.onboarded && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-cell px-6 py-3 md:px-10">
           <Hud tone="ink" dot>{t.portal.onboardBanner}</Hud>
@@ -279,6 +280,20 @@ export function PortalHome({ lang, t }: { lang: Locale; t: T }) {
       <ProjectCards lang={lang} t={t} items={items} onChange={refreshItems} />
     </>
   );
+}
+
+/** Reviews Younes asked for (a project done before the platform, like MediGate). */
+function ReviewInvites({ lang, t }: { lang: Locale; t: T }) {
+  const [invites, setInvites] = useState<{ token: string; project: string }[]>([]);
+  useEffect(() => {
+    api.get<{ invites?: { token: string; project: string }[] }>("/reviews/mine/").then((d) => setInvites(d.invites ?? []), () => undefined);
+  }, []);
+  return invites.map((i) => (
+    <div key={i.token} className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-cell px-6 py-3 md:px-10">
+      <Hud tone="ink" dot>{fill(t.portal.reviewInvite, { project: i.project })}</Hud>
+      <Link href={`/${lang}/reviews/invite/${i.token}`} className="hud text-ember-400 hover:underline">{t.portal.reviewInviteCta}</Link>
+    </div>
+  ));
 }
 
 function useRequest(enabled: boolean) {
@@ -304,9 +319,12 @@ function useRequest(enabled: boolean) {
 function Details({ lang, t, req }: { lang: Locale; t: T; req: ProjectRequest }) {
   // Labelled the way the client was asked (each service has its own questions).
   const brief = briefFor(req.service ?? "");
+  // Grouped like every other amount: "78 000 – 101 000 DZD".
+  const num = (n: number | null | undefined) => (n == null ? "?" : money(lang, n, "").trim());
+  const range = (low: number | null | undefined, high: number | null | undefined, currency: string) => `${num(low)} – ${num(high)} ${currency}`;
   const rows = [
-    { k: t.studio.budget, v: req.budget_min || req.budget_max ? `${req.budget_min ?? "?"} – ${req.budget_max ?? "?"} ${req.budget_currency}` : "" },
-    { k: t.studio.clientEstimate, v: req.estimate_low ? `${req.estimate_low} – ${req.estimate_high} ${req.estimate_currency}` : "" },
+    { k: t.studio.budget, v: req.budget_min || req.budget_max ? range(req.budget_min, req.budget_max, req.budget_currency) : "" },
+    { k: t.studio.clientEstimate, v: req.estimate_low ? range(req.estimate_low, req.estimate_high, req.estimate_currency) : "" },
     { k: t.studio.deadline, v: req.deadline ? `${day(lang, req.deadline)}${req.deadline_flexible ? " · flexible" : ""}` : "" },
     ...(req.choices ?? []).map((c) => ({ k: c.factor, v: c.choice })),
     { k: say(lang, brief.goal), v: req.objectives },
@@ -388,8 +406,19 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
   const eng = req.engagement;
   if (eng) {
     if (side === "client") {
-      if (eng.charges.some((c) => c.status === "due")) return <DueCharge {...props} engagement={eng} reference={req.reference} />;
-      if (eng.status === "client_review" || eng.milestones.some((m) => m.status === "review")) return <ClientReview {...props} engagement={eng} />;
+      const due = eng.charges.some((c) => c.status === "due");
+      const review = eng.status === "client_review" || eng.milestones.some((m) => m.status === "review");
+      // The final payment falls due as the work goes to review: test it first, then pay.
+      if (due && review) {
+        return (
+          <div className="flex flex-col gap-8">
+            <ClientReview {...props} engagement={eng} />
+            <div className="border-t border-line pt-8"><DueCharge {...props} engagement={eng} reference={req.reference} /></div>
+          </div>
+        );
+      }
+      if (due) return <DueCharge {...props} engagement={eng} reference={req.reference} />;
+      if (review) return <ClientReview {...props} engagement={eng} />;
     }
     return null;
   }
@@ -469,7 +498,7 @@ function Hub({ lang, t, side, req, reload, user, top }: { lang: Locale; t: T; si
               </Panel>
             )}
             {eng && ["live", "closed"].includes(eng.status) && (
-              <Panel title={t.project.care.title}><CarePanel {...props} engagement={eng} onReported={() => setTab("messages")} /></Panel>
+              <Panel title={t.project.care.title}><CarePanel {...props} engagement={eng} reference={req.reference} onReported={() => setTab("messages")} /></Panel>
             )}
             {side === "client" && eng && ["live", "closed"].includes(eng.status) && (
               <Panel title={t.project.review.title}><ReviewPanel r={t.project.review} reference={req.reference} user={user} /></Panel>

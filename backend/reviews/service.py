@@ -99,10 +99,12 @@ def moderate(request, review: Review, decision: str, reply: str = "", reason: st
     author = review.author
     if author and author.is_active:
         path = f"/portal/requests/{review.engagement.request.reference}" if review.engagement else "/portal/settings"
+        # To its author, the project by its own name ("Benali Dental"), not the public label (the service).
+        title = review.engagement.request.title if review.engagement else review.project_label
         if decision == "approve":
-            notify_client("review_published", author, path, title=review.project_label)
+            notify_client("review_published", author, path, title=title)
         elif decision == "reject":
-            notify_client("review_rejected", author, path, title=review.project_label, reason=review.rejection_reason)
+            notify_client("review_rejected", author, path, title=title, reason=review.rejection_reason)
     return review
 
 
@@ -112,19 +114,39 @@ def _target(review: Review):
 
 
 def invite(request, *, email: str, full_name: str, case_study, language: str) -> ReviewInvite:
-    """Ask a client from outside the platform for a review of this project."""
+    """
+    Ask a client from outside the platform for a review of this project. With
+    an account already on that address, the invitation also rings their bell
+    and waits in their client space; otherwise the e-mail asks them to sign up
+    with that address.
+    """
     from datetime import timedelta
 
-    from notifications.events import notify_address
+    from accounts.models import User
+    from notifications.events import notify_address, notify_client
 
+    email = email.lower().strip()
+    account = User.objects.filter(email__iexact=email, is_active=True).first()
+    if account:
+        full_name = full_name.strip() or account.full_name
+        language = account.language
     inv = ReviewInvite.objects.create(
-        email=email.lower().strip(), full_name=full_name.strip(), language=language if language in ("en", "fr") else "en",
+        email=email, full_name=full_name.strip(), language=language if language in ("en", "fr") else "en",
         case_study=case_study, created_by=request.user, expires_at=timezone.now() + timedelta(days=ReviewInvite.VALID_DAYS),
     )
     record(request, "review.invited", case_study, email=inv.email)
-    notify_address("review_invite_project", inv.email, inv.full_name, inv.language, f"/reviews/invite/{inv.token}",
-                   project=case_study.title)
+    path = f"/reviews/invite/{inv.token}"
+    if account:
+        notify_client("review_invite_account", account, path, project=case_study.title)
+    else:
+        notify_address("review_invite_project", inv.email, inv.full_name, inv.language, path, project=case_study.title)
     return inv
+
+
+def pending_invites(user) -> list[ReviewInvite]:
+    """Invitations still open for this account's address."""
+    return list(ReviewInvite.objects.select_related("case_study").filter(
+        email=user.email.lower(), used_at__isnull=True, expires_at__gt=timezone.now()))
 
 
 def open_invite(token: str) -> ReviewInvite | None:

@@ -103,7 +103,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
           position="bottom-right"
           // Above the chat launcher (bottom right in the client space and the studio).
           offset={{ bottom: 92, right: 20 }}
-          mobileOffset={{ bottom: 84 }}
+          mobileOffset={{ bottom: "calc(84px + var(--bottom-bar, 0px))" }}
           toastOptions={{
             unstyled: true,
             classNames: {

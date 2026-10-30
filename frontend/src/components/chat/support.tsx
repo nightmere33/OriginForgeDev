@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUpRight, Bot, Send, Star } from "lucide-react";
+import { ArrowUpRight, Bot, Send, Star, UserRound } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { fill } from "@/i18n/fill";
 import { api, ApiError } from "@/lib/api-client";
@@ -112,11 +112,13 @@ export function TicketThread({ lang, t, side, reference, paused = false }: {
 /** Opening a ticket: what about, the message, and what to expect (newcomers see that plans are answered first). */
 export function NewTicket({ lang, t, projects, initial, onCreated, onCancel }: {
   lang: Locale; t: DockT; projects: ProjectRequest[];
-  initial?: { subject?: string; body?: string; transcript?: { role: "user" | "assistant"; text: string }[] };
+  initial?: { subject?: string; body?: string; request?: string; category?: string; transcript?: { role: "user" | "assistant"; text: string }[] };
   onCreated: (ticket: Ticket) => void; onCancel: () => void;
 }) {
   const s = t.support;
-  const [form, setForm] = useState({ subject: initial?.subject ?? "", body: initial?.body ?? "", category: "question", request: "" });
+  const [form, setForm] = useState({
+    subject: initial?.subject ?? "", body: initial?.body ?? "", category: initial?.category ?? "question", request: initial?.request ?? "",
+  });
   const [standing, setStanding] = useState<Standing | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -175,7 +177,11 @@ export function NewTicket({ lang, t, projects, initial, onCreated, onCancel }: {
 }
 
 type Turn = { role: "user" | "assistant"; text: string; sources?: { title: string; url: string }[]; film?: string; handoff?: boolean };
+type Line = { role: "user" | "assistant"; text: string };
+export type Handoff = { subject: string; body: string; transcript: Line[] };
 const STORE = "of:assistant";
+// A guest who asked for Younes signs in first; the dock picks it up after.
+const PENDING = "of:handoff";
 
 function readTurns(): Turn[] {
   try {
@@ -186,12 +192,31 @@ function readTurns(): Turn[] {
   }
 }
 
+/** A new ticket from the chat so far: the first question as its subject, the transcript attached. */
+function handoff(turns: Line[]): Handoff {
+  const asked = turns.filter((x) => x.role === "user");
+  return { subject: (asked[0]?.text ?? "").slice(0, 120), body: asked[asked.length - 1]?.text ?? "", transcript: turns };
+}
+
+/** The ticket a guest asked for before signing in, once (null when there is none). */
+export function takeHandoff(): Handoff | null {
+  try {
+    if (sessionStorage.getItem(PENDING) !== "1") return null;
+    sessionStorage.removeItem(PENDING);
+  } catch {
+    return null;
+  }
+  return handoff(readTurns().map(({ role, text }) => ({ role, text })));
+}
+
 /**
- * The assistant: answers at once from the site's own information, with a
- * film when it helps, and always one tap from a person ("Talk to Younes").
+ * The assistant, for visitors without a project yet: answers at once from the
+ * site's own information, with a film when it helps, and always one tap from
+ * a person ("Talk to Younes" opens a ticket; a guest signs in first and the
+ * ticket is waiting, transcript attached, when they come back).
  */
 export function AssistantChat({ lang, t, signedIn, onHandoff }: {
-  lang: Locale; t: DockT; signedIn: boolean; onHandoff: (turns: { role: "user" | "assistant"; text: string }[]) => void;
+  lang: Locale; t: DockT; signedIn: boolean; onHandoff: (ticket: Handoff) => void;
 }) {
   const a = t.assistant;
   const pathname = usePathname();
@@ -224,6 +249,22 @@ export function AssistantChat({ lang, t, signedIn, onHandoff }: {
     }
   };
 
+  const talk = (inline?: boolean) => signedIn ? (
+    <button type="button" onClick={() => onHandoff(handoff(turns.map(({ role, text: x }) => ({ role, text: x }))))}
+      className={cn("hud flex items-center gap-1.5 text-ember-400 hover:underline", inline && "self-start border border-ember-700/70 px-2.5 py-1.5 hover:border-ember-400 hover:no-underline")}>
+      <UserRound aria-hidden className="size-3.5" />{a.talk}
+    </button>
+  ) : (
+    <Link href={`/${lang}/login?next=${encodeURIComponent(pathname)}`} onClick={() => {
+      try {
+        sessionStorage.setItem(PENDING, "1");
+      } catch {}
+    }}
+      className={cn("hud flex items-center gap-1.5 text-ember-400 hover:underline", inline && "self-start border border-ember-700/70 px-2.5 py-1.5 hover:border-ember-400 hover:no-underline")}>
+      <UserRound aria-hidden className="size-3.5" />{t.support.signIn}
+    </Link>
+  );
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ol ref={list} data-lenis-prevent aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3 [overscroll-behavior:contain]">
@@ -247,6 +288,8 @@ export function AssistantChat({ lang, t, signedIn, onHandoff }: {
             <span className="flex min-w-0 flex-col gap-2">
               <span className="whitespace-pre-line rounded-[1.15rem] rounded-tl-md border border-line bg-cell px-3.5 py-2.5 text-ink [overflow-wrap:anywhere]">{turn.text}</span>
               {turn.film === "howto" && <ShareCard lang={lang} t={t} share="howto" />}
+              {/* Not something the assistant can settle: the way to a person, right here. */}
+              {turn.handoff && talk(true)}
               {turn.sources && turn.sources.length > 0 && (
                 <span className="flex flex-wrap gap-x-4 gap-y-1">
                   {turn.sources.map((src) => (
@@ -270,13 +313,7 @@ export function AssistantChat({ lang, t, signedIn, onHandoff }: {
           </Button>
         </form>
         <span className="flex items-center justify-between gap-3 px-2 pb-1">
-          {signedIn ? (
-            <button type="button" onClick={() => onHandoff(turns.map(({ role, text: x }) => ({ role, text: x })))}
-              className="hud text-ember-400 hover:underline">{a.talk}</button>
-          ) : (
-            <Link href={`/${lang}/login?next=${encodeURIComponent(pathname)}`}
-              className="hud text-ember-400 hover:underline">{t.support.signIn}</Link>
-          )}
+          {talk()}
           {turns.length > 0 && <button type="button" onClick={() => setTurns([])} className="hud text-faint hover:text-ink">{a.clear}</button>}
         </span>
       </div>

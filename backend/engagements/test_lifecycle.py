@@ -138,6 +138,8 @@ class LifecycleTests(LifecycleBase):
         self.ok(dev.post(f"/api/engagements/{eng['id']}/action/", {"action": "ready_for_review"}, format="json"))
         eng = self.ok(alice.post(f"/api/engagements/{eng['id']}/action/", {"action": "approve"}, format="json"))
         self.assertEqual((eng["status"], eng["charges"][1]["status"]), ("awaiting_balance", "due"))
+        # The whole delivery approved: the second milestone isn't left "in progress".
+        self.assertEqual([m["status"] for m in eng["milestones"]], ["approved", "approved"])
 
         # Launch only once everything is paid; maintenance follows the plan.
         self.assertEqual(dev.post(f"/api/engagements/{eng['id']}/action/", {"action": "go_live"}, format="json").status_code, 400)
@@ -252,6 +254,32 @@ class LifecycleTests(LifecycleBase):
         self.assertTrue(any("your turn" in m.subject.lower() and m.to == ["bob@example.com"] for m in mail.outbox))
         # The released request holds the place: nobody else is let through.
         self.assertEqual(tick()["queue_released"], 0)
+
+    def test_a_queued_request_answered_and_signed_leaves_the_queue_for_good(self):
+        from content.models import SiteSettings
+        from engagements import queue
+        from engagements.models import Engagement
+
+        site = SiteSettings.load()
+        site.max_active_projects = 1
+        site.save()
+        self.started_project()  # Alice's: the only place
+        bob = self.api(self.bob)
+        req = self.ok(bob.post("/api/requests/", {"title": "Clinic site", "objectives": "Bookings", "service": "web-platforms"}, format="json"), 201)
+        ref = req["reference"]
+        self.assertEqual(req["queue"]["position"], 1)
+
+        # Younes answers it with a proposal anyway; Bob signs.
+        v1 = self.offer(ref)
+        self.ok(bob.post(f"/api/proposals/{v1['id']}/respond/", {"action": "accept"}, format="json"))
+        contract = self.ok(bob.get(f"/api/requests/{ref}/"))["contract"]
+        eng = self.ok(bob.post(f"/api/contracts/{contract['id']}/sign/", {"signed_name": "Bob B", "agree": True}, format="json"), 201)
+        self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
+
+        # Live: never "#1 in the queue" again, and it holds no place.
+        Engagement.objects.filter(pk=eng["id"]).update(status=Engagement.Status.LIVE)
+        self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
+        self.assertEqual((queue.used(queue.STUDIO), queue.waiting(queue.STUDIO).count()), (1, 0))
 
     def test_direct_services_never_queue_and_the_studio_can_take_one_now(self):
         from content.models import Service, SiteSettings

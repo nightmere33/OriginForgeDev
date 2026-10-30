@@ -143,3 +143,34 @@ class ReviewTests(TestCase):
         item = APIClient().get("/api/reviews/").json()["items"][0]
         self.assertEqual(item["project"]["slug"], "medigate")
         self.assertEqual(dev.get("/api/reviews/studio/invites/").json()["invites"][0]["state"], "used")
+
+    def test_an_invite_to_an_account_picked_in_the_studio(self):
+        from django.core import mail
+
+        from live.models import Notification
+
+        CaseStudy.objects.create(slug="medigate", title="MediGate", published=True, tagline_en="Revision", summary_en="s")
+        self.bob.language = "fr"
+        self.bob.save(update_fields=["language"])
+        dev = self.api(self.dev)
+        accounts = dev.get("/api/reviews/studio/invites/").json()["accounts"]
+        self.assertIn(self.bob.pk, [a["id"] for a in accounts])
+        self.assertNotIn(self.dev.pk, [a["id"] for a in accounts])  # never the studio itself
+        self.assertEqual(dev.post("/api/reviews/studio/invites/", {"user": self.dev.pk, "case_study": "medigate"}, format="json").status_code, 400)
+        self.assertEqual(dev.post("/api/reviews/studio/invites/", {"case_study": "medigate"}, format="json").status_code, 400)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            res = dev.post("/api/reviews/studio/invites/", {"user": self.bob.pk, "case_study": "medigate"}, format="json")
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual((res.data["email"], res.data["full_name"], res.data["language"]), ("bob@example.com", "Bob B", "fr"))
+        # E-mail in his language, the bell, and a card in his client space.
+        self.assertEqual(mail.outbox[-1].to, ["bob@example.com"])
+        self.assertIn("MediGate", mail.outbox[-1].subject)
+        self.assertTrue(Notification.objects.filter(user=self.bob, key="review_invite_account").exists())
+        waiting = self.ok(self.api(self.bob).get("/api/reviews/mine/"))["invites"]
+        self.assertEqual([(i["project"], i["slug"]) for i in waiting], [("MediGate", "medigate")])
+        self.assertEqual(self.ok(self.api(self.alice).get("/api/reviews/mine/"))["invites"], [])
+
+        body = {"rating": 5, "body": "Clear, fast and careful work on our platform.", "display_name": "Bob B", "consent": True}
+        self.ok(self.api(self.bob).post(f"/api/reviews/invites/{waiting[0]['token']}/", body, format="json"), 201)
+        self.assertEqual(self.ok(self.api(self.bob).get("/api/reviews/mine/"))["invites"], [])

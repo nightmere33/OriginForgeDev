@@ -89,7 +89,9 @@ class InviteSerializer(serializers.ModelSerializer):
 
 
 class NewInviteSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    # An account picked in the studio, or an address typed for someone without one yet.
+    user = serializers.IntegerField(required=False)
+    email = serializers.EmailField(required=False)
     full_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
     case_study = serializers.SlugField()
     language = serializers.ChoiceField(choices=("en", "fr"), default="en")

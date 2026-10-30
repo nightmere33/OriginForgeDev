@@ -606,7 +606,8 @@ export default function StartWizard({
                   <span className={cn("flex size-6 items-center justify-center border", i === step ? "border-ember-400 text-ember-400" : i < step ? "border-line-strong" : "border-line")}>
                     {i < step ? <Check aria-hidden className="size-3" /> : String(i + 1).padStart(2, "0")}
                   </span>
-                  <span className={cn(i !== step && "hidden lg:inline")}>{label}</span>
+                  {/* Phones show only the current name; the others stay readable by screen readers. */}
+                  <span className={cn(i !== step && "sr-only lg:not-sr-only")}>{label}</span>
                 </button>
               </li>
             ))}

@@ -139,6 +139,10 @@ EVENTS = {
         "en": ("A few words about {project}?", "Thank you again for building {project} with me. Would you share a few honest words and a rating? Sign in (or create your account) with this e-mail address and your review form is waiting. Nothing is published without your consent."),
         "fr": ("Quelques mots sur {project} ?", "Merci encore d'avoir construit {project} avec moi. Accepteriez-vous de partager quelques mots sincères et une note ? Connectez-vous (ou créez votre compte) avec cette adresse e-mail et votre formulaire d'avis vous attend. Rien n'est publié sans votre accord."),
     },
+    "review_invite_account": {
+        "en": ("A few words about {project}?", "Thank you again for building {project} with me. Would you share a few honest words and a rating? Your review form is waiting in your client space. Nothing is published without your consent."),
+        "fr": ("Quelques mots sur {project} ?", "Merci encore d'avoir construit {project} avec moi. Accepteriez-vous de partager quelques mots sincères et une note ? Votre formulaire d'avis vous attend dans votre espace client. Rien n'est publié sans votre accord."),
+    },
     "review_published": {
         "en": ("Your review is live", "Thank you. Your review of {title} is now on the website."),
         "fr": ("Votre avis est en ligne", "Merci. Votre avis sur {title} est maintenant sur le site."),

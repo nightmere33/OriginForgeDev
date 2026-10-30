@@ -51,6 +51,13 @@ export function openThread(reference: string) {
   window.dispatchEvent(new CustomEvent("of:open-thread", { detail: reference }));
 }
 
+export type TicketDraft = { request?: string; category?: string; subject?: string; body?: string };
+
+/** Any page can start a ticket in the messenger, already about a project (a bug after it closed). */
+export function newTicket(draft: TicketDraft = {}) {
+  window.dispatchEvent(new CustomEvent("of:new-ticket", { detail: draft }));
+}
+
 const films = new Map<string, Promise<Partial<Record<"showreel" | "howto", SiteFilm>>>>();
 
 /** The site's own films in this language (English where none), fetched once per page life. */

@@ -53,14 +53,18 @@ the plans. That is where the plans earn their value.
 
 ## The three spaces of the messenger
 
-1. **Assistant**, for everyone, guests included. It answers from the site's
+1. **Assistant**, for people without work with Younes yet: guests and signed-in
+   people who have not sent a request. Once a request is sent the client talks
+   to Younes directly (Projects and Support) and the assistant steps aside. It answers from the site's
    own knowledge: FAQ, services and starting prices, plans, payments, process,
    maintenance, support levels. Retrieval runs on the server (no outside
    service). When `CF_AI_ACCOUNT_ID` and `CF_AI_TOKEN` are set, a small model
    on Cloudflare Workers AI (free: 10,000 Neurons a day) writes the answer
    from what retrieval found; past a daily cap, or on any error, the plain
-   retrieval answer is shown. "Talk to Younes" opens a ticket with the
-   conversation attached (guests sign in first).
+   retrieval answer is shown. "Talk to Younes in person" (in the footer, and
+   under any answer the assistant hands over) opens a ticket with the
+   conversation attached. A guest signs in first; the ticket is waiting,
+   filled in, when they come back.
 2. **Projects**, the conversation of each request once it is sent (never for
    drafts). Proposals, counter-offers and answers appear as cards; when Younes
    sends a proposal the thread opens by itself on the client's screen. It

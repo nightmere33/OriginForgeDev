@@ -38,6 +38,12 @@ export function safeNext(value: string | null, fallback: string) {
   }
 }
 
+/** The way back, kept when switching between sign-in and sign-up. */
+export const carry = (next: string | null) => {
+  const safe = safeNext(next, "");
+  return safe ? `?next=${encodeURIComponent(safe)}` : "";
+};
+
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 /** Long enough to read "Access granted" before the page changes. */
 const settle = () => new Promise((r) => setTimeout(r, reduced() ? 0 : 520));
@@ -107,7 +113,7 @@ export function LoginForm({ lang, t }: { lang: Locale; t: T }) {
         <PhaseButton phase={phase} labels={phases(a.phases.login)} />
         <div className="flex flex-wrap justify-between gap-3">
           <Link href={`/${lang}/reset`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.forgot} /></Link>
-          <Link href={`/${lang}/register`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.noAccount} /></Link>
+          <Link href={`/${lang}/register${carry(params.get("next"))}`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.noAccount} /></Link>
         </div>
       </form>
     </div>
@@ -150,7 +156,7 @@ export function RegisterForm({ lang, t }: { lang: Locale; t: T }) {
           placeholder={a.placeholders.newPassword} error={errors.password} help={a.passwordHelp} reveal={{ show: a.showPassword, hide: a.hidePassword }} />
         <FormError message={errors.form} />
         <PhaseButton phase={phase} labels={phases(a.phases.register)} />
-        <Link href={`/${lang}/login`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.hasAccount} /></Link>
+        <Link href={`/${lang}/login${carry(params.get("next"))}`} className="hud text-muted hover:text-ember-400"><GlitchLabel text={a.hasAccount} /></Link>
       </form>
     </div>
   );

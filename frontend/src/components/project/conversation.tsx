@@ -15,7 +15,7 @@ import { StatusPill } from "@/components/ui/status";
 import { cn } from "@/lib/cn";
 import { ImageViewer } from "@/components/chat/image-viewer";
 import { ShareCard } from "@/components/chat/share-card";
-import { COMMANDS, type Share } from "@/lib/support";
+import { COMMANDS, isTicket, newTicket, type Share } from "@/lib/support";
 import { playReceived, playSent, useSound } from "@/components/chat/sounds";
 import { VoicePlayer } from "@/components/chat/voice-player";
 import { clock, useVoice } from "@/components/chat/voice-recorder";
@@ -560,6 +560,10 @@ export function Conversation({
           <span className="flex flex-col gap-1">
             <span className="text-sm text-ink">{c.closed}</span>
             <span className="text-sm text-faint">{side === "studio" ? c.closedStudio : c.closedClient}</span>
+            {side === "client" && (
+              <button type="button" onClick={() => newTicket({ request: isTicket(reference) ? undefined : reference, category: "problem" })}
+                className="hud mt-1 self-start text-ember-400 hover:underline">{c.openTicket}</button>
+            )}
           </span>
         </div>
       ) : voice.seconds !== null ? (

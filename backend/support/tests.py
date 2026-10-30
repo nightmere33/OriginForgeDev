@@ -161,7 +161,11 @@ class AssistantTests(LifecycleBase):
 
         with self.settings(CF_AI_ACCOUNT_ID="acc", CF_AI_TOKEN="tok"), patch("assistant.engine.httpx.post", return_value=Reply()) as post:
             a = self.ok(self.ask("How do I start a project?"))
-        self.assertEqual((a["answer"], a["engine"]), ("Pick a service and send your brief.", "model"))
+        self.assertEqual((a["answer"], a["engine"], a["handoff"]), ("Pick a service and send your brief.", "model", False))
         self.assertIn("Notes:", post.call_args.kwargs["json"]["messages"][0]["content"])
+        # A written answer that sends the person to Younes offers the way to him.
+        Reply.json = lambda self: {"result": {"response": "I'm not sure about student prices. It's best to ask Younes directly."}}
+        with self.settings(CF_AI_ACCOUNT_ID="acc", CF_AI_TOKEN="tok"), patch("assistant.engine.httpx.post", return_value=Reply()):
+            self.assertTrue(self.ok(self.ask("Do you have a student discount on a website?"))["handoff"])
         with self.settings(CF_AI_ACCOUNT_ID="acc", CF_AI_TOKEN="tok"), patch("assistant.engine.httpx.post", side_effect=RuntimeError("down")):
             self.assertEqual(self.ok(self.ask("How do I start a project?"))["engine"], "notes")

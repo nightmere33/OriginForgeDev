@@ -134,9 +134,17 @@ def _model_answer(lang: str, question: str, history: list[dict], found: list[Not
 
 
 HANDOFF = {
-    "en": "I'm not sure about that one. Younes can answer you himself: tap \"Talk to Younes\" and he'll reply in your messages.",
-    "fr": "Je ne suis pas sûr pour celle-ci. Younes peut vous répondre lui-même : touchez « Parler à Younes » et il vous répondra dans vos messages.",
+    "en": "I'm not sure about that one. Younes can answer you himself: use the link just below and he'll reply in your messages.",
+    "fr": "Je ne suis pas sûr pour celle-ci. Younes peut vous répondre lui-même : utilisez le lien juste en dessous et il vous répondra dans vos messages.",
 }
+# A written answer that sends the person to Younes ("best to ask Younes")
+# gets the same way to him, right under it.
+TO_YOUNES = re.compile(
+    r"\b(ask|asking|contact|talk to|reach|message|check with)\s+younes\b"
+    r"|\b(demander|demandez|contacter|contactez|parler|écrire|écrivez)\s+(à|a)?\s*younes\b"
+    r"|\bnot sure\b|\bpas sûr",
+    re.I,
+)
 
 
 def answer(question: str, lang: str = "en", history: list[dict] | None = None) -> dict:
@@ -155,4 +163,5 @@ def answer(question: str, lang: str = "en", history: list[dict] | None = None) -
     sources = [{"title": n.title, "url": n.url} for n in best[:3] if n.url]
     # A film goes with the answer when one of the two closest notes has one (the how-to for "how do I start").
     film = next((n.film for n in best[:2] if n.film), "")
-    return {"answer": text, "sources": sources, "film": film, "handoff": False, "engine": engine, "topic": top.key}
+    handoff = engine == "model" and bool(TO_YOUNES.search(text))
+    return {"answer": text, "sources": sources, "film": film, "handoff": handoff, "engine": engine, "topic": top.key}

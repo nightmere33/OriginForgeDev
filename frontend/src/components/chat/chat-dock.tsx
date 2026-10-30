@@ -16,7 +16,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Conversation } from "@/components/project/conversation";
 import { setDockClear, smooth } from "@/motion/smooth";
 import type { Side } from "@/components/project/shared";
-import { AssistantChat, NewTicket, StandingLine, TicketThread, type DockT } from "./support";
+import { AssistantChat, NewTicket, StandingLine, takeHandoff, TicketThread, type DockT } from "./support";
 
 const PROJECT = /^\/(?:en|fr)\/(portal|studio)\/requests\/([^/?#]+)/;
 // Signing in, signing up and the welcome steps have no conversations to show.
@@ -25,7 +25,7 @@ const STORE = "of:dock";
 
 type Space = "assistant" | "projects" | "support";
 type Dock = { list: boolean; open: string[]; min: string[]; space: Space | null };
-type Compose = { subject?: string; body?: string; transcript?: { role: "user" | "assistant"; text: string }[] };
+type Compose = { subject?: string; body?: string; request?: string; category?: string; transcript?: { role: "user" | "assistant"; text: string }[] };
 const EMPTY: Dock = { list: false, open: [], min: [], space: null };
 
 /** The windows survive page changes and reloads within the visit. */
@@ -81,9 +81,9 @@ const byActivity = (a: ProjectRequest, b: ProjectRequest) =>
 
 /**
  * The messenger (docs/SUPPORT.md), on every page. The launcher opens a panel
- * with up to three spaces: the Assistant (everyone, guests too), Projects
- * (each sent request's conversation; the studio's grouped by client) and
- * Support (tickets). A pick opens that thread in its own window along the
+ * with up to two spaces: the Assistant (guests and people without a request
+ * yet), Projects (each sent request's conversation; the studio's grouped by
+ * client) and Support (tickets, for everyone signed in). A pick opens that thread in its own window along the
  * bottom edge, up to three side by side, each minimisable, so several people
  * can be answered at once without leaving the page. On a phone one thread
  * fills the screen. A project's own Messages tab already shows its thread.
@@ -160,17 +160,43 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
     if (e.type === "request" && e.action === "proposal.sent") openThread(e.reference);
     if (e.type === "ticket" && e.action === "opened" && isTicket(e.reference)) openThread(e.reference);
   });
+  // Phone: a conversation fills the screen, so it never follows the visitor
+  // to another page (a link tapped, a reload): it waits behind the launcher.
+  // What opens a thread on purpose (below, and live events) runs after this.
+  useEffect(() => {
+    if (!phone) return;
+    queueMicrotask(() => setDock((d) => d.list || d.open.some((r) => !d.min.includes(r))
+      ? { ...d, list: false, min: [...new Set([...d.min, ...d.open])] } : d));
+  }, [pathname, phone]);
   // Any page can open a thread (a ticket in the studio inbox, People → start a conversation)…
   useEffect(() => {
     const open = (e: Event) => openThread((e as CustomEvent<string>).detail);
+    // …or start a ticket (a closed project's "Open a ticket").
+    const draft = (e: Event) => {
+      setCompose((e as CustomEvent<Compose>).detail ?? {});
+      setDock((d) => ({ ...d, list: true }));
+    };
     window.addEventListener("of:open-thread", open);
-    return () => window.removeEventListener("of:open-thread", open);
+    window.addEventListener("of:new-ticket", draft);
+    return () => {
+      window.removeEventListener("of:open-thread", open);
+      window.removeEventListener("of:new-ticket", draft);
+    };
   }, [openThread]);
   // …and so can a link from an e-mail or the bell (?ticket=TK-…).
   const asked = params.get("ticket");
   useEffect(() => {
     if (signedIn && asked && isTicket(asked)) queueMicrotask(() => openThread(asked));
   }, [asked, signedIn, openThread]);
+  // A guest asked the assistant for Younes, then signed in: the ticket is ready to send.
+  useEffect(() => {
+    if (!signedIn || !enabled) return;
+    const pending = takeHandoff();
+    if (pending) queueMicrotask(() => {
+      setCompose(pending);
+      setDock((d) => ({ ...d, list: true }));
+    });
+  }, [signedIn, enabled]);
 
   useEffect(() => {
     if (!dock.list) return;
@@ -216,6 +242,30 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
     };
   }, [phone, shown]);
 
+  // Phone: the launcher steps aside while the visitor scrolls down to read
+  // (what is under the corner stays tappable) and comes back on the way up.
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    if (!phone || !enabled) return;
+    let last = scrollY;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const y = scrollY;
+      if (Math.abs(y - last) < 12) return;
+      setTucked(y > last && y > 120);
+      last = y;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [phone, enabled]);
+
   // The ruler and the section titles stop above the launcher's corner.
   useEffect(() => {
     if (!enabled) return;
@@ -230,11 +280,12 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
 
   if (!enabled) return null;
 
-  // Which spaces this person has: the assistant for everyone but the studio,
-  // projects once a request is sent, support once signed in.
+  // Which spaces this person has. The assistant helps those without work with
+  // Younes yet (guests, new accounts); once a request is sent, the client
+  // talks to Younes directly: Projects, and Support for anything else.
   const spaces: Space[] = !signedIn ? ["assistant"]
     : side === "studio" ? ["support", "projects"]
-    : [...((items?.length ?? 0) > 0 ? ["projects" as const] : []), "support", "assistant"];
+    : (items?.length ?? 0) > 0 ? ["projects", "support"] : ["assistant", "support"];
   const projectUnread = (items ?? []).reduce((n, r) => n + (r.summary?.unread ?? 0), 0);
   const ticketUnread = (tickets ?? []).reduce((n, x) => n + (x.unread ?? 0), 0);
   const fallback: Space = side === "studio" ? ((tickets ?? []).some((x) => x.status === "open") ? "support" : "projects")
@@ -294,7 +345,14 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
             {cap}
           </div>
         ) : (
-          <div className="fixed bottom-4 right-4 z-[46]">{launcherButton}</div>
+          // Above a bottom bar (the cookie notice); out of the way while
+          // scrolling down, unless something unread is waiting.
+          <div onFocus={() => setTucked(false)}
+            className={cn("fixed bottom-4 right-4 z-[46] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none",
+              tucked && !unread && "pointer-events-none opacity-0")}
+            style={{ transform: tucked && !unread ? "translateY(calc(100% + 1rem))" : "translateY(calc(-1 * var(--bottom-bar, 0px)))" }}>
+            {launcherButton}
+          </div>
         )}
       </>
     );
@@ -430,10 +488,7 @@ function ThreadList({ lang, t, side, items, tickets, current, space, spaces, onS
 
       {space === "assistant" ? (
         <div className="min-h-0 flex-1">
-          <AssistantChat lang={lang} t={t} signedIn={signedIn} onHandoff={(turns) => {
-            const asked = turns.filter((x) => x.role === "user");
-            onCompose({ subject: (asked[0]?.text ?? "").slice(0, 120), body: asked[asked.length - 1]?.text ?? "", transcript: turns });
-          }} />
+          <AssistantChat lang={lang} t={t} signedIn={signedIn} onHandoff={onCompose} />
         </div>
       ) : space === "support" && compose ? (
         <NewTicket lang={lang} t={t} projects={items ?? []} initial={compose} onCreated={(ticket) => {

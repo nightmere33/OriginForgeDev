@@ -1,13 +1,12 @@
 import { Suspense, type ReactNode } from "react";
-import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
 import type { Dictionary, Locale } from "@/i18n/dictionaries";
 import { getGalaxy } from "@/lib/content";
 import { cn } from "@/lib/cn";
 import { Hud } from "@/components/ui/hud";
 import { SectionShell } from "@/components/ui/section-shell";
-import { GlitchLabel } from "@/motion/glitch";
 import { BootText, MosaicGlitch, TearGroup } from "./auth-fx";
+import { AuthTabs, TabsNav } from "./auth-tabs";
 
 export type AuthMode = "login" | "register" | "reset" | "verify" | "welcome";
 type Shell = Dictionary["auth"]["shell"];
@@ -99,22 +98,9 @@ export default async function AuthShell({
                   <Hud tone="faint">{shell.session}</Hud>
                 </div>
                 {(mode === "login" || mode === "register") && (
-                  <nav aria-label={shell.tabsLabel} className="grid grid-cols-2 border-b border-line">
-                    {(["login", "register"] as const).map((m) => (
-                      <Link
-                        key={m}
-                        href={`/${lang}/${m}`}
-                        aria-current={m === mode ? "page" : undefined}
-                        className={cn(
-                          "hud relative flex h-11 items-center justify-center transition-colors duration-[var(--dur-micro)]",
-                          m === mode ? "text-ink" : "text-faint hover:bg-cell hover:text-ink",
-                        )}
-                      >
-                        {m === mode ? <BootText text={shell.tabs[m]} delay={200} /> : <GlitchLabel text={shell.tabs[m]} />}
-                        {m === mode && <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-ember-400" />}
-                      </Link>
-                    ))}
-                  </nav>
+                  <Suspense fallback={<TabsNav lang={lang} mode={mode} label={shell.tabsLabel} tabs={shell.tabs} />}>
+                    <AuthTabs lang={lang} mode={mode} label={shell.tabsLabel} tabs={shell.tabs} />
+                  </Suspense>
                 )}
                 {/* The forms read the query string (?next, ?oauth), so they render on the client. */}
                 <div className="px-5 py-7 sm:px-7"><Suspense fallback={<div className="min-h-80" />}>{children}</Suspense></div>

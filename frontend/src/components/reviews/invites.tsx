@@ -13,19 +13,22 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 
 type Invite = { id: number; email: string; full_name: string; language: string; project: string; slug: string; state: "sent" | "used" | "expired"; created_at: string };
+type Account = { id: number; full_name: string; email: string; language: string };
 type T = Pick<Dictionary, "studio" | "common">;
 
 /**
- * Review invitations for projects done before the platform (MediGate): the
- * client gets an e-mail, signs in with that address and reviews the
- * project, which then shows with its logo and page on the website.
+ * Review invitations for projects done before the platform (MediGate): pick
+ * the client's account (or type the address of someone without one yet) and
+ * the project. They get an e-mail, and with an account the bell and a card in
+ * their client space; their review then shows with the project's logo and
+ * page on the website.
  */
 export function StudioInvites({ lang, t }: { lang: Locale; t: T }) {
   const v = t.studio.reviews.invites;
   const user = useSession();
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<{ invites: Invite[]; projects: { slug: string; title: string }[] } | null>(null);
-  const [form, setForm] = useState({ email: "", full_name: "", case_study: "", language: lang === "fr" ? "fr" : "en" });
+  const [data, setData] = useState<{ invites: Invite[]; projects: { slug: string; title: string }[]; accounts: Account[] } | null>(null);
+  const [form, setForm] = useState({ user: "", email: "", full_name: "", case_study: "", language: lang === "fr" ? "fr" : "en" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState("");
@@ -42,9 +45,10 @@ export function StudioInvites({ lang, t }: { lang: Locale; t: T }) {
     setBusy(true);
     setErrors({});
     try {
-      await api.post("/reviews/studio/invites/", form);
+      const { user: picked, ...rest } = form;
+      await api.post("/reviews/studio/invites/", picked ? { ...rest, user: Number(picked) } : rest);
       setSentTo(form.email);
-      setForm((f) => ({ ...f, email: "", full_name: "" }));
+      setForm((f) => ({ ...f, user: "", email: "", full_name: "" }));
       await load();
     } catch (err) {
       setErrors(err instanceof ApiError ? Object.fromEntries(Object.keys(err.data).map((k) => [k, err.field(k) ?? ""])) : { form: t.common.error });
@@ -65,8 +69,22 @@ export function StudioInvites({ lang, t }: { lang: Locale; t: T }) {
       <div className={cn("grid transition-[grid-template-rows] duration-[var(--dur-standard)] ease-[var(--ease-out)]", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="min-h-0 overflow-hidden">
           <form noValidate onSubmit={(e) => { e.preventDefault(); send(); }} className="grid gap-6 border-t border-line bg-cell/30 px-6 py-8 md:grid-cols-2 md:px-10">
+            <Field label={v.account} error={errors.user} help={v.accountHelp} className="md:col-span-2">
+              {(a) => (
+                <Select id={a.id} aria-describedby={a.describedBy} value={form.user} onChange={(e) => {
+                  const picked = data?.accounts.find((x) => String(x.id) === e.target.value);
+                  setForm(picked
+                    ? { ...form, user: String(picked.id), email: picked.email, full_name: picked.full_name, language: picked.language === "fr" ? "fr" : "en" }
+                    : { ...form, user: "", email: "", full_name: "" });
+                }}>
+                  <option value="">{v.noAccount}</option>
+                  {(data?.accounts ?? []).map((x) => <option key={x.id} value={x.id}>{x.full_name ? `${x.full_name} · ${x.email}` : x.email}</option>)}
+                </Select>
+              )}
+            </Field>
             <Field label={v.email} error={errors.email}>
-              {(a) => <Input id={a.id} type="email" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}
+              {(a) => <Input id={a.id} type="email" aria-invalid={a.invalid} aria-describedby={a.describedBy} value={form.email} readOnly={!!form.user}
+                className={cn(form.user && "text-muted")} onChange={(e) => setForm({ ...form, email: e.target.value })} />}
             </Field>
             <Field label={v.name}>{(a) => <Input id={a.id} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
             <Field label={v.project} error={errors.case_study}>

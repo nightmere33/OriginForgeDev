@@ -573,7 +573,10 @@ def engagement_action(request, engagement_id: int, action: str, note: str = "", 
             eng.revisions_granted += 1
         elif action == "go_live":
             eng.production_at, eng.maintenance_ends_at = now, now + timedelta(days=eng.maintenance_days)
-        elif action == "extend_maintenance":
+        if action in ("approve", "go_live"):
+            # The whole delivery approved (or live): no milestone stays "in progress" beside it.
+            eng.milestones.exclude(status=Milestone.Status.APPROVED).update(status=Milestone.Status.APPROVED, approved_at=now)
+        if action == "extend_maintenance":
             extend_care(eng, days, now)
         elif action == "close":
             eng.closed_at = now

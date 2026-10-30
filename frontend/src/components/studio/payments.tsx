@@ -32,11 +32,11 @@ function Section({ title, count, tone, children }: { title: string; count: numbe
   );
 }
 
-/** One payment line: what, who, how much, and a door into the project hub. */
+/** One payment line: what, who, how much, and a door into the project's Payments tab. */
 function Line({ lang, base, row, meta, open }: { lang: Locale; base: string; row: Row; meta: string; open: string }) {
   return (
     <li>
-      <Link href={`${base}/requests/${row.reference}`}
+      <Link href={`${base}/requests/${row.reference}?tab=payments`}
         className="group/pay grid gap-2 px-6 py-4 transition-colors duration-[var(--dur-micro)] hover:bg-cell md:grid-cols-[8rem_minmax(0,1fr)_auto_auto] md:items-center md:gap-6 md:px-10">
         <span className="hud text-faint">{row.reference}</span>
         <span className="min-w-0">

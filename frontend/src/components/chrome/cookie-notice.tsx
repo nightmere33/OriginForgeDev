@@ -44,6 +44,23 @@ export function CookieNotice({ lang, labels }: { lang: Locale; labels: { text: s
   useEffect(() => {
     if (show) tearIn(box.current);
   }, [show]);
+  // On phones it is a full-width bar: the chat launcher and the toasts ride
+  // above it (--bottom-bar) instead of covering its button.
+  useEffect(() => {
+    const el = box.current;
+    if (!show || !el) return;
+    const root = document.documentElement;
+    const wide = matchMedia("(min-width: 640px)");
+    const measure = () => root.style.setProperty("--bottom-bar", `${wide.matches ? 0 : el.offsetHeight}px`);
+    const watch = new ResizeObserver(measure);
+    watch.observe(el);
+    wide.addEventListener("change", measure);
+    return () => {
+      watch.disconnect();
+      wide.removeEventListener("change", measure);
+      root.style.removeProperty("--bottom-bar");
+    };
+  }, [show]);
   if (!show) return null;
   const close = () => {
     try {

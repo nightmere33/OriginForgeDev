@@ -5,6 +5,7 @@ import { CalendarClock, LifeBuoy, MessageSquareReply, RotateCcw, ShieldCheck, Sp
 import { fill } from "@/i18n/fill";
 import { api } from "@/lib/api-client";
 import { day, type Engagement } from "@/lib/lifecycle";
+import { newTicket } from "@/lib/support";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
@@ -86,7 +87,7 @@ export function KeyDates({ lang, t, engagement: e }: Pick<PanelProps, "lang" | "
  * card and alerts the studio); the studio extends maintenance (a closed
  * project comes back into care) or closes the project.
  */
-export function CarePanel({ lang, t, side, reload, engagement: e, onReported }: PanelProps & { engagement: Engagement; onReported?: () => void }) {
+export function CarePanel({ lang, t, side, reload, engagement: e, reference, onReported }: PanelProps & { engagement: Engagement; reference: string; onReported?: () => void }) {
   const s = t.project.care;
   const [note, setNote] = useState("");
   const [days, setDays] = useState("30");
@@ -115,7 +116,17 @@ export function CarePanel({ lang, t, side, reload, engagement: e, onReported }: 
   const until = e.maintenance_ends_at ? day(lang, e.maintenance_ends_at) : "";
 
   if (side === "client") {
-    if (e.status === "closed") return <p className="max-w-2xl leading-relaxed text-muted">{s.closedLead}</p>;
+    if (e.status === "closed") {
+      // After the project: bugs and more maintenance go through a ticket about it.
+      return (
+        <div className="flex flex-col items-start gap-4">
+          <p className="max-w-2xl leading-relaxed text-muted">{s.closedLead}</p>
+          <Button variant="ghost" size="sm" onClick={() => newTicket({ request: reference, category: "problem" })}>
+            <LifeBuoy aria-hidden className="size-3.5" />{s.openTicket}
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-5">
         <p className="max-w-2xl leading-relaxed text-ink">{fill(s.lead, { date: until })}</p>

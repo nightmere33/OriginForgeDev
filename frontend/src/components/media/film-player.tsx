@@ -9,6 +9,9 @@ import { sized } from "@/lib/sized";
 import { ForgeVideo } from "./forge-video";
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+// As large as the screen allows, both ways, at the film's own aspect.
+const frameWidth = (film: VideoSources) =>
+  `min(calc(100vw - 2rem), calc((100svh - 7rem) * ${film.width / film.height}), 80rem)`;
 
 /**
  * "Watch the film": the full cut with sound, in a lightbox. A native <dialog>
@@ -109,9 +112,12 @@ export default function FilmPlayer({
         aria-label={title}
         onClick={(e) => e.target === dialog.current && close()}
         className="m-auto max-h-none max-w-none overflow-visible bg-transparent p-0 text-ink backdrop:bg-black/85 backdrop:backdrop-blur-sm open:flex open:flex-col"
+        // As wide as the film, so it sits centred: a long title wraps above
+        // it instead of widening the box (which left a phone's film on the left).
+        style={{ width: frameWidth(film) }}
       >
-        <div className="flex items-center justify-between gap-6 pb-3">
-          <p className="hud text-muted">{title}{duration ? ` · ${clock(duration)}` : ""}</p>
+        <div className="flex items-center justify-between gap-4 pb-3">
+          <p className="hud min-w-0 text-muted">{title}{duration ? ` · ${clock(duration)}` : ""}</p>
           <button type="button" onClick={close} aria-label={labels.close}
             className="flex size-10 items-center justify-center border border-line-strong text-ink hover:border-transparent hover:bg-steel-50 hover:text-steel-950">
             <X aria-hidden className="size-4" />
@@ -127,8 +133,7 @@ export default function FilmPlayer({
           preload="none"
           aria-label={title}
           videoClassName="object-contain"
-          // As large as the screen allows, both ways, at the film's own aspect.
-          style={{ aspectRatio: `${film.width} / ${film.height}`, width: `min(calc(100vw - 2rem), calc((100svh - 7rem) * ${film.width / film.height}), 80rem)` }}
+          style={{ aspectRatio: `${film.width} / ${film.height}`, width: "100%" }}
         />
       </dialog>
     </>

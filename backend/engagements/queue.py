@@ -73,15 +73,18 @@ def _occupying(lane: str):
 
 def _reserved(lane: str):
     """Released from the queue, not started yet: their place is held."""
+    # Once signed, the project itself holds the place (or, live or over, frees it).
     return ProjectRequest.objects.filter(
-        _lane_q(lane), queued_at__isnull=False, queue_left_at__isnull=False, status__in=WAITING,
-    ).exclude(engagement__status__in=OCCUPYING)
+        _lane_q(lane), queued_at__isnull=False, queue_left_at__isnull=False, status__in=WAITING, engagement__isnull=True,
+    )
 
 
 def waiting(lane: str):
-    """The queue, head first."""
-    return (ProjectRequest.objects.filter(_lane_q(lane), queued_at__isnull=False, queue_left_at__isnull=True, status__in=WAITING)
-            .exclude(engagement__status__in=OCCUPYING).select_related("service").order_by("queued_at", "id"))
+    """The queue, head first. A request signed while queued (Younes answered it
+    with a proposal) has left it: a live project is never "#2 in the queue"."""
+    return (ProjectRequest.objects.filter(_lane_q(lane), queued_at__isnull=False, queue_left_at__isnull=True, status__in=WAITING,
+                                          engagement__isnull=True)
+            .select_related("service").order_by("queued_at", "id"))
 
 
 def used(lane: str) -> int:

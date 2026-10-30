@@ -39,11 +39,16 @@ RULES = {
              "paid 40 / 30 / 30 by milestone. The rest is asked when the work is ready for your review. You have 5 days to pay "
              "each part, with reminders, and every payment gets an invoice.",
              "", "", ["deposit", "advance", "sign", "contract", "invoice", "balance"]),
-        Note("payments", "Payment methods",
-             "In Algeria: CIB or Edahabia card on Chargily's secure page, CCP transfer, BaridiMob, or cash by hand when agreed. "
-             "Abroad: PayPal or a card through PayPal, or USDT (BEP20). Transfers are checked by hand against your receipt. "
-             "Prices are in dinars for Algeria and at standard international rates in euros or dollars elsewhere.",
-             "", "", ["pay", "card", "cib", "edahabia", "ccp", "baridimob", "paypal", "usdt", "crypto", "currency", "euro", "dollar", "dinar"]),
+        Note("payments", "Paying from Algeria",
+             "From Algeria you can pay by CIB or Edahabia card on Chargily's secure page, by CCP transfer, by BaridiMob, or "
+             "in cash by hand when agreed. CCP and BaridiMob transfers are checked by hand against the receipt you upload. "
+             "Prices are in dinars.",
+             "", "", ["pay", "card", "cib", "edahabia", "ccp", "baridimob", "cash", "algeria", "dinar"]),
+        Note("payments-abroad", "Paying from abroad",
+             "From outside Algeria you pay by PayPal (with a PayPal account, or any card through PayPal) or in USDT "
+             "(BEP20). There is no bank transfer from abroad. Prices are the standard international ones in euros or "
+             "dollars.",
+             "", "", ["pay", "abroad", "france", "europe", "paypal", "card", "usdt", "crypto", "euro", "dollar", "international"]),
         Note("maintenance", "Maintenance after launch",
              "Every plan includes free maintenance once the project is live: bugs (anything that doesn't work as the proposal "
              "says) are fixed for free during that window. It starts on the day of production. Reminders come before it ends; "
@@ -96,11 +101,16 @@ RULES = {
              "projets (dès 500 000 DZD ou 3 500 EUR) se paient 40 / 30 / 30 par étape. Le reste est demandé quand le travail "
              "est prêt pour votre validation. Vous avez 5 jours pour chaque paiement, avec rappels, et chaque paiement a sa facture.",
              "", "", ["acompte", "avance", "signer", "contrat", "facture", "solde"]),
-        Note("payments", "Moyens de paiement",
-             "En Algérie : carte CIB ou Edahabia sur la page sécurisée de Chargily, virement CCP, BaridiMob, ou espèces en main "
-             "propre si convenu. À l'étranger : PayPal ou carte via PayPal, ou USDT (BEP20). Les virements sont vérifiés à la "
-             "main avec votre reçu. Les prix sont en dinars pour l'Algérie et aux tarifs internationaux en euros ou en dollars ailleurs.",
-             "", "", ["payer", "carte", "cib", "edahabia", "ccp", "baridimob", "paypal", "usdt", "crypto", "devise", "euro", "dollar", "dinar"]),
+        Note("payments", "Payer depuis l'Algérie",
+             "Depuis l'Algérie, vous payez par carte CIB ou Edahabia sur la page sécurisée de Chargily, par virement CCP, "
+             "par BaridiMob, ou en espèces en main propre si convenu. Les virements CCP et BaridiMob sont vérifiés à la main "
+             "avec le reçu que vous envoyez. Les prix sont en dinars.",
+             "", "", ["payer", "carte", "cib", "edahabia", "ccp", "baridimob", "especes", "algerie", "dinar"]),
+        Note("payments-abroad", "Payer depuis l'étranger",
+             "Depuis l'étranger, vous payez par PayPal (avec un compte PayPal, ou n'importe quelle carte via PayPal) ou en "
+             "USDT (BEP20). Il n'y a pas de virement bancaire depuis l'étranger. Les prix sont les tarifs internationaux en "
+             "euros ou en dollars.",
+             "", "", ["payer", "etranger", "france", "europe", "paypal", "carte", "usdt", "crypto", "euro", "dollar", "international"]),
         Note("maintenance", "Maintenance après la mise en ligne",
              "Chaque formule inclut une maintenance gratuite une fois le projet en ligne : les bugs (ce qui ne marche pas comme "
              "prévu dans la proposition) sont corrigés gratuitement pendant cette période, qui commence le jour de la mise en "

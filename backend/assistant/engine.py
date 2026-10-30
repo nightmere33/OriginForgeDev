@@ -84,17 +84,29 @@ def _model_budget_left() -> bool:
 
 
 SYSTEM = {
-    "en": ("You are the assistant on originforgedev.com, the studio of Younes Ouali, a full-stack developer who builds web "
-           "platforms, websites, mobile apps, Windows software, automation and product films. Answer the visitor's question "
-           "using only the notes below. Be warm, plain and short: at most 110 words, no lists unless steps are asked for. "
-           "Never invent prices, dates, discounts or promises that are not in the notes. If the notes do not answer it, say "
-           "so in one sentence and suggest talking to Younes. Reply in English."),
-    "fr": ("Tu es l'assistant de originforgedev.com, le studio de Younes Ouali, développeur full-stack qui crée des "
-           "plateformes web, sites, applications mobiles, logiciels Windows, automatisations et films produits. Réponds à la "
-           "question du visiteur uniquement avec les notes ci-dessous. Sois chaleureux, simple et bref : 110 mots au plus, "
-           "pas de listes sauf pour des étapes. N'invente jamais de prix, de dates, de remises ou de promesses absents des "
-           "notes. Si les notes ne répondent pas, dis-le en une phrase et propose de parler à Younes. Vouvoie la personne. "
-           "Réponds en français."),
+    "en": (
+        "You are the assistant on originforgedev.com, the studio of Younes Ouali, a full-stack developer in Algeria who "
+        "builds web platforms, websites, mobile apps, Windows software, automation and product films. Answer the "
+        "visitor's question using only what is written below. Rules: be warm, plain and short (at most 90 words); answer "
+        "every part of the question; speak of Younes by name (never 'we', 'our' or 'I' for the studio); never refer to "
+        "notes, facts, documents or information you were given. Prices in DZD, EUR and USD are separate price lists (DZD "
+        "for Algeria, EUR and USD abroad), never conversions of each other: give them as alternatives, never 'about' or "
+        "'equivalent'. Name only payment methods, prices, dates and services that are written below; never add others, "
+        "never offer discounts or promises. When something is not covered, say you are not sure and suggest asking "
+        "Younes. Reply in English."
+    ),
+    "fr": (
+        "Tu es l'assistant de originforgedev.com, le studio de Younes Ouali, développeur full-stack en Algérie qui crée "
+        "des plateformes web, des sites, des applications mobiles, des logiciels Windows, des automatisations et des films "
+        "produits. Réponds à la question du visiteur uniquement avec ce qui est écrit ci-dessous. Règles : sois chaleureux, "
+        "simple et bref (90 mots au plus) ; réponds à chaque partie de la question ; parle de Younes par son prénom "
+        "(jamais « nous », « notre » ni « je » pour le studio) ; ne parle jamais de notes, de faits, de documents ni "
+        "d'informations qu'on t'a données. Les prix en DZD, EUR et USD sont des grilles séparées (DZD pour l'Algérie, EUR "
+        "et USD à l'étranger), jamais des conversions l'une de l'autre : présente-les comme des alternatives, jamais avec "
+        "« environ », « soit » ou « équivalent ». Ne cite que les moyens de paiement, prix, dates et services écrits "
+        "ci-dessous ; n'en ajoute jamais d'autres, ne propose jamais de remise ni de promesse. Quand un point n'est pas "
+        "couvert, dis que tu n'es pas sûr et propose de demander à Younes. Vouvoie la personne. Réponds en français."
+    ),
 }
 
 
@@ -110,7 +122,7 @@ def _model_answer(lang: str, question: str, history: list[dict], found: list[Not
     try:
         res = httpx.post(
             f"https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/{settings.ASSISTANT_MODEL}",
-            headers={"Authorization": f"Bearer {token}"}, json={"messages": messages, "max_tokens": 320, "temperature": 0.3},
+            headers={"Authorization": f"Bearer {token}"}, json={"messages": messages, "max_tokens": 320, "temperature": 0.2},
             timeout=15,
         )
         res.raise_for_status()
@@ -133,7 +145,8 @@ def answer(question: str, lang: str = "en", history: list[dict] | None = None) -
     ranked = [(s, n) for s, n in rank(question, notes(lang)) if s > 0]
     if not ranked or ranked[0][0] < MIN_SCORE:
         return {"answer": HANDOFF[lang], "sources": [], "film": "", "handoff": True, "engine": "notes"}
-    best = [n for s, n in ranked[:4] if s >= ranked[0][0] * 0.35]
+    # Enough notes for a question in two parts ("how long, and how do I pay?").
+    best = [n for s, n in ranked[:5] if s >= ranked[0][0] * 0.25]
     text = _model_answer(lang, question, history or [], best)
     engine = "model" if text else "notes"
     if not text:

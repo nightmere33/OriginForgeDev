@@ -146,7 +146,7 @@ class AssistantTests(LifecycleBase):
     def test_it_answers_from_the_notes_and_hands_over_when_unsure(self):
         a = self.ok(self.ask("How do I start a project?"))
         self.assertEqual((a["handoff"], a["film"], a["engine"]), (False, "howto", "notes"))
-        self.assertEqual(self.ok(self.ask("can I pay with paypal"))["topic"], "payments")
+        self.assertEqual(self.ok(self.ask("can I pay with paypal"))["topic"], "payments-abroad")
         self.assertTrue(self.ok(self.ask("what is the weather in paris"))["handoff"])
         self.assertIn("Chargily", self.ok(self.ask("comment payer par carte CIB", "fr"))["answer"])
         self.assertEqual(self.ask("x").status_code, 400)

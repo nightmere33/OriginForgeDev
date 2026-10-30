@@ -103,9 +103,12 @@ it, a small model rewrites that note as a short, natural answer.
        bash /srv/originforge/app/deploy/set_secret.sh CF_AI_ACCOUNT_ID
        bash /srv/originforge/app/deploy/set_secret.sh CF_AI_TOKEN
 
-The free allowance is 10,000 Neurons a day, a few hundred answers. The site
-stops calling the model after `ASSISTANT_DAILY_LIMIT` answers (300 by
-default) and falls back to the notes, so it never costs anything.
+The free allowance is 10,000 Neurons a day; an answer costs about 35 to 40
+(Llama 3.1 8B: the notes and the question in, a short answer out), so about
+250 answers a day. The site stops calling the model after
+`ASSISTANT_DAILY_LIMIT` answers (250 by default) and falls back to the notes.
+On Cloudflare's free plan nothing can be billed: past the allowance the model
+simply refuses until the next day, and the notes answer instead.
 
 ## Media library
 

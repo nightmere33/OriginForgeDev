@@ -224,7 +224,7 @@ PRIVATE_MEDIA_ACCEL_PREFIX = os.environ.get("PRIVATE_MEDIA_ACCEL_PREFIX", "")
 CF_AI_ACCOUNT_ID = os.environ.get("CF_AI_ACCOUNT_ID", "")
 CF_AI_TOKEN = os.environ.get("CF_AI_TOKEN", "")
 ASSISTANT_MODEL = os.environ.get("ASSISTANT_MODEL", "@cf/meta/llama-3.1-8b-instruct")
-ASSISTANT_DAILY_LIMIT = int(os.environ.get("ASSISTANT_DAILY_LIMIT", "300"))
+ASSISTANT_DAILY_LIMIT = int(os.environ.get("ASSISTANT_DAILY_LIMIT", "250"))
 
 # Profile pictures scoring this or more on the explicit-content check are refused (accounts.avatar).
 AVATAR_NSFW_THRESHOLD = float(os.environ.get("AVATAR_NSFW_THRESHOLD", "0.5"))

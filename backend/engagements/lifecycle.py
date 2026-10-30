@@ -135,7 +135,7 @@ def send_offer(request, req_id: int, data: dict) -> Proposal:
             maintenance_days=plan.maintenance_days, revision_rounds=plan.revision_rounds, reply_hours=plan.reply_hours,
             deposit_percent=schedule[0]["percent"], schedule=schedule, timeline_days=data["timeline_days"],
             milestones=data.get("milestones") or [], nda=data.get("nda", req.wants_nda), allow_cash=bool(data.get("allow_cash")),
-            negotiable=negotiable,
+            negotiable=negotiable, deposit_days=data.get("deposit_days", Charge.PAYMENT_WINDOW_DAYS),
             expires_at=timezone.now() + timedelta(days=Proposal.VALID_DAYS),
         )
         req.status = R.PROPOSAL_SENT
@@ -249,8 +249,16 @@ def sign_contract(request, contract_id: int, signed_name: str, agree: bool) -> E
         record(request, "contract.signed", req, sha256=contract.sha256, name=contract.signed_name)
     deposit = engagement.charges.first()
     client = req.client
-    notify_studio_event("studio_signed", _studio_path(req, "payments"), ref=req.reference, client=client.full_name, title=req.title)
-    notify_client("payment_due", client, _path(req, "payments"), label=deposit.label, title=req.title, amount=money(deposit.amount, deposit.currency))
+    amount = money(deposit.amount, deposit.currency)
+    if deposit.status == Charge.Status.DUE:
+        due = deposit.due_at.date().isoformat()
+        notify_studio_event("studio_signed", _studio_path(req, "payments"), ref=req.reference, client=client.full_name, title=req.title,
+                            deposit=f"The deposit is due by {due}.")
+        notify_client("payment_due", client, _path(req, "payments"), label=deposit.label, title=req.title, amount=amount, due=due)
+    else:
+        notify_studio_event("studio_signed", _studio_path(req, "payments"), ref=req.reference, client=client.full_name, title=req.title,
+                            deposit="It keeps its place in the queue: ask for the deposit when its turn comes.")
+        notify_client("deposit_later", client, _path(req, "payments"), title=req.title, amount=amount)
     return engagement
 
 
@@ -262,46 +270,102 @@ def _open_engagement(contract: Contract) -> Engagement:
         revision_rounds=p.revision_rounds, timeline_days=p.timeline_days, nda=p.nda,
     )
     now, paid_so_far, last = timezone.now(), 0, len(p.schedule) - 1
+    # The deposit is due within the proposal's window; with none (0) it waits
+    # until Younes asks for it, when the project's turn comes in the queue.
+    asked = p.deposit_days > 0
     for i, item in enumerate(p.schedule):
         amount = round(p.price * item["percent"] / 100) if i < last else p.price - paid_so_far
         paid_so_far += amount
         kind = Charge.Kind.DEPOSIT if i == 0 else Charge.Kind.BALANCE if i == last else Charge.Kind.MILESTONE
+        due_now = i == 0 and asked
         Charge.objects.create(
             engagement=engagement, order=i, kind=kind, label=item["label"], percent=item["percent"], amount=amount,
-            currency=p.currency, status=Charge.Status.DUE if i == 0 else Charge.Status.SCHEDULED,
-            due_from=now if i == 0 else None, due_at=now + timedelta(days=Charge.PAYMENT_WINDOW_DAYS) if i == 0 else None,
+            currency=p.currency, status=Charge.Status.DUE if due_now else Charge.Status.SCHEDULED,
+            due_from=now if due_now else None, due_at=now + timedelta(days=p.deposit_days) if due_now else None,
         )
     return engagement
 
 
 # ── Payments ──────────────────────────────────────────────────────────────
 
-def _make_due(charge: Charge, announce: bool = True):
-    """Due now, with the usual window. Unannounced (the client chose to pay early): no e-mail, no reminders."""
+def reminders_crossed(charge: Charge, now) -> int:
+    """How many reminder steps (days left) are behind this charge already."""
+    if not (charge.due_at and charge.due_from):
+        return 0
+    window, left = charge.due_at - charge.due_from, charge.due_at - now
+    return sum(1 for d in Charge.REMINDER_LEFT if window > timedelta(days=d + 1) and left <= timedelta(days=d))
+
+
+def _make_due(charge: Charge, announce: bool = True, days: int = Charge.PAYMENT_WINDOW_DAYS):
+    """Due now, with `days` to pay. Unannounced (the client chose to pay early): no e-mail, no reminders."""
     now = timezone.now()
-    charge.status, charge.due_from, charge.due_at = Charge.Status.DUE, now, now + timedelta(days=Charge.PAYMENT_WINDOW_DAYS)
-    charge.reminders_sent = 0 if announce else len(Charge.REMINDER_DAYS)
+    charge.status, charge.due_from, charge.due_at = Charge.Status.DUE, now, now + timedelta(days=days)
+    charge.reminders_sent = 0 if announce else len(Charge.REMINDER_LEFT)
     charge.save(update_fields=["status", "due_from", "due_at", "reminders_sent"])
     if announce:
         req = charge.engagement.request
-        notify_client("payment_due", req.client, _path(req, "payments"), label=charge.label, title=req.title, amount=money(charge.amount, charge.currency))
+        notify_client("payment_due", req.client, _path(req, "payments"), label=charge.label, title=req.title,
+                      amount=money(charge.amount, charge.currency), due=charge.due_at.date().isoformat())
 
 
-def request_charge(request, charge_id: int) -> Charge:
+def _check_days(days: int):
+    if not 1 <= days <= Charge.MAX_WINDOW_DAYS:
+        raise ValidationError({"days": f"Between 1 and {Charge.MAX_WINDOW_DAYS} days."})
+
+
+def request_charge(request, charge_id: int, days: int = Charge.PAYMENT_WINDOW_DAYS) -> Charge:
     """
-    Younes asks for a scheduled payment now, whenever the work is far enough
-    along (midway, in production). Whatever is left is asked automatically
-    when the work is ready for review.
+    Younes asks for a payment now, with `days` to pay. A scheduled part once
+    the work is far enough along (midway, in production; whatever is left is
+    asked automatically when the work is ready for review), or the deposit he
+    kept for later. A deposit asked for while its request waits in the queue
+    means its turn has come: it leaves the queue and holds the place.
     """
+    from . import queue
+
     _require_developer(request.user)
+    _check_days(days)
     with transaction.atomic():
         charge = Charge.objects.select_for_update().select_related("engagement__request__client").get(pk=charge_id)
-        if charge.status != Charge.Status.SCHEDULED:
+        eng, req = charge.engagement, charge.engagement.request
+        deposit = charge.kind == Charge.Kind.DEPOSIT and eng.status == E.AWAITING_DEPOSIT
+        turn = deposit and queue.is_waiting(req)
+        if charge.status == Charge.Status.DUE and not turn:
+            raise ValidationError({"status": "This payment is already asked for: change its date instead."})
+        if charge.status not in (Charge.Status.SCHEDULED, Charge.Status.DUE):
             raise ValidationError({"status": "This payment is not scheduled."})
-        if charge.engagement.status not in Engagement.STARTED:
+        if not deposit and eng.status not in Engagement.STARTED:
             raise ValidationError({"status": "The deposit comes first."})
-        _make_due(charge)
-        record(request, "charge.requested", charge.engagement.request, charge=charge.label)
+        if turn:
+            queue.take_now(req, notify=False)
+        _make_due(charge, announce=not turn, days=days)
+        if turn:
+            Charge.objects.filter(pk=charge.pk).update(reminders_sent=0)
+        record(request, "charge.requested", req, charge=charge.label, days=days)
+    if turn:
+        notify_client("deposit_your_turn", req.client, _path(req, "payments"), title=req.title,
+                      amount=money(charge.amount, charge.currency), due=charge.due_at.date().isoformat())
+    return charge
+
+
+def set_due_date(request, charge_id: int, days: int) -> Charge:
+    """Younes moves the date of a payment already asked for, sooner or later: `days` from today."""
+    _require_developer(request.user)
+    _check_days(days)
+    with transaction.atomic():
+        charge = Charge.objects.select_for_update().select_related("engagement__request__client").get(pk=charge_id)
+        if charge.status != Charge.Status.DUE:
+            raise ValidationError({"status": "Only a payment that is asked for has a date to change."})
+        now = timezone.now()
+        charge.due_at = now + timedelta(days=days)
+        charge.due_from = min(charge.due_from or now, now)
+        # Steps already behind the new date stay quiet; the next ones count down to it.
+        charge.reminders_sent = reminders_crossed(charge, now)
+        charge.save(update_fields=["due_at", "due_from", "reminders_sent"])
+        req = charge.engagement.request
+        record(request, "charge.due_date", req, charge=charge.label, days=days)
+    notify_client("payment_new_date", req.client, _path(req, "payments"), label=charge.label, title=req.title,
+                  amount=money(charge.amount, charge.currency), due=charge.due_at.date().isoformat())
     return charge
 
 
@@ -408,6 +472,10 @@ def mark_paid(request, charge: Charge, payment: Payment) -> Charge:
     eng = Engagement.objects.select_for_update().select_related("request__client").get(pk=charge.engagement_id)
     req = eng.request
     if charge.kind == Charge.Kind.DEPOSIT and eng.status == E.AWAITING_DEPOSIT:
+        from . import queue
+
+        # Paid while still waiting its turn (a long window): it starts now and leaves the queue.
+        queue.started(req)
         eng.status, eng.started_at = E.IN_DEVELOPMENT, now
         eng.deadline = (now + timedelta(days=eng.timeline_days)).date()
         eng.save(update_fields=["status", "started_at", "deadline", "updated_at"])
@@ -581,6 +649,10 @@ def engagement_action(request, engagement_id: int, action: str, note: str = "", 
         elif action == "close":
             eng.closed_at = now
         elif action == "cancel":
+            from . import queue
+
+            if queue.is_waiting(req):
+                queue.left(req)
             eng.charges.filter(status__in=[*Charge.OPEN, Charge.Status.PROPOSED]).update(status=Charge.Status.VOID)
         elif action == "report_issue":
             message = Message.objects.create(request=req, sender=user, kind=Message.Kind.ISSUE, body=note.strip())
@@ -831,6 +903,8 @@ def tick(now=None) -> dict:
     # so a deposit paid in the last minutes is settled before its window is checked.
     from billing import online
 
+    from . import queue
+
     counts["payments_checked"] = online.sweep(now)
 
     for proposal in Proposal.objects.filter(status=P.SENT, expires_at__lt=now).select_related("request__client"):
@@ -844,16 +918,18 @@ def tick(now=None) -> dict:
             with transaction.atomic():
                 charge.status = Charge.Status.EXPIRED
                 charge.save(update_fields=["status"])
+                was_waiting = queue.is_waiting(req)
                 Engagement.objects.filter(pk=charge.engagement_id).update(status=E.EXPIRED)
                 ProjectRequest.objects.filter(pk=req.pk).update(status=R.EXPIRED)
                 charge.engagement.charges.filter(status=Charge.Status.SCHEDULED).update(status=Charge.Status.VOID)
+                if was_waiting:
+                    queue.left(req)
             notify_client("deposit_expired", req.client, _path(req), title=req.title)
             notify_studio_event("studio_deposit_expired", _studio_path(req), ref=req.reference, title=req.title)
             counts["deposits_expired"] += 1
             continue
         if charge.due_from:
-            elapsed = (now - charge.due_from).days
-            due_reminders = sum(1 for d in Charge.REMINDER_DAYS if elapsed >= d)
+            due_reminders = reminders_crossed(charge, now)
             if due_reminders > charge.reminders_sent:
                 Charge.objects.filter(pk=charge.pk).update(reminders_sent=due_reminders)
                 notify_client("payment_reminder", req.client, _path(req, "payments"), label=charge.label, title=req.title,

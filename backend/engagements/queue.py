@@ -68,7 +68,12 @@ def capacity(lane: str, site: SiteSettings | None = None) -> int:
 
 
 def _occupying(lane: str):
-    return Engagement.objects.filter(_lane_q(lane, "request__"), status__in=OCCUPYING).select_related("request")
+    """Places taken: projects in progress or review, and signed ones awaiting a
+    deposit that came straight in or were let through (a signed project still
+    waiting its turn stays in the queue)."""
+    in_line = Q(request__queued_at__isnull=False, request__queue_left_at__isnull=True)
+    return (Engagement.objects.filter(_lane_q(lane, "request__"), status__in=OCCUPYING)
+            .exclude(Q(status=E.AWAITING_DEPOSIT) & in_line).select_related("request"))
 
 
 def _reserved(lane: str):
@@ -80,11 +85,20 @@ def _reserved(lane: str):
 
 
 def waiting(lane: str):
-    """The queue, head first. A request signed while queued (Younes answered it
-    with a proposal) has left it: a live project is never "#2 in the queue"."""
-    return (ProjectRequest.objects.filter(_lane_q(lane), queued_at__isnull=False, queue_left_at__isnull=True, status__in=WAITING,
-                                          engagement__isnull=True)
+    """
+    The queue, head first: requests not yet started, answered or not. One that
+    Younes answered and the client signed keeps its place until its deposit
+    is paid (then it starts) or it lapses; a live project is never "#2".
+    """
+    not_started = Q(engagement__isnull=True) | Q(engagement__status=E.AWAITING_DEPOSIT)
+    return (ProjectRequest.objects.filter(_lane_q(lane), not_started, queued_at__isnull=False, queue_left_at__isnull=True,
+                                          status__in=WAITING)
             .select_related("service").order_by("queued_at", "id"))
+
+
+def is_waiting(req: ProjectRequest) -> bool:
+    lane = lane_of(req.service)
+    return bool(lane) and waiting(lane).filter(pk=req.pk).exists()
 
 
 def used(lane: str) -> int:
@@ -189,10 +203,21 @@ def join_on_submit(req: ProjectRequest):
         req.queue_left_at = None
 
 
-def _release(req: ProjectRequest, *, manual: bool):
+def _release(req: ProjectRequest, *, manual: bool, notify: bool = True):
+    from billing.models import Charge
     from notifications.events import notify_client, notify_studio_event
 
     ProjectRequest.objects.filter(pk=req.pk).update(queue_left_at=timezone.now())
+    if not notify:
+        return
+    deposit = Charge.objects.filter(engagement__request=req, kind=Charge.Kind.DEPOSIT).first()
+    if deposit and not manual:
+        # Already signed: the studio decides when the deposit is due.
+        what = (f"Its deposit is due by {deposit.due_at.date().isoformat()}; shorten the time to pay if you start now."
+                if deposit.status == Charge.Status.DUE and deposit.due_at else "Ask for the deposit when you're ready to start.")
+        notify_studio_event("studio_queue_deposit", f"/studio/requests/{req.reference}?tab=payments", ref=req.reference, title=req.title,
+                            client=req.client.full_name, deposit=what)
+        return
     notify_client("queue_your_turn", req.client, f"/portal/requests/{req.reference}", title=req.title)
     if not manual:
         notify_studio_event("studio_queue_next", f"/studio/requests/{req.reference}", ref=req.reference, title=req.title,
@@ -219,8 +244,8 @@ def advance(lane: str | None = None) -> int:
     return released
 
 
-def _moved(lanes: list[str]):
-    """Everyone still waiting moved up: tell them on the site (no e-mail)."""
+def _moved(lanes: list[str], after=None):
+    """Those still waiting moved up (everyone, or those behind `after`): tell them on the site (no e-mail)."""
     from live.service import notify_in_app
     from notifications.service import user_lang
 
@@ -228,6 +253,8 @@ def _moved(lanes: list[str]):
     for ln in lanes:
         queue = list(waiting(ln))
         for i, req in enumerate(queue):
+            if after is not None and (req.queued_at, req.pk) <= after:
+                continue
             fr = user_lang(req.client) == "fr"
             start = _simulate(ln, queue[:i], site)
             when = start.isoformat() if start else ("bientôt" if fr else "soon")
@@ -237,11 +264,35 @@ def _moved(lanes: list[str]):
             notify_in_app(req.client, "queue_moved", title, text, f"/portal/requests/{req.reference}")
 
 
-def take_now(req: ProjectRequest):
-    """The studio starts with this one now, ahead of the queue."""
+def take_now(req: ProjectRequest, notify: bool = True):
+    """The studio starts with this one now, ahead of the queue (those behind it move up)."""
     if req.queued_at and not req.queue_left_at:
-        _release(req, manual=True)
-        _moved([lane_of(req.service) or STUDIO])
+        _release(req, manual=True, notify=notify)
+        _moved([lane_of(req.service) or STUDIO], after=(req.queued_at, req.pk))
+
+
+def started(req: ProjectRequest):
+    """Its deposit is paid: the project starts, so it is out of the queue for good."""
+    if req.queued_at and not req.queue_left_at:
+        ProjectRequest.objects.filter(pk=req.pk).update(queue_left_at=timezone.now())
+        req.queue_left_at = timezone.now()
+        lane = lane_of(req.service) or STUDIO
+        transaction.on_commit(lambda: _moved([lane], after=(req.queued_at, req.pk)))
+
+
+def left(req: ProjectRequest):
+    """
+    It left the queue without starting (withdrawn, declined, expired,
+    cancelled): a place may free up, and those behind it move up.
+    """
+    lane = lane_of(req.service) or STUDIO
+    mark = (req.queued_at, req.pk)
+
+    def after_commit():
+        if not advance(lane):
+            _moved([lane], after=mark)
+
+    transaction.on_commit(after_commit)
 
 
 def requeue(req: ProjectRequest):
@@ -279,9 +330,14 @@ def lanes_overview() -> list[dict]:
         rows = []
         for i, req in enumerate(queue):
             start = _simulate(ln, queue[:i], site)
+            eng = getattr(req, "engagement", None)
+            deposit = eng.charges.filter(kind="deposit").first() if eng else None
             rows.append({"reference": req.reference, "title": req.title, "client": req.client.full_name,
                          "service": req.service.title_en if req.service else "", "queued_at": req.queued_at,
-                         "status": req.status, "position": i + 1, "start": start})
+                         "status": req.status, "position": i + 1, "start": start,
+                         # Signed already: its deposit is asked later, or due by a date.
+                         "deposit": {"id": deposit.pk, "status": deposit.status, "due_at": deposit.due_at,
+                                     "amount": deposit.amount, "currency": deposit.currency} if deposit else None})
         services = ([s.title_en for s in Service.objects.filter(active=True, accept_directly=False, max_active__isnull=True)]
                     if ln == STUDIO else list(Service.objects.filter(slug=ln.split(":", 1)[1]).values_list("title_en", flat=True)))
         out.append({
@@ -310,6 +366,12 @@ def _engagement_saved(sender, instance, **kwargs):
 
 
 def _request_saved(sender, instance, **kwargs):
+    # Withdrawn, declined or expired while waiting: those behind it move up.
+    if not kwargs.get("raw") and instance.queued_at and not instance.queue_left_at and instance.status not in WAITING:
+        eng = getattr(instance, "engagement", None) if hasattr(instance, "engagement") else None
+        if eng is None or eng.status in (E.AWAITING_DEPOSIT, E.EXPIRED, E.CANCELLED):
+            left(instance)
+            return
     if not kwargs.get("raw") and instance.queued_at and instance.status not in WAITING:
         _soon()
 

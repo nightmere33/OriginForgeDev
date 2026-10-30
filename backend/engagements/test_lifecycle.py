@@ -255,31 +255,164 @@ class LifecycleTests(LifecycleBase):
         # The released request holds the place: nobody else is let through.
         self.assertEqual(tick()["queue_released"], 0)
 
-    def test_a_queued_request_answered_and_signed_leaves_the_queue_for_good(self):
+    # ── The queue with answered requests (Younes answers while busy) ──────
+
+    def full_studio(self):
+        """One place, taken by Alice's project in development."""
         from content.models import SiteSettings
-        from engagements import queue
-        from engagements.models import Engagement
 
         site = SiteSettings.load()
         site.max_active_projects = 1
         site.save()
-        self.started_project()  # Alice's: the only place
-        bob = self.api(self.bob)
-        req = self.ok(bob.post("/api/requests/", {"title": "Clinic site", "objectives": "Bookings", "service": "web-platforms"}, format="json"), 201)
-        ref = req["reference"]
-        self.assertEqual(req["queue"]["position"], 1)
+        return self.started_project()
 
-        # Younes answers it with a proposal anyway; Bob signs.
-        v1 = self.offer(ref)
-        self.ok(bob.post(f"/api/proposals/{v1['id']}/respond/", {"action": "accept"}, format="json"))
-        contract = self.ok(bob.get(f"/api/requests/{ref}/"))["contract"]
-        eng = self.ok(bob.post(f"/api/contracts/{contract['id']}/sign/", {"signed_name": "Bob B", "agree": True}, format="json"), 201)
+    def queued(self, user, title="Clinic site"):
+        return self.ok(self.api(user).post("/api/requests/", {"title": title, "objectives": "Bookings", "service": "web-platforms"},
+                                           format="json"), 201)
+
+    def sign(self, user, ref, **offer):
+        v1 = self.offer(ref, **offer)
+        client = self.api(user)
+        self.ok(client.post(f"/api/proposals/{v1['id']}/respond/", {"action": "accept"}, format="json"))
+        contract = self.ok(client.get(f"/api/requests/{ref}/"))["contract"]
+        return self.ok(client.post(f"/api/contracts/{contract['id']}/sign/", {"signed_name": user.full_name, "agree": True}, format="json"), 201)
+
+    def test_a_queued_request_signed_with_a_long_window_keeps_its_place_until_paid(self):
+        from engagements import queue
+
+        self.full_studio()
+        bob, dev = self.api(self.bob), self.api(self.dev)
+        ref = self.queued(self.bob)["reference"]
+        eng = self.sign(self.bob, ref, deposit_days=30)
+        deposit = eng["charges"][0]
+        self.assertEqual(deposit["status"], "due")
+        self.assertEqual((Charge.objects.get(pk=deposit["id"]).due_at - timezone.now()).days, 29)
+        self.assertIn("within 30 days of signing", self.ok(bob.get(f"/api/requests/{ref}/"))["contract"]["body"])
+
+        # Signed, not started: still #1, and it takes no place yet.
+        self.assertEqual(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"]["position"], 1)
+        self.assertEqual(queue.used(queue.STUDIO), 1)
+
+        # Paid early: it starts like any project and leaves the queue for good.
+        self.ok(dev.post(f"/api/charges/{deposit['id']}/cash/"))
+        self.assertEqual(Engagement.objects.get(pk=eng["id"]).status, "in_development")
         self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
-
-        # Live: never "#1 in the queue" again, and it holds no place.
+        self.assertEqual((queue.used(queue.STUDIO), queue.waiting(queue.STUDIO).count()), (2, 0))
         Engagement.objects.filter(pk=eng["id"]).update(status=Engagement.Status.LIVE)
         self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
-        self.assertEqual((queue.used(queue.STUDIO), queue.waiting(queue.STUDIO).count()), (1, 0))
+
+    def test_a_deposit_kept_for_later_is_asked_when_its_turn_comes(self):
+        from django.core import mail
+
+        from engagements import queue
+        from live.models import Notification
+
+        alice_eng = self.full_studio()
+        bob, dev = self.api(self.bob), self.api(self.dev)
+        ref = self.queued(self.bob)["reference"]
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            eng = self.sign(self.bob, ref, deposit_days=0)
+        deposit = eng["charges"][0]
+        self.assertEqual((deposit["status"], deposit["due_at"]), ("scheduled", None))
+        self.assertTrue(any("Nothing to pay until then" in m.body for m in mail.outbox))  # no "pay within 5 days"
+        self.assertIn("when the project's turn comes in the queue", self.ok(bob.get(f"/api/requests/{ref}/"))["contract"]["body"])
+        self.assertEqual(bob.post(f"/api/charges/{deposit['id']}/pay-early/").status_code, 400)  # not before it is asked
+        self.assertEqual(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"]["position"], 1)
+
+        # Alice's project ships: Bob is next. Signed already, so the studio is the one told.
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            Engagement.objects.filter(pk=alice_eng).update(status=Engagement.Status.LIVE)
+            queue.advance()
+        self.assertTrue(Notification.objects.filter(user=self.dev, key="studio_queue_deposit").exists())
+        self.assertFalse(any(m.to == ["bob@example.com"] for m in mail.outbox))
+        self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
+
+        # Younes asks for it, with a week to pay.
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            charge = self.ok(dev.post(f"/api/charges/{deposit['id']}/request/", {"days": 7}, format="json"))
+        self.assertEqual(charge["status"], "due")
+        self.assertEqual((Charge.objects.get(pk=deposit["id"]).due_at - timezone.now()).days, 6)
+        self.assertTrue(any("Payment due" in m.subject for m in mail.outbox))
+        self.assertEqual(dev.post(f"/api/charges/{deposit['id']}/request/", {"days": 5}, format="json").status_code, 400)
+        self.assertEqual(dev.post(f"/api/charges/{deposit['id']}/request/", {"days": 400}, format="json").status_code, 400)
+
+    def test_asking_a_waiting_deposit_now_is_its_turn(self):
+        from django.core import mail
+
+        from engagements import queue
+
+        self.full_studio()
+        bob, dev = self.api(self.bob), self.api(self.dev)
+        ref = self.queued(self.bob)["reference"]
+        later = self.queued(self.alice, "Later")["reference"]
+        deposit = self.sign(self.bob, ref, deposit_days=0)["charges"][0]
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ok(dev.post(f"/api/charges/{deposit['id']}/request/", {"days": 5}, format="json"))
+        # Out of the queue, holding the place; the one behind moves up; one e-mail says it all.
+        self.assertIsNone(self.ok(bob.get(f"/api/requests/{ref}/"))["queue"])
+        self.assertEqual(self.ok(self.api(self.alice).get(f"/api/requests/{later}/"))["queue"]["position"], 1)
+        self.assertEqual(queue.used(queue.STUDIO), 2)
+        bob_mail = [m for m in mail.outbox if m.to == ["bob@example.com"]]
+        self.assertEqual([m.subject for m in bob_mail], ["[OriginForge] It's your turn: Clinic site"])
+        self.assertNotRegex(bob_mail[0].body, r"\d{4}-\d{2}-\d{2}")  # the date reads as a date
+
+    def test_younes_moves_the_date_to_pay_and_reminders_follow_it(self):
+        from django.core import mail
+
+        self.full_studio()
+        bob, dev = self.api(self.bob), self.api(self.dev)
+        ref = self.queued(self.bob)["reference"]
+        deposit = self.sign(self.bob, ref, deposit_days=30)["charges"][0]
+        charge = Charge.objects.get(pk=deposit["id"])
+        self.assertEqual(tick(now=charge.due_from + timedelta(days=10))["reminders"], 0)  # a long window: no day-2 nag
+        self.assertEqual(tick(now=charge.due_at - timedelta(days=6))["reminders"], 1)  # a week left
+
+        mail.outbox.clear()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ok(dev.post(f"/api/charges/{deposit['id']}/due-date/", {"days": 3}, format="json"))
+        charge.refresh_from_db()
+        self.assertEqual((charge.due_at - timezone.now()).days, 2)
+        self.assertTrue(any(m.subject.startswith("[OriginForge] New date to pay") for m in mail.outbox))
+        self.assertEqual(tick()["reminders"], 0)  # the steps already behind stay quiet
+        self.assertEqual(tick(now=charge.due_at - timedelta(hours=20))["reminders"], 1)  # the last day
+        self.assertEqual(bob.post(f"/api/charges/{deposit['id']}/due-date/", {"days": 9}, format="json").status_code, 403)
+
+    def test_the_usual_five_days_keep_their_reminders_on_days_2_and_4(self):
+        self.full_studio()
+        eng2 = self.sign(self.bob, self.queued(self.bob, "Second")["reference"])
+        d2 = Charge.objects.get(pk=eng2["charges"][0]["id"])
+        self.assertEqual(tick(now=d2.due_from + timedelta(days=1, hours=23))["reminders"], 0)
+        self.assertEqual(tick(now=d2.due_from + timedelta(days=2, hours=1))["reminders"], 1)
+        self.assertEqual(tick(now=d2.due_from + timedelta(days=4, hours=1))["reminders"], 1)
+
+    def test_the_queue_closes_up_when_someone_leaves(self):
+        from engagements import queue
+        from live.models import Notification
+
+        self.full_studio()
+        carol = User.objects.create_user("carol@example.com", "pass-pass-4", full_name="Carol C", email_verified_at=timezone.now())
+        dave = User.objects.create_user("dave@example.com", "pass-pass-5", full_name="Dave D", email_verified_at=timezone.now())
+        b = self.queued(self.bob, "B")["reference"]
+        c = self.queued(carol, "C")["reference"]
+        d = self.queued(dave, "D")["reference"]
+        Notification.objects.all().delete()
+
+        # C withdraws: only D (behind it) moves up and is told.
+        with self.captureOnCommitCallbacks(execute=True):
+            self.ok(self.api(carol).post(f"/api/requests/{c}/transition/", {"to": "withdrawn"}, format="json"))
+        self.assertEqual([r.reference for r in queue.waiting(queue.STUDIO)], [b, d])
+        self.assertEqual(list(Notification.objects.filter(key="queue_moved").values_list("user__email", flat=True)), ["dave@example.com"])
+
+        # B signs with a deposit due in 5 days and lets it lapse: D is next.
+        deposit = self.sign(self.bob, b)["charges"][0]
+        with self.captureOnCommitCallbacks(execute=True):
+            tick(now=Charge.objects.get(pk=deposit["id"]).due_at + timedelta(minutes=1))
+        self.assertEqual([r.reference for r in queue.waiting(queue.STUDIO)], [d])
+        self.assertEqual(self.ok(self.api(dave).get(f"/api/requests/{d}/"))["queue"]["position"], 1)
 
     def test_direct_services_never_queue_and_the_studio_can_take_one_now(self):
         from content.models import Service, SiteSettings

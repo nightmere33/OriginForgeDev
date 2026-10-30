@@ -66,7 +66,13 @@ class ChargeViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 
     @action(detail=True, methods=["post"], url_path="request", permission_classes=[IsDeveloper])
     def request_payment(self, request, pk=None):
-        return Response(ChargeSerializer(lifecycle.request_charge(request, self.get_object().pk)).data)
+        """Ask for it now, with `days` to pay (5 by default)."""
+        return Response(ChargeSerializer(lifecycle.request_charge(request, self.get_object().pk, _days(request))).data)
+
+    @action(detail=True, methods=["post"], url_path="due-date", permission_classes=[IsDeveloper])
+    def due_date(self, request, pk=None):
+        """Move the date of a payment already asked for: `days` from today."""
+        return Response(ChargeSerializer(lifecycle.set_due_date(request, self.get_object().pk, _days(request))).data)
 
     @action(detail=True, methods=["post"], url_path="pay-early")
     def pay_early(self, request, pk=None):
@@ -159,6 +165,14 @@ def payment_approved(request, pk):
         payment.refresh_from_db()
         payment.charge.refresh_from_db(fields=["status"])
     return Response(PaymentStateSerializer(payment).data)
+
+
+def _days(request) -> int:
+    raw = request.data.get("days", Charge.PAYMENT_WINDOW_DAYS)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise ValidationError({"days": "A number of days."}) from None
 
 
 @api_view(["GET"])

@@ -54,3 +54,35 @@ def draft_case_study(engagement) -> CaseStudy | None:
     )
     logger.info("Drafted case study %s from %s", study.slug, req.reference)
     return study
+
+
+# ── Published: the client hears about it ──────────────────────────────────
+# Clients agree to be shown when they send the request ("Show it in the
+# portfolio"); when Younes publishes their case study they get an e-mail and
+# a notification with the link. Once per study (never again on a re-publish).
+
+def _remember(sender, instance: CaseStudy, **kwargs):
+    instance._was_published = bool(instance.pk) and CaseStudy.objects.filter(pk=instance.pk, published=True).exists()
+
+
+def _announce(sender, instance: CaseStudy, created: bool, raw: bool = False, **kwargs):
+    if raw or not instance.published or getattr(instance, "_was_published", False) or not instance.source_engagement_id:
+        return
+    from django.db import transaction
+
+    from live.models import Notification
+    from notifications.events import notify_client
+
+    eng = instance.source_engagement
+    client = eng.request.client
+    path = f"/work/{instance.slug}"
+    if not client.is_active or eng.nda or Notification.objects.filter(user=client, key="case_study_published", path=path).exists():
+        return
+    transaction.on_commit(lambda: notify_client("case_study_published", client, path, title=eng.request.title))
+
+
+def connect():
+    from django.db.models.signals import post_save, pre_save
+
+    pre_save.connect(_remember, sender=CaseStudy, dispatch_uid="portfolio-remember")
+    post_save.connect(_announce, sender=CaseStudy, dispatch_uid="portfolio-announce")

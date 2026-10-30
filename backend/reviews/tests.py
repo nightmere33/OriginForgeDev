@@ -115,6 +115,23 @@ class ReviewTests(TestCase):
         self.assertFalse(CaseStudy.objects.filter(source_engagement_id=secret).exists())
         self.assertEqual(Engagement.objects.get(pk=secret).status, "live")
 
+        # Published: the client hears about it, once, with the link.
+        from django.core import mail
+
+        from live.models import Notification
+
+        mail.outbox.clear()
+        for _ in range(2):  # published, unpublished, published again
+            with self.captureOnCommitCallbacks(execute=True):
+                study.published = True
+                study.save()
+            study.published = False
+            study.save()
+        sent = [m for m in mail.outbox if "is on the website" in m.subject]
+        self.assertEqual([m.to for m in sent], [["alice@example.com"]])
+        self.assertIn(f"/en/work/{study.slug}", sent[0].body)
+        self.assertEqual(Notification.objects.filter(user=self.alice, key="case_study_published").count(), 1)
+
     def test_invited_client_reviews_a_portfolio_project(self):
         from django.core import mail
 

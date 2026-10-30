@@ -42,6 +42,8 @@ export type Proposal = {
   allow_cash: boolean;
   /** Off: accept or decline only (a fixed price, or the final offer). */
   negotiable: boolean;
+  /** Days to pay the deposit after signing; 0 = asked when its turn comes in the queue. */
+  deposit_days: number;
   expires_at: string;
   responded_at: string | null;
   created_at: string;

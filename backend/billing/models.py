@@ -22,7 +22,10 @@ from content.models import Currency
 
 class Charge(models.Model):
     PAYMENT_WINDOW_DAYS = 5
-    REMINDER_DAYS = (2, 4)
+    MAX_WINDOW_DAYS = 90
+    # Reminders by the time left (days 2 and 4 of the usual five); a step only
+    # counts when the window is longer than it, so a short one isn't nagged.
+    REMINDER_LEFT = (7, 3, 1)
 
     class Kind(models.TextChoices):
         DEPOSIT = "deposit", "Deposit"

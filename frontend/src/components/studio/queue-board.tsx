@@ -9,11 +9,17 @@ import { api } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { day } from "@/lib/lifecycle";
 import { useLiveRefresh } from "@/lib/live";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
 import { Hud } from "@/components/ui/hud";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { useGuard } from "@/components/portal/requests";
 
-type Row = { reference: string; title: string; client: string; service: string; queued_at: string; status: string; position: number; start: string | null };
+type Row = {
+  reference: string; title: string; client: string; service: string; queued_at: string; status: string; position: number; start: string | null;
+  /** Signed already: its deposit is kept for its turn ("scheduled") or due by a date. */
+  deposit: { id: number; status: string; due_at: string | null; amount: number; currency: string } | null;
+};
 type Lane = {
   lane: string; services: string[]; capacity: number; used: number; full: boolean;
   active: { reference: string; title: string; status: string; ends: string | null }[];
@@ -38,13 +44,16 @@ function Places({ used, capacity }: { used: number; capacity: number }) {
 /**
  * The queue, lane by lane: places taken (projects in progress, requests
  * released and about to start), then the line in order with each one's
- * estimated start. Younes can start one now, or move it up or down.
+ * estimated start. Younes can start one now, or move it up or down; one
+ * already signed is started by asking for its deposit.
  */
 export function QueueBoard({ lang, t }: { lang: Locale; t: T }) {
   const user = useGuard(lang, true);
   const q = t.studio.dash.queue;
   const [lanes, setLanes] = useState<Lane[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // "Ask for the deposit" opens a small step first: how many days to pay (5 by default).
+  const [asking, setAsking] = useState<{ ref: string; days: string } | null>(null);
   const load = useCallback(() => api.get<Lane[]>("/studio/queue/").then(setLanes, () => undefined), []);
   useLiveRefresh(load);
   useEffect(() => {
@@ -55,6 +64,18 @@ export function QueueBoard({ lang, t }: { lang: Locale; t: T }) {
     setBusy(`${ref}:${action}`);
     try {
       setLanes(await api.post<Lane[]>(`/studio/queue/${ref}/${action}/`));
+    } finally {
+      setBusy(null);
+    }
+  };
+  // Its turn: the deposit is asked for now (the date can still change in Payments).
+  const askDeposit = async (row: Row, days: number) => {
+    if (!row.deposit) return;
+    setBusy(`${row.reference}:deposit`);
+    try {
+      await api.post(`/charges/${row.deposit.id}/request/`, { days });
+      setAsking(null);
+      await load();
     } finally {
       setBusy(null);
     }
@@ -115,6 +136,11 @@ export function QueueBoard({ lang, t }: { lang: Locale; t: T }) {
                       <ArrowUpRight aria-hidden className="size-3.5 shrink-0 opacity-60" />
                     </span>
                     <span className="block truncate text-sm text-faint">{[r.client, r.service, r.reference].filter(Boolean).join(" · ")}</span>
+                    {r.deposit && (
+                      <span className="hud mt-1 block text-ember-400">
+                        {r.deposit.status === "due" && r.deposit.due_at ? fill(q.signedDue, { date: day(lang, r.deposit.due_at, false) }) : q.signedLater}
+                      </span>
+                    )}
                   </Link>
                   <span className="hud text-muted">{r.start ? fill(q.startsAround, { date: day(lang, r.start, false) }) : q.startsSoon}</span>
                   <span className="flex items-center gap-1">
@@ -122,11 +148,24 @@ export function QueueBoard({ lang, t }: { lang: Locale; t: T }) {
                       className="flex size-9 items-center justify-center text-faint transition-colors hover:text-ink disabled:opacity-30"><ArrowUp aria-hidden className="size-4" /></button>
                     <button type="button" aria-label={q.down} disabled={i === lane.queue.length - 1 || !!busy} onClick={() => act(r.reference, "down")}
                       className="flex size-9 items-center justify-center text-faint transition-colors hover:text-ink disabled:opacity-30"><ArrowDown aria-hidden className="size-4" /></button>
-                    <button type="button" disabled={!!busy} onClick={() => act(r.reference, "take")}
+                    <button type="button" disabled={!!busy} aria-expanded={r.deposit ? asking?.ref === r.reference : undefined}
+                      onClick={() => (r.deposit ? setAsking(asking?.ref === r.reference ? null : { ref: r.reference, days: "5" }) : act(r.reference, "take"))}
                       className="hud ml-2 inline-flex h-9 items-center gap-2 border border-line-strong px-3 text-ink transition-colors hover:border-ember-400 hover:text-ember-400 disabled:opacity-40">
-                      <Play aria-hidden className="size-3" />{q.take}
+                      <Play aria-hidden className="size-3" />{r.deposit ? q.askDeposit : q.take}
                     </button>
                   </span>
+                  {r.deposit && asking?.ref === r.reference && (
+                    <div className="flex flex-wrap items-end gap-3 md:col-span-4 [animation:step-in_var(--dur-standard)_var(--ease-out)]">
+                      <Field label={t.project.pay.daysToPay} className="w-32">
+                        {(a) => <Input id={a.id} inputMode="numeric" value={asking.days} autoFocus
+                          onChange={(e) => setAsking({ ref: r.reference, days: e.target.value.replace(/\D/g, "").slice(0, 2) })} />}
+                      </Field>
+                      <Button variant="ember" size="sm" loading={busy === `${r.reference}:deposit`}
+                        onClick={() => askDeposit(r, Math.min(90, Math.max(1, Number(asking.days) || 5)))}>{q.askNow}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => setAsking(null)}>{q.cancel}</Button>
+                      <p className="basis-full text-sm text-faint">{q.askHelp}</p>
+                    </div>
+                  )}
                 </li>
               ))}
             </ol>

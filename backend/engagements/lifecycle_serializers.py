@@ -26,8 +26,8 @@ class ProposalSerializer(serializers.ModelSerializer):
         fields = (
             "id", "version", "kind", "status", "from_client", "title", "scope", "deliverables", "exclusions", "note",
             "price", "currency", "plan_name", "maintenance_days", "revision_rounds", "reply_hours", "deposit_percent",
-            "schedule", "timeline_days", "milestones", "nda", "allow_cash", "negotiable", "expires_at", "responded_at",
-            "created_at", "can_respond", "can_counter",
+            "schedule", "timeline_days", "milestones", "nda", "allow_cash", "negotiable", "deposit_days", "expires_at",
+            "responded_at", "created_at", "can_respond", "can_counter",
         )
 
     def get_from_client(self, obj) -> bool:
@@ -66,6 +66,8 @@ class ProposalCreateSerializer(serializers.Serializer):
     allow_cash = serializers.BooleanField(required=False, default=False)
     # Left out: product films are a fixed price, everything else is open to a counter-offer.
     negotiable = serializers.BooleanField(required=False, allow_null=True, default=None)
+    # Days to pay the deposit after signing; 0 = asked later (its turn in the queue).
+    deposit_days = serializers.IntegerField(min_value=0, max_value=90, required=False, default=5)
 
     def validate_milestones(self, value):
         for m in value:

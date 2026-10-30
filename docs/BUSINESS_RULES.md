@@ -2,7 +2,7 @@
 
 **Approved by Younes on 22 October 2026, with every Recommendation adopted.** These rules are the platform's behaviour: statuses, timers, reminders, prices and the contract text all come from here. Numbers marked as settings are editable in the admin; changing a rule itself means editing this file first.
 
-Approved values at a glance: maintenance 14 / 30 / 60 days · plan surcharge +0 / +15 / +30 % · revisions 2 / 3 / 5 · deposit 40 % (50 % under 60 000 DZD or 400 EUR, or for Rush) · milestones 40 / 30 / 30 above 500 000 DZD or 3 500 EUR · payment window 5 days with reminders on days 2 and 4 · 3 negotiation rounds · proposals expire after 14 days · 2 active projects, then a queue with positions and estimated starts (films taken directly) · all calculator variables at launch.
+Approved values at a glance: maintenance 14 / 30 / 60 days · plan surcharge +0 / +15 / +30 % · revisions 2 / 3 / 5 · deposit 40 % (50 % under 60 000 DZD or 400 EUR, or for Rush) · milestones 40 / 30 / 30 above 500 000 DZD or 3 500 EUR · payment window 5 days by default (set per proposal, up to 90, or "when its turn comes"), reminders at 7, 3 and 1 days left · 3 negotiation rounds · proposals expire after 14 days · 2 active projects, then a queue with positions and estimated starts (films taken directly) · all calculator variables at launch.
 
 ---
 
@@ -98,7 +98,7 @@ The platform records the date and time, the IP address, the device, and a finger
   - **Chargily** pays DZD charges; Chargily's card fee is added on its page, paid by the client (§5).
   - **PayPal** pays EUR and USD charges in their currency, and DZD charges in US dollars at the live street rate (§5.1), rounded up to the cent. The amount is fixed the moment PayPal opens, and PayPal must capture exactly that amount.
   - Online payments confirm themselves through the provider's signed notice; the client sees each step on the project page. A payment that arrives for a charge already paid (or expired) is flagged to you to refund, never counted twice.
-- **Payment window: 5 days** after signing. Reminders go out automatically on day 2 and day 4. If nothing arrives, the request is marked **expired**. The client can ask to revive it (the proposal is then re-checked against your current calendar and prices).
+- **Payment window: 5 days** after signing by default. Younes sets it per proposal (up to 90 days, e.g. a month for someone waiting in the queue), or keeps the deposit for later: "ask for it when their turn comes" (the client signs, keeps their place, and cannot pay before he asks). Any date can be moved later, sooner or further (studio, Payments: "Change the date to pay"); the client gets the new date by e-mail. Reminders go out at 7 (long windows only), 3 and 1 days left, which is day 2 and day 4 of the usual five. If nothing arrives, the request is marked **expired**. The client can ask to revive it (the proposal is then re-checked against your current calendar and prices).
 - Manual payments (CCP, BaridiMob, cash): the client uploads a photo of the receipt; you confirm it in the studio. Card payments confirm themselves.
 - **Work starts only when the deposit is confirmed.** The project start date and deadlines are counted from that day.
 
@@ -131,11 +131,14 @@ The platform records the date and time, the IP address, the device, and a finger
 **Changed by Younes on 27 October 2026: nobody is turned away; requests queue.**
 
 - **Lanes.** Each service either shares the studio's limit (Site settings, "projects at once", 2 by default), has a limit of its own, or is **taken directly** and never queues (product films). All of it is set per service in the studio (Services).
-- A place is taken by a project awaiting its deposit, in development or in client review, and by a request just released from the queue (its place is held until it starts).
+- A place is taken by a project in development or in client review, by one awaiting its deposit that came straight in (or was let through), and by a request just released from the queue (its place is held until it starts).
 - A request sent to a full lane, or to a lane where others already wait, **joins the queue** (first come, first served). The request form says so before sending: "Full right now… your request joins the queue at #N, estimated start around <date>". The first e-mail repeats the position and the date.
 - **Estimated start** = when the earliest place frees (projects' deadlines, or start plus timeline), after everyone ahead has had theirs (their proposal's timeline, else the service's typical length).
 - When a place frees (a project ships, a request is declined, withdrawn or expires), the head of the queue is told "it's your turn" by e-mail; everyone behind sees their new position on the site. The studio is told who is next.
 - Younes can **start a request now** (ahead of the queue), put it back, or move it up or down (studio, Queue).
+- **Answering while busy.** Younes can send a proposal to anyone in the queue. Once signed, the request **keeps its place** until its deposit is paid: paying starts the project like any other (it leaves the queue, those behind move up). For a small job he wants to fit in now, he sends it with the usual 5 days; for someone further back, a longer window or "ask for it when their turn comes".
+- **Their turn, already signed.** When a place frees and the head of the queue has signed, the studio is told ("ask for the deposit"); "Ask for the deposit" on the Queue page (or in Payments) asks for it with 5 days to pay and lets it through, and the client gets one e-mail: "It's your turn… pay the deposit by <date>".
+- **The line closes up by itself.** Whoever leaves without starting (withdrawn, declined, a proposal or deposit that lapsed, a project cancelled) frees their position; only the people behind them are told they moved up (on the site, no e-mail).
 - **Every request gets a first answer within 24 to 48 hours**, queued or not (both figures are settings). After 24 hours without an answer the studio gets one reminder.
 - **Pausing starts** (holidays) puts every new request in the queue, with "back from" as the earliest start. Messages and questions always stay open.
 

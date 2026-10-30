@@ -343,7 +343,8 @@ function StudioCharge({ lang, t, reload, charge, started }: PanelProps & { charg
   };
 
   const pending = charge.proofs.filter((p) => p.status === "pending");
-  const askable = charge.status === "scheduled" && charge.kind !== "extra" && started;
+  // A scheduled part once work has started, or a deposit kept for "when its turn comes".
+  const askable = charge.status === "scheduled" && charge.kind !== "extra" && (started || charge.kind === "deposit");
   if (!pending.length && charge.status !== "due" && !askable) return null;
 
   return (
@@ -390,12 +391,36 @@ function StudioCharge({ lang, t, reload, charge, started }: PanelProps & { charg
           {st.recordCash} · {charge.label}
         </Button>
       )}
+      {!pending.length && charge.status === "due" && (
+        <DaysAction t={t} label={t.project.pay.changeDate} go={t.project.pay.setDate} help={t.project.pay.dateHelp} initial={5}
+          busy={busy === "date"} onGo={(days) => run("date", `/charges/${charge.id}/due-date/`, { days })} />
+      )}
       {askable && (
-        <Button variant="secondary" size="sm" loading={busy === "req"} onClick={() => run("req", `/charges/${charge.id}/request/`)}>
-          {t.project.pay.requestNow} · {charge.label} · {money(lang, charge.amount, charge.currency)}
-        </Button>
+        <DaysAction t={t} label={`${charge.kind === "deposit" ? t.project.pay.askDeposit : t.project.pay.requestNow} · ${charge.label} · ${money(lang, charge.amount, charge.currency)}`}
+          go={charge.kind === "deposit" ? t.project.pay.askDeposit : t.project.pay.requestNow} help={t.project.pay.dateHelp} initial={5}
+          busy={busy === "req"} onGo={(days) => run("req", `/charges/${charge.id}/request/`, { days })} />
       )}
       <ErrorLine>{error}</ErrorLine>
+    </div>
+  );
+}
+
+/** Studio: an action with a number of days to pay (5 by default, up to 90). */
+function DaysAction({ t, label, go, help, initial, busy, onGo }: Pick<PanelProps, "t"> & {
+  label: string; go: string; help: string; initial: number; busy: boolean; onGo: (days: number) => void;
+}) {
+  const [days, setDays] = useState(String(initial));
+  const n = Math.min(90, Math.max(1, Number(days) || initial));
+  return (
+    <div className="flex flex-col gap-2 border-t border-line pt-4">
+      <p className="text-sm text-ink">{label}</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label={t.project.pay.daysToPay} className="w-32">
+          {(a) => <Input id={a.id} inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, "").slice(0, 2))} />}
+        </Field>
+        <Button variant="secondary" size="sm" loading={busy} onClick={() => onGo(n)}>{go}</Button>
+      </div>
+      <p className="text-sm text-faint">{help}</p>
     </div>
   );
 }
@@ -440,7 +465,8 @@ export function PaymentsLedger(props: PanelProps & { engagement: Engagement }) {
   // studio also keeps the ledger rows beside its actions.
   return (
     <div className="flex flex-col gap-8">
-      {side === "studio" && contract.some((c) => c.status === "due" || c.proofs.some((p) => p.status === "pending") || (c.status === "scheduled" && started)) && (
+      {side === "studio" && contract.some((c) => c.status === "due" || c.proofs.some((p) => p.status === "pending")
+        || (c.status === "scheduled" && (started || c.kind === "deposit"))) && (
         <div>{contract.map((c) => <StudioCharge key={c.id} {...props} charge={c} started={started} />)}</div>
       )}
       <PaymentProgress lang={lang} p={t.project.pay} engagement={engagement} />

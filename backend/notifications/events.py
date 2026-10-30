@@ -20,8 +20,20 @@ EVENTS = {
         "fr": ("Votre contrat est prêt à signer", "Nous sommes d'accord sur {price} pour « {title} ». Votre contrat est prêt : lisez-le et signez-le en ligne."),
     },
     "payment_due": {
-        "en": ("Payment due: {label}", "{label} for \"{title}\": {amount}. Please pay within 5 days. Payment details are in your client space."),
-        "fr": ("Paiement attendu : {label}", "{label} pour « {title} » : {amount}. Merci de régler sous 5 jours. Les coordonnées de paiement sont dans votre espace client."),
+        "en": ("Payment due: {label}", "{label} for \"{title}\": {amount}. Please pay by {due}. Payment details are in your client space."),
+        "fr": ("Paiement attendu : {label}", "{label} pour « {title} » : {amount}. Merci de régler avant le {due}. Les coordonnées de paiement sont dans votre espace client."),
+    },
+    "payment_new_date": {
+        "en": ("New date to pay {label}: {title}", "You now have until {due} to pay {label} ({amount}) for \"{title}\". Payment details are in your client space."),
+        "fr": ("Nouvelle date pour {label} : {title}", "Vous avez maintenant jusqu'au {due} pour régler {label} ({amount}) pour « {title} ». Les coordonnées de paiement sont dans votre espace client."),
+    },
+    "deposit_your_turn": {
+        "en": ("It's your turn: {title}", "A place is ready for \"{title}\". To start, please pay the deposit ({amount}) by {due}. Work begins as soon as it is in."),
+        "fr": ("C'est votre tour : {title}", "Une place est prête pour « {title} ». Pour démarrer, merci de régler l'acompte ({amount}) avant le {due}. Le travail commence dès sa réception."),
+    },
+    "deposit_later": {
+        "en": ("Signed: {title}", "Thank you. \"{title}\" keeps its place in the queue: I'll ask for the deposit ({amount}) when its turn comes. Nothing to pay until then."),
+        "fr": ("Signé : {title}", "Merci. « {title} » garde sa place dans la file : je vous demanderai l'acompte ({amount}) quand viendra son tour. Rien à payer d'ici là."),
     },
     "payment_reminder": {
         "en": ("Reminder: {label} for {title}", "A friendly reminder: {label} ({amount}) is due by {due}. Without it the project cannot start or continue."),
@@ -131,7 +143,7 @@ EVENTS = {
     "studio_counter": {"en": ("Counter-offer on {ref}: {price}", "{client} countered \"{title}\" with {price}. {note}")},
     "studio_accepted": {"en": ("Accepted: {ref} at {price}", "{client} accepted \"{title}\". The contract is waiting for their signature.")},
     "studio_declined": {"en": ("Declined: {ref}", "{client} declined the proposal for \"{title}\". {note}")},
-    "studio_signed": {"en": ("Signed: {ref}", "{client} signed the contract for \"{title}\". The deposit is due within 5 days.")},
+    "studio_signed": {"en": ("Signed: {ref}", "{client} signed the contract for \"{title}\". {deposit}")},
     "studio_proof": {"en": ("Receipt to check: {ref}", "{client} uploaded a {method} receipt for {label} ({amount}).")},
     "studio_paid_online": {"en": ("Paid online: {ref}", "{client} paid {label} ({amount}) by {method}. It is confirmed: nothing to check.")},
     "studio_payment_attention": {"en": ("Check a payment: {ref}", "{note}")},
@@ -146,6 +158,10 @@ EVENTS = {
     "review_invite_account": {
         "en": ("A few words about {project}?", "Thank you again for building {project} with me. Would you share a few honest words and a rating? Your review form is waiting in your client space. Nothing is published without your consent."),
         "fr": ("Quelques mots sur {project} ?", "Merci encore d'avoir construit {project} avec moi. Accepteriez-vous de partager quelques mots sincères et une note ? Votre formulaire d'avis vous attend dans votre espace client. Rien n'est publié sans votre accord."),
+    },
+    "case_study_published": {
+        "en": ("{title} is on the website", "\"{title}\" is now in the OriginForge portfolio. Have a look; if anything should change, tell me in your client space."),
+        "fr": ("{title} est sur le site", "« {title} » est maintenant dans le portfolio OriginForge. Jetez un œil ; si quelque chose doit changer, dites-le-moi depuis votre espace client."),
     },
     "review_published": {
         "en": ("Your review is live", "Thank you. Your review of {title} is now on the website."),
@@ -175,6 +191,7 @@ EVENTS = {
     "studio_deposit_expired": {"en": ("Deposit not received: {ref}", "The deposit window for \"{title}\" closed; the project lapsed.")},
     "studio_message": {"en": ("Message from {client} on {ref}", "{preview}")},
     "studio_queue_next": {"en": ("Next in the queue: {ref}", "A place opened: {client}'s \"{title}\" is next. They were told it's their turn.")},
+    "studio_queue_deposit": {"en": ("Next in the queue: {ref}", "A place opened: {client}'s \"{title}\" is next and already signed. {deposit}")},
     "studio_review_due": {"en": ("Waiting for your answer: {ref}", "{client}'s \"{title}\" was sent {hours} h ago and still has no answer. The promise is a reply within 24 to 48 h.")},
 }
 
@@ -184,9 +201,26 @@ TEMPLATE = {
 }
 
 
+MONTHS = {
+    "en": ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+    "fr": ("janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."),
+}
+
+
+def _readable(value, lang: str):
+    """An ISO date ("2026-11-29") as people write it ("29 Nov 2026", "29 nov. 2026")."""
+    import re
+
+    if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        y, m, d = (int(x) for x in value.split("-"))
+        return f"{d} {MONTHS.get(lang, MONTHS['en'])[m - 1]} {y}"
+    return value
+
+
 def _render(key: str, lang: str, **ctx) -> tuple[str, str]:
     variants = EVENTS[key]
     subject, text = variants.get(lang) or variants["en"]
+    ctx = {k: _readable(v, lang) for k, v in ctx.items()}
     return subject.format(**ctx), text.format(**ctx)
 
 

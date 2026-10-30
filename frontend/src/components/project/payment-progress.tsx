@@ -25,7 +25,7 @@ function shareState(lang: Locale, p: P, c: Charge): string {
     return c.paid_by ? `${when} · ${fill(p.paidVia, { method: p.methods[c.paid_by] })}` : when;
   }
   if (c.status === "due") return c.overdue ? p.overdue : c.due_at ? fill(p.payBy, { date: day(lang, c.due_at) }) : p.statuses.due;
-  if (c.status === "scheduled") return p.progress.when[c.kind as keyof P["progress"]["when"]];
+  if (c.status === "scheduled") return c.kind === "deposit" ? p.progress.when.depositLater : p.progress.when[c.kind as keyof P["progress"]["when"]];
   return p.statuses[c.status as keyof P["statuses"]] ?? c.status;
 }
 

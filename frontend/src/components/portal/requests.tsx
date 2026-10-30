@@ -419,6 +419,8 @@ function nextAction(lang: Locale, t: T, side: Side, req: ProjectRequest, reload:
       }
       if (due) return <DueCharge {...props} engagement={eng} reference={req.reference} />;
       if (review) return <ClientReview {...props} engagement={eng} />;
+      // Signed while waiting in the queue: the deposit is asked when its turn comes.
+      if (eng.status === "awaiting_deposit") return <p className="max-w-2xl leading-relaxed text-ink">{t.project.pay.depositLaterLead}</p>;
     }
     return null;
   }

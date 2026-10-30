@@ -160,6 +160,10 @@ class Proposal(models.Model):
     # Off: the client can accept or decline, not counter (a fixed price on a
     # first offer, a final offer later in the discussion).
     negotiable = models.BooleanField(default=True)
+    # How long the client has to pay the deposit once signed (5 by default;
+    # longer for a request waiting in the queue). 0: not asked at signing,
+    # Younes asks for it when the project's turn comes.
+    deposit_days = models.PositiveSmallIntegerField(default=5)
 
     expires_at = models.DateTimeField()
     responded_at = models.DateTimeField(null=True, blank=True)

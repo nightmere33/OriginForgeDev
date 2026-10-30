@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { fill } from "@/i18n/fill";
 import { api } from "@/lib/api-client";
-import { money, type ProjectRequest } from "@/lib/lifecycle";
+import { day, money, type ProjectRequest } from "@/lib/lifecycle";
 import type { CarePlan, Currency } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ChoiceChip, Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -46,6 +46,8 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
     allow_cash: last?.allow_cash ?? false,
     negotiable: versions === 0 ? !FIXED_PRICE_SERVICES.includes(req.service ?? "") : true,
     note: "",
+    deposit_days: String(last?.deposit_days || 5),
+    deposit_later: last ? last.deposit_days === 0 : false,
   }));
   const [milestones, setMilestones] = useState(() => last?.milestones.map((m) => ({ title: m.title, days: String(m.days) })) ?? [{ title: "", days: "" }]);
   const [busy, setBusy] = useState(false);
@@ -67,6 +69,7 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
         title: form.title, scope: form.scope, deliverables: form.deliverables, exclusions: form.exclusions, note: form.note,
         price, currency: form.currency, plan: form.plan, timeline_days: Number(form.timeline_days) || 0, nda: form.nda, allow_cash: form.allow_cash,
         negotiable: lastWord ? false : form.negotiable,
+        deposit_days: form.deposit_later ? 0 : Math.min(90, Math.max(1, Number(form.deposit_days) || 5)),
         milestones: milestones.filter((m) => m.title.trim()).map((m) => ({ title: m.title.trim(), days: Number(m.days) || 0 })),
       });
       await reload();
@@ -143,6 +146,26 @@ export function ProposalBuilder({ lang, t, reload, req }: Omit<PanelProps, "side
           {schedule.map((pct) => `${pct} % · ${money(lang, Math.round((price * pct) / 100), form.currency)}`).join("   /   ")}
         </p>
         <p className="mt-2 text-sm text-faint">{st.scheduleHelp}</p>
+      </div>
+
+      {/* When the deposit is due: the usual five days, longer for someone waiting, or when their turn comes. */}
+      <div className="flex flex-col gap-4">
+        <p className="hud text-muted">{st.depositTiming}</p>
+        {req.queue && (
+          <Hud tone="ember" dot>
+            {req.queue.start ? fill(st.queuedHint, { n: req.queue.position, date: day(lang, req.queue.start, false) }) : fill(st.queuedHintSoon, { n: req.queue.position })}
+          </Hud>
+        )}
+        {!form.deposit_later && (
+          <Field label={st.depositDays} help={st.depositDaysHelp} className="max-w-sm">
+            {(a) => <Input id={a.id} aria-describedby={a.describedBy} inputMode="numeric" value={form.deposit_days}
+              onChange={(e) => set("deposit_days", e.target.value.replace(/\D/g, "").slice(0, 2))} />}
+          </Field>
+        )}
+        <div className="flex flex-col gap-1.5">
+          <Toggle label={st.depositLater} checked={form.deposit_later} onChange={(e) => set("deposit_later", e.target.checked)} />
+          <p className="text-sm text-faint">{st.depositLaterHelp}</p>
+        </div>
       </div>
 
       {lastWord ? (

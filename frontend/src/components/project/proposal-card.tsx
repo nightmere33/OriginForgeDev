@@ -128,6 +128,7 @@ export function ProposalCard({ lang, t, side, reload, proposal: p, compact }: Pa
                   </li>
                 ))}
               </ol>
+              <p className="mt-3 text-sm text-faint">{p.deposit_days ? fill(s.depositWithin, { n: p.deposit_days }) : s.depositLater}</p>
             </div>
             {p.milestones.length > 0 && (
               <div>

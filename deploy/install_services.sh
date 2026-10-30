@@ -88,7 +88,8 @@ Description=OriginForge website (Next.js)
 After=network.target originforge-django.service
 
 [Service]
-WorkingDirectory=$APP/frontend/.next/standalone
+# Its own release folder (build_frontend.sh swaps it in), never the build output.
+WorkingDirectory=/srv/originforge/next-live
 EnvironmentFile=$SH/frontend.env
 ExecStart=/usr/local/bin/node server.js
 $common

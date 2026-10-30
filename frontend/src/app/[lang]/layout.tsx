@@ -68,6 +68,9 @@ export const viewport: Viewport = {
 // Runs before first paint: motion-capable visitors start with the hero
 // letters hidden so the intro can form them. CSS clears the flag after 4s on
 // its own, so a failed script can never leave the wordmark invisible.
+// Before first paint too: motion-capable visitors get the reveals' hidden
+// starting state from CSS, so content never shows, vanishes and rises again.
+const MOTION_FLAG = `try{if(!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.dataset.motion='1'}}catch(e){}`;
 const INTRO_FLAG = `try{if(/^\\/(en|fr)\\/?$/.test(location.pathname)&&!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.dataset.intro='1'}}catch(e){}`;
 
 export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
@@ -84,7 +87,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_FLAG + INTRO_FLAG }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_FLAG + INTRO_FLAG + MOTION_FLAG }} />
       </head>
       <body className="grain min-h-dvh">
         <a

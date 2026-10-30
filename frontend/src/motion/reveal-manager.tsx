@@ -18,8 +18,12 @@ import { BEATS, atBeat } from "./intro";
  *                         instead: grid cells on a gap-px hairline grid must stay
  *                         opaque, or the grid's line colour flashes through
  *
- * Nothing is hidden in the server HTML. Only motion-capable visitors with JS
- * ever see the hidden state.
+ * Nothing is hidden in the server HTML for visitors who prefer reduced
+ * motion. For the others, a pre-paint flag (root layout) and the marker this
+ * component leaves let globals.css hide these elements from the first paint,
+ * so a page never shows, vanishes and rises again; each element is marked
+ * `data-shown` once its own starting state is set here, and a CSS failsafe
+ * shows anything left after 4s.
  */
 /** What actually animates for a [data-reveal] element. */
 const targets = (el: HTMLElement): HTMLElement[] =>
@@ -57,6 +61,7 @@ export default function RevealManager() {
       cleanups.push(() => cancelAnimationFrame(frame));
 
       gsap.utils.toArray<HTMLElement>("[data-choreo]").forEach((section) => {
+        section.dataset.shown = "";
         const rule = section.querySelector<HTMLElement>("[data-draw-rule]");
         const ticks = section.querySelectorAll<HTMLElement>("[data-draw-tick]");
         const eyebrow = section.querySelector<HTMLElement>("[data-draw-eyebrow]");
@@ -78,15 +83,28 @@ export default function RevealManager() {
         });
       });
 
+      const take = (el: HTMLElement) => {
+        el.dataset.shown = "";
+        ScrollTrigger.create({ trigger: el, start: "top 86%", once: true, onEnter: () => reveal(el) });
+      };
       gsap.utils.toArray<HTMLElement>("[data-reveal]:not([data-reveal-group] [data-reveal])").forEach((el) => {
         gsap.set(targets(el), revealFrom());
-        ScrollTrigger.create({ trigger: el, start: "top 86%", once: true, onEnter: () => reveal(el) });
+        take(el);
       });
+      // Content streamed in after this ran (a later Suspense boundary) is taken
+      // over the same way, before the CSS failsafe would show it unanimated.
+      const late = () => gsap.utils.toArray<HTMLElement>("[data-reveal]:not([data-shown])").forEach((el) => {
+        gsap.set(targets(el), revealFrom());
+        take(el);
+      });
+      const timers = [400, 1200, 2600].map((ms) => window.setTimeout(late, ms));
+      cleanups.push(() => timers.forEach(clearTimeout));
 
       gsap.utils.toArray<HTMLElement>("[data-reveal-group]").forEach((group) => {
         const items = Array.from(group.querySelectorAll<HTMLElement>("[data-reveal]"));
         if (!items.length) return;
         gsap.set(items.flatMap(targets), revealFrom());
+        items.forEach((item) => (item.dataset.shown = ""));
 
         if (group.hasAttribute("data-reveal-intro")) {
           // Opacity stays set: the copy lands before the intro ends, and the
@@ -107,5 +125,6 @@ export default function RevealManager() {
     return () => mm.revert();
   }, []);
 
-  return null;
+  // The marker globals.css looks for: this page runs the reveals.
+  return <span data-reveal-scope hidden />;
 }

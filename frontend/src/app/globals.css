@@ -342,6 +342,38 @@
   }
 }
 
+/* Pre-paint reveal state (RevealManager). On pages that run the reveals (its
+   [data-reveal-scope] marker), motion-capable visitors (the root layout's
+   data-motion flag) never see the content before its entrance: it starts
+   hidden, RevealManager sets each element's own starting state and marks it
+   data-shown, and the failsafe shows anything left after 4s. Grid cells
+   (data-reveal="contents") stay opaque; only their children wait. */
+html[data-motion] body:has([data-reveal-scope]) [data-reveal]:not([data-reveal="contents"]):not([data-shown]),
+html[data-motion] body:has([data-reveal-scope]) [data-reveal="contents"]:not([data-shown]) > *,
+html[data-motion] body:has([data-reveal-scope]) [data-choreo]:not([data-shown]) [data-draw-tick],
+html[data-motion] body:has([data-reveal-scope]) [data-choreo]:not([data-shown]) [data-draw-eyebrow] {
+  opacity: 0;
+  animation: reveal-failsafe 0s 4s forwards;
+}
+
+html[data-motion] body:has([data-reveal-scope]) [data-choreo]:not([data-shown]) [data-draw-rule] {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: reveal-failsafe-rule 0s 4s forwards;
+}
+
+@keyframes reveal-failsafe {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reveal-failsafe-rule {
+  to {
+    transform: none;
+  }
+}
+
 /* The wordmark's steel fill is its parent's background clipped to the
    letters' text, and that clip ignores the letters' own opacity: they hide
    with visibility too (hero-intro.tsx shows them as they form). */

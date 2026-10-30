@@ -27,7 +27,7 @@ export default function ReviewsSection({
     <SectionShell id="reviews" ruler={r.label}>
       <SectionEyebrow index={index} label={r.label} annotation={r.annotation} />
       <SectionHeading title={<Accented parts={r.title} />} lead={r.lead} />
-      <div className="grid border-t border-line lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+      <div className="grid grid-cols-1 border-t border-line lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
         <aside className="border-b border-line px-6 py-10 md:px-10 lg:border-b-0 lg:border-r lg:py-14">
           <div data-reveal className="lg:sticky lg:top-[calc(var(--nav-h)+5rem)]">
             <p className="flex items-start font-display leading-none tracking-[-0.05em] text-ink-strong [font-stretch:125%] [font-weight:620]">
@@ -55,7 +55,7 @@ export default function ReviewsSection({
           </div>
         </aside>
 
-        <ul data-reveal-group className="grid md:grid-cols-2">
+        <ul data-reveal-group className="grid grid-cols-1 md:grid-cols-2">
           {items.map((rv, i) => (
             <li
               key={rv.id}

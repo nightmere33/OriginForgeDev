@@ -63,6 +63,10 @@ EVENTS = {
         "en": ("{days} days of maintenance left for {title}", "Maintenance for \"{title}\" runs until {until}. Report anything that needs fixing before then, or ask to extend it, in the conversation."),
         "fr": ("Plus que {days} jours de maintenance pour {title}", "La maintenance de « {title} » court jusqu'au {until}. Signalez ce qui doit être corrigé d'ici là, ou demandez à la prolonger, dans la conversation."),
     },
+    "maintenance_last_day": {
+        "en": ("Last day of maintenance for {title}", "Maintenance for \"{title}\" ends on {until}. Report anything that needs fixing today, or ask to extend it, in the conversation."),
+        "fr": ("Dernier jour de maintenance pour {title}", "La maintenance de « {title} » se termine le {until}. Signalez aujourd'hui ce qui doit être corrigé, ou demandez à la prolonger, dans la conversation."),
+    },
     "maintenance_ended": {
         "en": ("Maintenance has ended for {title}", "Maintenance for \"{title}\" has ended. The conversation stays open until {closes}; after that it closes unless maintenance is extended."),
         "fr": ("La maintenance de {title} est terminée", "La maintenance de « {title} » est terminée. La conversation reste ouverte jusqu'au {closes}, puis elle se ferme sauf si la maintenance est prolongée."),
@@ -164,6 +168,7 @@ EVENTS = {
     "studio_ticket_reply": {"en": ("Reply from {client} ({tier}): {subject}", "{preview}")},
     "studio_ticket_overdue": {"en": ("Overdue ({tier}): {subject}", "{client} has waited past the {hours} h reply target.")},
     "studio_care_ending": {"en": ("Maintenance ending: {ref}", "{client}'s \"{title}\" has {days} days of maintenance left.")},
+    "studio_care_last_day": {"en": ("Maintenance ending: {ref}", "{client}'s \"{title}\" is on its last day of maintenance.")},
     "studio_care_ended": {"en": ("Maintenance ended: {ref}", "{client}'s \"{title}\" is out of maintenance; the conversation closes on {closes} unless you extend it.")},
     "studio_issue": {"en": ("Problem reported on {ref}", "{client} reported a problem on the live project: {note}")},
     "studio_approved": {"en": ("Approved: {ref}", "{client} approved \"{what}\".")},

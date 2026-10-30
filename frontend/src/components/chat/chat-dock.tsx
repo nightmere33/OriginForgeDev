@@ -283,9 +283,11 @@ export function ChatDock({ lang, t }: { lang: Locale; t: DockT }) {
   // Which spaces this person has. The assistant helps those without work with
   // Younes yet (guests, new accounts); once a request is sent, the client
   // talks to Younes directly: Projects, and Support for anything else.
+  // A past client (every project conversation closed) lands on Support, where they can still write.
+  const live = (items ?? []).some((r) => r.summary?.chat !== "closed");
   const spaces: Space[] = !signedIn ? ["assistant"]
     : side === "studio" ? ["support", "projects"]
-    : (items?.length ?? 0) > 0 ? ["projects", "support"] : ["assistant", "support"];
+    : (items?.length ?? 0) > 0 ? (live ? ["projects", "support"] : ["support", "projects"]) : ["assistant", "support"];
   const projectUnread = (items ?? []).reduce((n, r) => n + (r.summary?.unread ?? 0), 0);
   const ticketUnread = (tickets ?? []).reduce((n, x) => n + (x.unread ?? 0), 0);
   const fallback: Space = side === "studio" ? ((tickets ?? []).some((x) => x.status === "open") ? "support" : "projects")

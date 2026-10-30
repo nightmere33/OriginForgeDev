@@ -70,6 +70,14 @@ export function TicketThread({ lang, t, side, reference, paused = false }: {
       {ticket && (
         <div className="flex shrink-0 flex-col gap-2 border-b border-line px-4 py-3">
           <StandingLine lang={lang} t={t} side={side} ticket={ticket} />
+          {/* The project it is about (a bug after delivery), one tap away. */}
+          {ticket.request && (
+            <Link href={`/${lang}/${side === "studio" ? "studio" : "portal"}/requests/${ticket.request.reference}`}
+              className="hud flex items-center gap-1 self-start text-ember-400 hover:underline">
+              {ticket.request.title || ticket.request.reference} · {ticket.request.reference}
+              <ArrowUpRight aria-hidden className="size-3" />
+            </Link>
+          )}
           <span className="flex flex-wrap gap-2">
             {side === "studio" ? (
               <>

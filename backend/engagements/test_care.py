@@ -49,7 +49,10 @@ class CareTests(LifecycleBase):
 
         tick(now=ends - timedelta(hours=20))  # 7 and 3 were skipped by the clock: one reminder, the latest
         self.assertEqual([c.get("days") for c in self.cards(eng) if c["event"] == "reminder"], [15, 1])
-        self.assertTrue(Notification.objects.filter(user=self.dev, key="studio_care_ending").exists())
+        # The last day has its own words (never "1 days"), for the client and the studio.
+        self.assertTrue(Notification.objects.filter(user=self.alice, key="maintenance_last_day").exists())
+        self.assertTrue(Notification.objects.filter(user=self.dev, key="studio_care_last_day").exists())
+        self.assertIn("Last day of maintenance", Message.objects.filter(request=eng.request, kind="care").last().body)
 
         tick(now=ends + timedelta(minutes=5))
         eng.refresh_from_db()

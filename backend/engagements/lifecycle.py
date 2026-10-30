@@ -758,11 +758,13 @@ def care_card(req, event: str, **data):
     texts = {
         "started": "Maintenance is on until {until}.",
         "reminder": "{days} days of maintenance left (until {until}).",
+        "last_day": "Last day of maintenance: it ends on {until}.",
         "ended": "Maintenance has ended. This conversation closes on {closes} unless it is extended.",
         "extended": "Maintenance extended until {until}.",
         "closed": "This conversation is closed.",
     }
-    message = Message.objects.create(request=req, sender=studio, kind=Message.Kind.CARE, body=texts[event].format(**data), data={"event": event, **data})
+    text = texts["last_day" if event == "reminder" and data.get("days") == 1 else event]
+    message = Message.objects.create(request=req, sender=studio, kind=Message.Kind.CARE, body=text.format(**data), data={"event": event, **data})
     transaction.on_commit(lambda: _announce(message))
     return message
 
@@ -795,10 +797,13 @@ def _care_tick(eng, now) -> str:
         Engagement.objects.filter(pk=eng.pk).update(care_reminders_sent=crossed)
         until = ends.date().isoformat()
         care_card(req, "reminder", days=days, until=until)
-        notify_client("maintenance_reminder", req.client, _path(req, "messages"), title=req.title, days=days, until=until)
+        # "1 days" reads wrong: the last day has its own words.
+        last = days == 1
+        notify_client("maintenance_last_day" if last else "maintenance_reminder", req.client, _path(req, "messages"),
+                      title=req.title, days=days, until=until)
         if days <= 3:
-            notify_studio_event("studio_care_ending", _studio_path(req, "messages"), ref=req.reference, client=req.client.full_name,
-                                title=req.title, days=days)
+            notify_studio_event("studio_care_last_day" if last else "studio_care_ending", _studio_path(req, "messages"), ref=req.reference,
+                                client=req.client.full_name, title=req.title, days=days)
         return "reminder"
     if eng.care_ended_at is None:
         closes = now + CARE_GRACE
